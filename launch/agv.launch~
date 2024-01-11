@@ -1,0 +1,11 @@
+<launch>
+
+  <!-- AGV1 platform -->
+  <include  file="$(find aibot_hw)/launch/chassis_hw.launch" />
+
+  <!-- USB camera -->
+
+  <!-- Landing Tracking Motion -->
+  <!-- TODO -->
+
+</launch>
