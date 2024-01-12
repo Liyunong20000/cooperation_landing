@@ -41,14 +41,14 @@ class AprilfollowNode:
     def _callback_apriltag(self, data):
         # get the apriltag`s position information compare with camera coordination
 	    # use transform to gain the
-        transform = self.tf_buffer.lookup_transform('landing_gear_frame', 'Target', rospy.Time.now(),rospy.Duration(0.1))
+        transform = self.tf_buffer.lookup_transform('land_camera_upward_frame', 'Target', rospy.Time.now(),rospy.Duration(0.1))
         self.april_x = transform.transform.translation.x
         self.april_y = transform.transform.translation.y
         #self.april_z = transform.transform.translation.z
 
 
     # write a AGV nav function
-    def agv_nav_info(self, lx, ly,az):
+    def agv_nav_info(self, lx, ly, az):
         agv_nav_msg = Twist()
         agv_nav_msg.linear.x = lx
         agv_nav_msg.linear.y = ly
@@ -56,19 +56,27 @@ class AprilfollowNode:
 
         self.pub_nav.publish(agv_nav_msg)
 
+    def dddprint(self):
+        while not rospy.is_shutdown():
+            rate = rospy.Rate(1)
+
+            print(f'x = {self.april_x},y = {self.april_y}')
+            rate.sleep()
+
 
     def follow_camera(self):
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            self.lvol_x = 0.5 * self.april_x
-            self.lvol_y = 0.5 * self.april_y
-            self.agv_nav_info(self.lvol_x, self.lvol_y, self.avol_z)
+            self.lvol_x = - 0.8 * self.april_x
+            self.lvol_y = - 0.8 * self.april_y
+            self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
+
             rate.sleep()
 
 
 if __name__ == '__main__':
     node = AprilfollowNode()
     node.follow_camera()
-
+    #node.dddprint()
     while not rospy.is_shutdown():
         rospy.spin()
