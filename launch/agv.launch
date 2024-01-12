@@ -3,11 +3,12 @@
   <!-- AGV1 platform -->
   <include  file="$(find aibot_hw)/launch/chassis_hw.launch" />
 
-  <!-- static publisher TF camera frame -->
-  <!-- add a gear-->
-  <node pkg="tf" type="static_transform_publisher" name="land_camera_upward_broadcaster" args="-0.093 0 0.114 0 -1.5707 0 /extend_front_link  /land_camera_upward_frame 50" />
+  <!-- static punlisher TF landing gear frame-->
+  <node pkg="tf" type="static_transform_publisher" name="landing_gear_broadcaster" args="0 0 0.120 3.1415 0 0 /extend_front_link  /landing_gear_frame 50" />
+  <!-- static publisher TF camera frame-->
+  <node pkg="tf" type="static_transform_publisher" name="land_camera_upward_broadcaster" args="0.093 0 -0.011 3.1415 -1.5707 0 /landing_gear_frame  /land_camera_upward_frame 50" />
   <!-- static publisher TF optical camera frame-->
-  <node pkg="tf" type="static_transform_publisher" name="land_camera_upward_optical_broadcaster" args="0 0 0 0 1.5707 0 /land_camera_upward_frame  /land_camera_upward_optical_frame 50" />
+  <node pkg="tf" type="static_transform_publisher" name="land_camera_upward_optical_broadcaster" args="0 0 0 -1.5707 0 -1.5707 /land_camera_upward_frame  /land_camera_upward_optical_frame 50" />
   <!-- USB camera -->
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
     <param name="video_device" value="/dev/video1" />
