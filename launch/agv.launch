@@ -4,12 +4,30 @@
   <include  file="$(find aibot_hw)/launch/chassis_hw.launch" />
 
   <!-- static publisher TF camera frame -->
-  <node pkg="tf" type="static_transform_publisher" name="land_camera_broadcaster" args="-0.093 0 0.114 0 -1.5707 0 /extend_front_link  /land_camera 50" />
+  add a gear
+  <node pkg="tf" type="static_transform_publisher" name="land_camera_broadcaster" args="-0.093 0 0.114 0 -1.5707 0 /extend_front_link  /land_camera_frame 50" />
   <!-- static publisher TF optical camera frame-->
-  <node pkg="tf" type="static_transform_publisher" name="land_camera_optical_broadcaster" args="0 0 0 0 1.5707 0 /land_camera  /land_camera_optical 50" />
+  <node pkg="tf" type="static_transform_publisher" name="land_camera_optical_broadcaster" args="0 0 0 0 1.5707 0 /land_camera_frame  /land_camera_optical_frame 50" />
   <!-- USB camera -->
-
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+    <param name="video_device" value="/dev/video0" />
+    <param name="image_width" value="640" />
+    <param name="image_height" value="480" />
+    <param name="framerate" value="30.0" />
+    <param name="pixel_format" value="yuyv" />
+    <param name="color_format" value="yuv422p" />
+    <param name="camera_frame_id" value="/land_camera_optical_frame" />
+    <param name="io_method" value="mmap"/>
+    <param name="camera_info_url" value="file://$(find cooperation_landing)/config/camera_info/ELP-L100/480P/calibrationdata_1/ost.yaml" />
+    <remap from="usb_cam/image_raw" to= "land_camera/image_raw"/>
+    <remap from="usb_cam/camera_info" to= "land_camera/camera_info"/>
+  </node>
   <!-- Landing Tracking Motion -->
+   <!-- <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+    <arg name="camera_name" value="/land_camera" />
+    <arg name="image_topic" value="image_raw" />
+  </include>
+  <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/tags.yaml" ns="/apriltag_ros_continuous_node"/>-->
   <!-- TODO -->
 
 </launch>
