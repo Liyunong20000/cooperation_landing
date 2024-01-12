@@ -4,8 +4,9 @@
   <include  file="$(find aibot_hw)/launch/chassis_hw.launch" />
 
   <!-- static publisher TF camera frame -->
-  <node pkg="tf" type="static_transform_publisher" name="land_camera_broadcaster" args="0 0 0.05 0 0 0 /extend_front_link  /land_camera 50" />
-
+  <node pkg="tf" type="static_transform_publisher" name="land_camera_broadcaster" args="0.093 0 0.114 0 ${-pi/2} 0 /extend_front_link  /land_camera 50" />
+  <!-- static publisher TF optical camera frame-->>
+  <node pkg="tf" type="static_transform_publisher" name="land_camera_optical_broadcaster" args="0 0 0 ${-pi/2} ${pi/2} 0 /extend_front_link  /land_camera 50" />
   <!-- USB camera -->
 
   <!-- Landing Tracking Motion -->
