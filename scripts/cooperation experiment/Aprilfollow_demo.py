@@ -2,11 +2,15 @@
 # -*- coding: utf-8 -*-
 import rospy, sys
 import time
+import math
 import tf2_ros
 import tf
+from std_msgs.msg import Empty, UInt8
+from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
+from nav_msgs.msg import Odometry
 from geometry_msgs.msg import TransformStamped
-
+from geometry_msgs.msg import Twist
 
 # It is for Apirltag following demo for MyAGV
 
@@ -28,7 +32,6 @@ class AprilfollowNode:
         #rospy.Subscriber('/odom', Odometry, self._callback_position)
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
         self.pub_nav = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-        #!!!订阅AGV位置的话题
 
         self.tf_buffer = tf2_ros.Buffer()
         # Initialize a TransformListener
@@ -38,31 +41,28 @@ class AprilfollowNode:
     def _callback_apriltag(self, data):
         # get the apriltag`s position information compare with camera coordination
 	    # use transform to gain the
-        transform = self.tf_buffer.lookup_transform('land_camera_frame', 'Target', rospy.Time.now(),rospy.Duration(0.1))
+        transform = self.tf_buffer.lookup_transform('landing_gear_frame', 'Target', rospy.Time.now(),rospy.Duration(0.1))
         self.april_x = transform.transform.translation.x
         self.april_y = transform.transform.translation.y
-        self.april_z = transform.transform.translation.z
+        #self.april_z = transform.transform.translation.z
 
-        rate = rospy.Rate(10)
+
     # write a AGV nav function
-    def agv_nav_info(self, lx, ly, lz, ax, ay, az):
+    def agv_nav_info(self, lx, ly,az):
         agv_nav_msg = Twist()
         agv_nav_msg.linear.x = lx
         agv_nav_msg.linear.y = ly
-        agv_nav_msg.linear.z = lz
-
-        agv_nav_msg.angular.x = ax
-        agv_nav_msg.angular.y = ay
         agv_nav_msg.angular.z = az
 
         self.pub_nav.publish(agv_nav_msg)
 
 
     def follow_camera(self):
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            lvol_x = 0.5 * april_x
-            lvol_y = 0.5 * april_y
-            self.nav_info(self.lvol_x, self.lvol_y, self.lvol_z, self.avol_x, self.avol_y, self.avol_z)
+            self.lvol_x = 0.5 * self.april_x
+            self.lvol_y = 0.5 * self.april_y
+            self.agv_nav_info(self.lvol_x, self.lvol_y, self.avol_z)
             rate.sleep()
 
 
