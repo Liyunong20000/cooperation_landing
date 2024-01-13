@@ -27,6 +27,7 @@ class AprilfollowNode:
         self.avol_x, self.avol_y, self.avol_z = 0.0, 0.0, 0.0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self._seq = 0
+        self.D = 0
 
         # Subscribe and publish.
         #rospy.Subscriber('/odom', Odometry, self._callback_position)
@@ -36,18 +37,18 @@ class AprilfollowNode:
         self.tf_buffer = tf2_ros.Buffer()
         # Initialize a TransformListener
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
-	
-      
+
     def _callback_apriltag(self, data):
         # get the apriltag`s position information compare with camera coordination
-	    # use transform to gain the
+        if data.detections:
+            self.D = 1
+        else:
+            self.D = 0
         transform = self.tf_buffer.lookup_transform('land_camera_upward_frame', 'Target', rospy.Time.now(),rospy.Duration(0.1))
         self.april_x = transform.transform.translation.x
         self.april_y = transform.transform.translation.y
-        #self.april_z = transform.transform.translation.z
 
 
-    # write a AGV nav function
     def agv_nav_info(self, lx, ly, az):
         agv_nav_msg = Twist()
         agv_nav_msg.linear.x = lx
@@ -65,13 +66,17 @@ class AprilfollowNode:
 
 
     def follow_camera(self):
-        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            self.lvol_x = - 0.8 * self.april_x
-            self.lvol_y = - 0.8 * self.april_y
-            self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
-
+            rate = rospy.Rate(5)
+            if self.D:
+                self.lvol_x = - 1.5 * self.april_x
+                self.lvol_y = - 1.5 * self.april_y
+                self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
+                self.D = 0
+            else:
+                self.agv_nav_info(0, 0, 0)
             rate.sleep()
+
 
 
 if __name__ == '__main__':
