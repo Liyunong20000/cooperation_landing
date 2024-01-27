@@ -12,7 +12,7 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import CameraInfo
-
+from dynamic_reconfigure.server import Server
 # It is for Apirltag following demo for MyAGV
 
 # use the class to create a node
@@ -25,7 +25,7 @@ class AprilfollowNode:
 
         self.agv_x, self.agv_y, self.agv_z = 0.0, 0.0, 0.0
         self.lvol_x, self.lvol_y, self.lvol_z = 0.0, 0.0, 0.0
-        self.avol_x, self.avol_y, self.avol_z = 0.0, 0.0, 0.0
+        self.anglevol_x, self.anglevol_y, self.anglevol_z = 0.0, 0.0, 0.0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self._seq = 0
         self.D = 0
@@ -39,9 +39,12 @@ class AprilfollowNode:
         #rospy.Subscriber('/usb_cam/camera_info', CameraInfo, self._callback_camera_raw)
         self.pub_nav = rospy.Publisher('/cmd_vel', Twist, queue_size=10, tcp_nodelay=True)
         # transport_hint='tcpNoDelay'
-        self.tf_buffer = tf2_ros.Buffer()
+        #self.tf_buffer = tf2_ros.Buffer()
         # Initialize a TransformListener
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        #self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        rospy.set_param('/move_parameter', 0.7)
+        self.move_parameter = rospy.get_param("/move_parameter")
+
 
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
@@ -50,14 +53,15 @@ class AprilfollowNode:
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
             #rospy.loginfo("????????????????????????????????detect tag!")
+            a = data.detections[0]
+            self.april_x = a.pose.pose.pose.position.x
+            self.april_y = a.pose.pose.pose.position.y
             self.D = 1
         else:
             self.D = 0
-        transform = self.tf_buffer.lookup_transform('land_camera_upward_optical_frame', 'Target', rospy.Time.now(),
-                                                    rospy.Duration(0.1))
-        self.april_x = transform.transform.translation.x
-        self.april_y = transform.transform.translation.y
 
+
+        #orientation = detection.pose.pose.pose.orientation
 
 
     def _callback_camera_raw(self, data):
@@ -86,15 +90,17 @@ class AprilfollowNode:
         rate = rospy.Rate(ctl_rate)
         while not rospy.is_shutdown():
             if self.D:
-                self.lvol_x =  1 * self.april_y
-                self.lvol_y = - 1 * self.april_x
+                self.lvol_x =  self.move_parameter * self.april_y
+                self.lvol_y =  - self.move_parameter * self.april_x
                 self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
+                # if -0.5 < self.lvol_x < 0.5 and -0.5< self.lvol_y < 0.5:
+                #
+                #     if (rospy.Time.now() - self.time_rece).to_sec() > 0.5:
+                #         self.D = 0
 
-                if (rospy.Time.now() - self.time_rece).to_sec() > 0.2:
-                    self.D = 0
             else:
                 self.agv_nav_info(0, 0, 0)
-                self.D = 0
+
             rate.sleep()
 
 
