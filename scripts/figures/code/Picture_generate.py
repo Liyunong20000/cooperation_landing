@@ -11,7 +11,7 @@ image0 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aeri
 
 # 设定固定大小
 #new_width, new_height = 713, 713
-new_width, new_height = 300, 300
+new_width, new_height = 437, 437
 # 调整图片大小
 image0_resized = image0.resize((new_width, new_height))
 # image1_resized = image1.resize((new_width, new_height))
@@ -36,4 +36,4 @@ result_image.paste(image0_resized, (100, 100))
 
 
 # 保存结果
-result_image.save("Apriltag_000.jpg")
+result_image.save("Apriltag_32.jpg")

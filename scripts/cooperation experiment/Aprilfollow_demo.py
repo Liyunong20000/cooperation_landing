@@ -17,6 +17,7 @@ from dynamic_reconfigure.server import Server
 
 # use the class to create a node
 
+
 class AprilfollowNode:
 
     def __init__(self):  # This part will work when this node is used.
@@ -36,39 +37,42 @@ class AprilfollowNode:
         # rospy.Subscriber('/odom', Odometry, self._callback_position)
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
         rospy.Subscriber('/land_camera_upward/camera_info', CameraInfo, self._callback_camera_raw)
-        #rospy.Subscriber('/usb_cam/camera_info', CameraInfo, self._callback_camera_raw)
+        # rospy.Subscriber('/usb_cam/camera_info', CameraInfo, self._callback_camera_raw)
         self.pub_nav = rospy.Publisher('/cmd_vel', Twist, queue_size=10, tcp_nodelay=True)
         # transport_hint='tcpNoDelay'
-        #self.tf_buffer = tf2_ros.Buffer()
+        # self.tf_buffer = tf2_ros.Buffer()
         # Initialize a TransformListener
-        #self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         rospy.set_param('/move_parameter', 0.7)
         self.move_parameter = rospy.get_param("/move_parameter")
 
-
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
-        #print(f'apriltag:{current_time.to_sec()}')
+        # print(f'apriltag:{current_time.to_sec()}')
 
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
-            #rospy.loginfo("????????????????????????????????detect tag!")
+            # rospy.loginfo("????????????????????????????????detect tag!")
             a = data.detections[0]
             self.april_x = a.pose.pose.pose.position.x
             self.april_y = a.pose.pose.pose.position.y
             self.D = 1
+            self.lvol_x = self.move_parameter * self.april_y
+            self.lvol_y = - self.move_parameter * self.april_x
+
+            if abs(self.lvol_x) < 0.5 and abs(self.lvol_y) < 0.5:
+                self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
         else:
             self.D = 0
+            self.agv_nav_info(0, 0, 0)
 
-
-        #orientation = detection.pose.pose.pose.orientation
-
+        # orientation = detection.pose.pose.pose.orientation
 
     def _callback_camera_raw(self, data):
         current_time = rospy.Time.now()
 
-        #print(f'camera_info:{current_time.to_sec()}')
-        #rospy.loginfo("------------------------------------camera!")
+        # print(f'camera_info:{current_time.to_sec()}')
+        # rospy.loginfo("------------------------------------camera!")
     def agv_nav_info(self, lx, ly, az):
         agv_nav_msg = Twist()
         agv_nav_msg.linear.x = lx
@@ -86,27 +90,28 @@ class AprilfollowNode:
             print(f'x = {self.april_x},y = {self.april_y}')
             rate.sleep()
 
-    def follow_camera(self, ctl_rate: int):
-        rate = rospy.Rate(ctl_rate)
-        while not rospy.is_shutdown():
-            if self.D:
-                self.lvol_x =  self.move_parameter * self.april_y
-                self.lvol_y =  - self.move_parameter * self.april_x
-                self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
-                # if -0.5 < self.lvol_x < 0.5 and -0.5< self.lvol_y < 0.5:
-                #
-                #     if (rospy.Time.now() - self.time_rece).to_sec() > 0.5:
-                #         self.D = 0
-
-            else:
-                self.agv_nav_info(0, 0, 0)
-
-            rate.sleep()
+    # def follow_camera(self, ctl_rate: int):
+    #     rate = rospy.Rate(ctl_rate)
+    #     while not rospy.is_shutdown():
+    #         if self.D:
+    #             self.lvol_x =  self.move_parameter * self.april_y
+    #             self.lvol_y =  - self.move_parameter * self.april_x
+    #
+    #             if -0.5 < self.lvol_x < 0.5 and -0.5< self.lvol_y < 0.5:
+    #                 self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
+    #
+    #             #     if (rospy.Time.now() - self.time_rece).to_sec() > 0.5:
+    #             #         self.D = 0
+    #
+    #         else:
+    #             self.agv_nav_info(0, 0, 0)
+    #
+    #         rate.sleep()
 
 
 if __name__ == '__main__':
     node = AprilfollowNode()
-    node.follow_camera(10)
+    # node.follow_camera(10)
     # node.dddprint()
     # while not rospy.is_shutdown():
     rospy.spin()
