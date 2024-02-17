@@ -168,6 +168,7 @@ class AprillandagvNode:
                 plus = plus + self.flag
                 print(f'plus = {plus}')
             if plus == 0:
+                self.beginfollow = 0
                 self.land()
                 print(f'landon')
                 break
