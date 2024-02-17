@@ -3,8 +3,6 @@
 import rospy, sys
 import time
 import math
-import tf2_ros
-import tf
 from std_msgs.msg import Empty, UInt8
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -17,11 +15,11 @@ from sensor_msgs.msg import CameraInfo
 
 # use the class to create a node
 
-class AprillandagvNode:
+class AprilmoveagvNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprillandagv', anonymous=True)
+        rospy.init_node('Aprilmoveagv', anonymous=True)
 
         self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
@@ -30,13 +28,12 @@ class AprillandagvNode:
         self.anglevol_x, self.anglevol_y, self.anglevol_z = 0.0, 0.0, 0.0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self.D = 0
-
+        self.flag = 0
         self.time_rece = rospy.Time()
         self._seq = 0
         self.state = 0
         self.beginland = 0
         self.beginfollow = 0
-        self.flag = 0
 
         # Subscribe and publish.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
@@ -50,9 +47,9 @@ class AprillandagvNode:
 
         rospy.set_param('/move_parameter', 0.7)
         self.move_parameter = rospy.get_param("/move_parameter")
-        rospy.set_param('/converge_interval', 0.05)
+        rospy.set_param('/converge_interval', 0.04)
         self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/above_z', 0.45)
+        rospy.set_param('/above_z', 0.60)
         self.above_z = rospy.get_param("/above_z")
 
     def _callback_apriltag(self, data):
@@ -61,17 +58,8 @@ class AprillandagvNode:
             a = data.detections[0]
             self.april_x = a.pose.pose.pose.position.x
             self.april_y = a.pose.pose.pose.position.y
-            # self.D = 1
-            if self.beginfollow == 1:
-
-                self.lvol_x = self.move_parameter * self.april_y
-                self.lvol_y = - self.move_parameter * self.april_x
-                if abs(self.lvol_x) < 0.5 and abs(self.lvol_y) < 0.5:
-                    self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
         else:
             self.D = 0
-            if self.beginfollow == 1:
-                self.agv_nav_info(0, 0, 0)
 
     # Get the position information of the drone
     def _callback_position(self, odom_msg):  
@@ -110,13 +98,13 @@ class AprillandagvNode:
         self.takeoff_z = self.drone_z
         print(self.takeoff_x, self.takeoff_y)
 
-    def agv_nav_info(self, lx, ly, az):
-        agv_nav_msg = Twist()
-        agv_nav_msg.linear.x = lx
-        agv_nav_msg.linear.y = ly
-        agv_nav_msg.angular.z = az
-
-        self.pub_agv_nav.publish(agv_nav_msg)
+    # def agv_nav_info(self, lx, ly, az):
+    #     agv_nav_msg = Twist()
+    #     agv_nav_msg.linear.x = lx
+    #     agv_nav_msg.linear.y = ly
+    #     agv_nav_msg.angular.z = az
+    #
+    #     self.pub_agv_nav.publish(agv_nav_msg)
 
     def drone_nav_info(self, x, y, z):
         flight_nav_msg = FlightNav()
@@ -149,7 +137,7 @@ class AprillandagvNode:
         number = i
         while not rospy.is_shutdown():
             number = number - 1
-            if abs(self.april_x) < 0.02 and abs(self.april_y) < 0.02:
+            if abs(self.april_x) < 0.04 and abs(self.april_y) < 0.04:
                 i = i - 1
             if number == 0:
                 break
@@ -157,10 +145,13 @@ class AprillandagvNode:
         self.flag = i
 
     def drone_landing_condition(self):
+
         while not rospy.is_shutdown():
             i = 2
             plus = 0
             self.flag = 0
+            # begin = rospy.get_time()
+            # eng = begin + rospy.Duration(2)
 
             while i > 0:
                 i = i - 1
@@ -171,6 +162,8 @@ class AprillandagvNode:
                 self.land()
                 print(f'landon')
                 break
+            else:
+                return
 
     def come_back(self):
         while not rospy.is_shutdown():
@@ -181,11 +174,12 @@ class AprillandagvNode:
         self.drone_nav_info(self.takeoff_x, self.takeoff_y, tz)
         print(f'Move to above takeoff_Z')
         self.converge(self.takeoff_x, self.takeoff_y, tz)
-        self.beginfollow = 1
+
+
 
 
 if __name__ == '__main__':
-    node = AprillandagvNode()
+    node = AprilmoveagvNode()
     time.sleep(3)
     node.record_takeoff_position()
     node.takeoff()

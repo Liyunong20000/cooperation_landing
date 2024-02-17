@@ -43,7 +43,7 @@ class AprilfollowNode:
         # self.tf_buffer = tf2_ros.Buffer()
         # Initialize a TransformListener
         # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
-        rospy.set_param('/move_parameter', 0.7)
+        rospy.set_param('/move_parameter', 0.8)
         self.move_parameter = rospy.get_param("/move_parameter")
 
     def _callback_apriltag(self, data):
@@ -52,15 +52,20 @@ class AprilfollowNode:
 
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
-            # rospy.loginfo("????????????????????????????????detect tag!")
+            #rospy.loginfo("latest arigtarg timestamp: {}".format(data.header.stamp.to_sec()))
             a = data.detections[0]
             self.april_x = a.pose.pose.pose.position.x
             self.april_y = a.pose.pose.pose.position.y
             self.D = 1
             self.lvol_x = self.move_parameter * self.april_y
             self.lvol_y = - self.move_parameter * self.april_x
+            apriltag_time = rospy.Time.now()
 
+            #print(f'apriltag_time:{apriltag_time.to_sec()}')
             if abs(self.lvol_x) < 0.5 and abs(self.lvol_y) < 0.5:
+                navigation_time = rospy.Time.now()
+
+                #print(f'navigation_time:{navigation_time.to_sec()}')
                 self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
         else:
             self.D = 0
