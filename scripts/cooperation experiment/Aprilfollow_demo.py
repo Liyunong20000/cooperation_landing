@@ -29,7 +29,7 @@ class AprilfollowNode:
         self.anglevol_x, self.anglevol_y, self.anglevol_z = 0.0, 0.0, 0.0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self._seq = 0
-        self.D = 0
+        self.D = 1
 
         self.time_rece = rospy.Time()
 
@@ -95,23 +95,6 @@ class AprilfollowNode:
             print(f'x = {self.april_x},y = {self.april_y}')
             rate.sleep()
 
-    # def follow_camera(self, ctl_rate: int):
-    #     rate = rospy.Rate(ctl_rate)
-    #     while not rospy.is_shutdown():
-    #         if self.D:
-    #             self.lvol_x =  self.move_parameter * self.april_y
-    #             self.lvol_y =  - self.move_parameter * self.april_x
-    #
-    #             if -0.5 < self.lvol_x < 0.5 and -0.5< self.lvol_y < 0.5:
-    #                 self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
-    #
-    #             #     if (rospy.Time.now() - self.time_rece).to_sec() > 0.5:
-    #             #         self.D = 0
-    #
-    #         else:
-    #             self.agv_nav_info(0, 0, 0)
-    #
-    #         rate.sleep()
 
 
 if __name__ == '__main__':

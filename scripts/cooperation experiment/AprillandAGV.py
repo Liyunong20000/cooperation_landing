@@ -52,7 +52,7 @@ class AprillandagvNode:
         self.move_parameter = rospy.get_param("/move_parameter")
         rospy.set_param('/converge_interval', 0.05)
         self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/above_z', 0.45)
+        rospy.set_param('/above_z', 0.3)
         self.above_z = rospy.get_param("/above_z")
 
     def _callback_apriltag(self, data):
