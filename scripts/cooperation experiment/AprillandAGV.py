@@ -158,7 +158,7 @@ class AprillandagvNode:
 
     def drone_landing_condition(self):
         while not rospy.is_shutdown():
-            i = 2
+            i = 1
             plus = 0
             self.flag = 0
 
@@ -179,11 +179,17 @@ class AprillandagvNode:
                 break
             time.sleep(0.1)
         tz = self.takeoff_z + self.above_z
-        self.drone_nav_info(self.takeoff_x, self.takeoff_y, tz)
+        self.drone_nav_info(self.takeoff_x+0.03, self.takeoff_y, tz)
         print(f'Move to above takeoff_Z')
-        self.converge(self.takeoff_x, self.takeoff_y, tz)
+        self.converge(self.takeoff_x+0.03, self.takeoff_y, tz)
+
         self.beginfollow = 1
 
+    # def move(self, x, y):
+    #     self.lvol_x = x
+    #     self.lvol_y = y
+    #     if abs(self.lvol_x) < 0.5 and abs(self.lvol_y) < 0.5:
+    #         self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
 
 if __name__ == '__main__':
     node = AprillandagvNode()
