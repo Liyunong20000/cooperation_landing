@@ -1,0 +1,29 @@
+<launch>
+
+  <arg name="rm" default="True" />
+  <arg name="sim" default="False" />
+  <arg name="estimate_mode"  default= "0" />
+  <arg name="headless" default="True" />
+
+  <arg name="direct_model" default="True" />
+  <arg name="direct_model_name" value="$(find cooperation_landing)/robots/uav.urdf.xacro" unless="$(arg sim)" />
+  <arg name="direct_model_name" value="$(find cooperation_landing)/robots/uav.gazebo.xacro" if="$(arg sim)" />
+
+  <arg name="takeoff_height" default="0.8" />
+  <arg name="land_descend_vel" default="-0.3" />
+
+
+  <include file="$(find mini_quadrotor)/launch/bringup.launch" >
+    <arg name="rm" value="$(arg rm)" />
+    <arg name="sim" value="$(arg sim)" />
+    <arg name="estimate_mode" value="$(arg estimate_mode)" />
+    <arg name="headless" value="$(arg headless)" />
+
+    <arg name="direct_model" value="$(arg direct_model)" />
+    <arg name="direct_model_name" value="$(arg direct_model_name)" />
+  </include>
+
+  <param name="/quadrotor/navigation/takeoff_height" value="$(arg takeoff_height)"/>
+  <param name="/quadrotor/navigation/land_descend_vel" value="$(arg land_descend_vel)"/>
+
+</launch>
