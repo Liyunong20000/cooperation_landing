@@ -70,7 +70,7 @@ class AprilfollowNode:
                 navigation_time = rospy.Time.now()
 
                 #print(f'navigation_time:{navigation_time.to_sec()}')
-                self.agv_nav_info(self.lvol_x, self.lvol_y, self.anglevol_z)
+                self.agv_nav_info(self.lvol_x, self.lvol_y, 0)
         else:
             self.D = 0
             self.agv_nav_info(0, 0, 0)

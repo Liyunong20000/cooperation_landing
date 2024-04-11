@@ -49,7 +49,7 @@ class AprilmoveagvNode:
         self.move_parameter = rospy.get_param("/move_parameter")
         rospy.set_param('/converge_interval', 0.04)
         self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/above_z', 0.60)
+        rospy.set_param('/above_z', 0.30)
         self.above_z = rospy.get_param("/above_z")
 
     def _callback_apriltag(self, data):
