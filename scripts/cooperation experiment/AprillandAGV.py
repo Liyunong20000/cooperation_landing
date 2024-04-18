@@ -157,7 +157,7 @@ class AprillandagvNode:
         number = i
         while not rospy.is_shutdown():
             number = number - 1
-            if abs(self.april_x) < 0.02 and abs(self.april_y) < 0.02 and abs(self.april_z) < 45:
+            if math.sqrt(self.april_x ** 2 + self.april_y ** 2) < 0.03 and abs(self.april_z) < 45:
                 i = i - 1
             if number == 0:
                 break
@@ -197,9 +197,11 @@ class AprillandagvNode:
                 break
             time.sleep(0.1)
         tz = self.takeoff_z + self.above_z
-        self.drone_nav_info(self.takeoff_x+0.03, self.takeoff_y, tz)
+        self.drone_nav_info(self.takeoff_x - 0.2, self.takeoff_y - 0.1, tz + 0.5)
+        time.sleep(3)
+        self.drone_nav_info(self.takeoff_x, self.takeoff_y, tz)
         print(f'Move to above takeoff_Z')
-        self.converge(self.takeoff_x+0.03, self.takeoff_y, tz)
+        # self.converge(self.takeoff_x, self.takeoff_y, tz)
         time.sleep(1)
         self.beginfollow = 1
 
