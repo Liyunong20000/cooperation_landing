@@ -1,0 +1,4 @@
+nav_msgs/Odometry quadrotor__uav__cog__odom
+std_msgs/UInt8 quadrotor__flight_state
+std_msgs/Empty quadrotor__teleop_command__takeoff
+std_msgs/Empty quadrotor__teleop_command__land

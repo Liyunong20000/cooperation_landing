@@ -1,0 +1,16 @@
+<launch>
+
+  <arg name="UAV_IP" default="192.168.1.119" />
+  <arg name="GROUND_ROBOT_IP" default="$(env ROS_IP)" />
+  <arg name="HIGH_PORT1" default="16484" />
+  <arg name="HIGH_PORT2" default="8192" />
+
+
+  ### UAV to GroundStation
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver">
+    <param name="message" value="cooperation_landing/UAV2GR" />
+    <param name="receive_ip" value="$(arg GROUND_ROBOT_IP)" />
+    <param name="receive_port" value="$(arg HIGH_PORT1)" />
+    <param name="topic_prefix" value="" />
+  </node>
+</launch>

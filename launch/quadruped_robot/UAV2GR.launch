@@ -1,0 +1,19 @@
+<launch>
+
+  <arg name="GROUND_ROBOT_IP" default="192.168.123.162" />
+
+  <arg name="HIGH_PORT1" default="16484" />
+  <arg name="HIGH_PORT2" default="8192" />
+
+    ### UAV streamer to Ground Robot
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer" output="screen">
+    <param name="message" value="cooperation_landing/UAV2GR" />
+    <param name="to_ip" value="$(arg GROUND_ROBOT_IP)" />
+    <param name="to_port" value="$(arg HIGH_PORT1)" />
+    <param name="send_rate" value="5" />
+    <param name="bandwidth" value="2000000" />
+    <param name="packet_size" value="1000" />
+  </node>
+
+
+</launch>
