@@ -16,7 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   jsk_network_tools
   nav_msgs
-
+  apriltag_ros
+  aerial_robot_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -56,7 +57,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   UAV2GR.msg
-
+  GR2UAV.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -79,7 +80,8 @@ add_message_files(
    std_msgs
    nav_msgs
    geometry_msgs
-
+   apriltag_ros
+   aerial_robot_msgs
  )
 
 ################################################
