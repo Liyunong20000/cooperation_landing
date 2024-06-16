@@ -51,7 +51,7 @@ class SubscribeeventNode:
 
         rospy.set_param('/converge_interval', 0.05)
         self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/above_z', 0.3)
+        rospy.set_param('/above_z', 0.4)
         self.above_z = rospy.get_param("/above_z")
 
         rospy.set_param('/move_parameter', 2)
