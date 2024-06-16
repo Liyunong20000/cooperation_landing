@@ -39,7 +39,6 @@ class PubeventNode:
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
-
         rospy.set_param('/converge_interval', 0.05)
         self.converge_interval = rospy.get_param("/converge_interval")
         rospy.set_param('/above_z', 0.3)

@@ -4,7 +4,6 @@ import rospy, sys
 import numpy as np
 import time
 import math
-import tf
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
 from std_msgs.msg import Empty, UInt8
@@ -12,21 +11,20 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
-from sensor_msgs.msg import CameraInfo
-
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
 
 # use the class to create a node
 
-class AprilmoveqilinNode:
+
+class AprillandqilinNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprilmoveqilin', anonymous=True)
+        rospy.init_node('Aprillandqilin', anonymous=True)
 
         self.lx, self.ly, self.lz = 0, 0, 0
-        self.qx, self.qy, self.qz ,self.qw = 0, 0, 0, 0
+        self.qx, self.qy, self.qz, self.qw = 0, 0, 0, 0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self.april_qx,self.april_qy, self.april_qz, self.april_qw = 0.0, 0.0, 0.0, 0.0
 
@@ -43,14 +41,13 @@ class AprilmoveqilinNode:
 
         # Subscribe and publish.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
-        # rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
-        # rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
+        rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
+        rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
+        # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
 
-        self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
-        self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
-        self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
+        self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
 
-        self.pub_qilin_vel= rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
+        self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
         self.pub_qilin_pose = rospy.Publisher('/go1/body_pose', Pose, queue_size=10)
         rospy.wait_for_service('/go1/sit')
         rospy.wait_for_service('/go1/stand')
@@ -62,8 +59,8 @@ class AprilmoveqilinNode:
         rospy.set_param('/above_z', 0.3)
         self.above_z = rospy.get_param("/above_z")
 
-        rospy.set_param('/move_parameter', 2)
-        self.move_parameter = rospy.get_param("/move_parameter")
+        # rospy.set_param('/move_parameter', 2)
+        # self.move_parameter = rospy.get_param("/move_parameter")
         # rospy.set_param('/pose_parameter', 0.05)
         # self.pose_parameter = rospy.get_param("/pose_parameter")
 
@@ -82,27 +79,76 @@ class AprilmoveqilinNode:
             self.april_qy = a.pose.pose.pose.orientation.y
             self.april_qz = a.pose.pose.pose.orientation.z
             self.april_qw = a.pose.pose.pose.orientation.w
-            self.april_z = 0.05 * self.quaternion_to_euler_angle(self.april_qx,self.april_qy,self.april_qz,self.april_qw)
 
-            self.lx = - 2 * self.april_y
-            self.ly = 2 * self.april_x
-            # self.qx = self.pose_parameter * self. april_qx
-            # self.qy = self.pose_parameter * self.april_qy
-            # self.qz = self.pose_parameter * self.april_qz
-            # self.qw = self.pose_parameter * self.april_qw
-            apriltag_time = rospy.Time.now()
-            print("euler_z (degree):", self.lx, self.ly)
-            #print(f'apriltag_time:{apriltag_time.to_sec()}')
-            if abs(self.lx) < 5 and abs(self.ly) < 5:
-                navigation_time = rospy.Time.now()
-                print("enter")
-                #print(f'navigation_time:{navigation_time.to_sec()}')
-                self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
-                # self.qilin_body_pose(self.qx, self.qy, self.qz, self.qw)
-                # self.qilin_body_pose(self.april_qx, self.april_qy, self.april_qz, self.april_qw)
+            if self.beginfollow == 1:
+                self.lx = - 2 * self.april_y
+                self.ly = 2 * self.april_x
+                self.april_z = 0.05 * self.quaternion_to_euler_angle(self.april_qx, self.april_qy,
+                                                                                    self.april_qz, self.april_qw)
+                # self.qx = self.pose_parameter * self.april_qx
+                # self.qy = self.pose_parameter * self.april_qy
+                # self.qz = self.pose_parameter * self.april_qz
+                # self.qw = self.pose_parameter * self.april_qw
+                apriltag_time = rospy.Time.now()
+                print("euler_z (degree):", self.lx, self.ly)
+                # print(f'apriltag_time:{apriltag_time.to_sec()}')
+                if abs(self.lx) < 5 and abs(self.ly) < 5:
+                    navigation_time = rospy.Time.now()
+                    print("enter")
+                    # print(f'navigation_time:{navigation_time.to_sec()}')
+                    self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
+                    # self.qilin_body_pose(self.qx, self.qy, self.qz, self.qw)
+                    # self.qilin_body_pose(self.april_qx, self.april_qy, self.april_qz, self.april_qw)
         else:
-            self.qilin_cmd_vel(0, 0, 0, 0, 0)
+            if self.beginfollow == 1:
+                self.qilin_cmd_vel(0, 0, 0, 0, 0)
+
             # self.qilin_body_pose(0, 0, 0, 1)
+
+    def _callback_position(self, odom_msg):
+        self.drone_x = odom_msg.pose.pose.position.x
+        self.drone_y = odom_msg.pose.pose.position.y
+        self.drone_z = odom_msg.pose.pose.position.z
+
+    def _callback_state(self, msg):
+        self.state = msg.data
+
+    def event(self, x):
+        event_msgs = UInt8()
+        event_msgs.data = x
+        self.pub_event.publish(event_msgs)
+
+    def drone_landing_detection(self, i):
+        r = rospy.Rate(i)
+        number = i
+        while not rospy.is_shutdown():
+            number = number - 1
+            if math.sqrt(self.april_x ** 2 + self.april_y ** 2) < 0.03 and abs(self.april_z) < 10:
+                i = i - 1
+            if number == 0:
+                break
+            r.sleep()
+        self.flag = i
+
+    def drone_landing_condition(self):
+        while not rospy.is_shutdown():
+            i = 1
+            plus = 0
+            self.flag = 0
+
+            while i > 0:
+                i = i - 1
+                self.drone_landing_detection(10)
+                plus = plus + self.flag
+                print(f'plus = {plus}')
+            if plus == 0:
+                self.beginfollow = 0
+                self.event(3)
+                self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                print(f'landon')
+
+                break
+
     def sit(self):
         try:
             response = self.service_client_sit()
@@ -152,16 +198,25 @@ class AprilmoveqilinNode:
         theta_z = math.degrees(np.arctan2(R[1, 0], R[0, 0]))
         return theta_z
 
+    def come_back(self):
+
+        while not rospy.is_shutdown():
+            if self.state == 5:
+                break
+            time.sleep(0.1)
+        self.event(2)
+        print(f'Move to above takeoff_Z')
+        # self.converge(self.takeoff_x, self.takeoff_y, tz)
+        time.sleep(7)
+        self.beginfollow = 1
+        print(f'begin follow')
+
 if __name__ == '__main__':
-    node = AprilmoveqilinNode()
+    node = AprillandqilinNode()
     node.stand()
-    time.sleep(1)
-    # node.qilin_cmd_vel(0.05,0.05, 0, 0, 0)
-    # time.sleep(3)
-    # node.qilin_cmd_vel(-0.05, -0.05, 0, 0, 0)
-    # time.sleep(3)
-    # node.qilin_cmd_vel(0,0,0,0,0)
-    # rospy.sleep(1)
-    # node.sit()
+    time.sleep(3)
+    node.event(1)
+    node.come_back()
+    node.drone_landing_condition()
     while not rospy.is_shutdown():
         rospy.spin()

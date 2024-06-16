@@ -42,7 +42,9 @@ class SubscribeeventNode:
         rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
         rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
-        
+
+        # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
+
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
@@ -73,12 +75,21 @@ class SubscribeeventNode:
             print('take off')
         if self.flag_nav == 1 and self.event == 2:
             self.flag_nav = 0
-            self.drone_nav_info(self.takeoff_x + 0.2, self.takeoff_y + 0.1, self.takeoff_z + 0.5)
-            print(f'move to {self.takeoff_x + 0.2}, {self.takeoff_y + 0.1}, {self.takeoff_z + 0.5}' )
+            tz = self.takeoff_z + self.above_z
+            self.drone_nav_info(self.takeoff_x + 0.2, self.takeoff_y + 0.1, tz + 0.5)
+            print(f'move to {self.takeoff_x + 0.3}, {self.takeoff_y + 0.1}, {self.takeoff_z + 0.5}' )
+            time.sleep(4)
+            self.drone_nav_info(self.takeoff_x, self.takeoff_y, tz)
+            time.sleep(1)
         if self.flag_landon == 1 and self.event == 3:
             self.flag_landon = 0
             self.land()
             print(f'land on')
+
+    def event(self, x):
+        event_msgs = UInt8()
+        event_msgs.data = x
+        self.pub_event.publish(event_msgs)
 
     def takeoff(self):
         time.sleep(0.5)
@@ -138,6 +149,7 @@ class SubscribeeventNode:
 
 if __name__ == '__main__':
     node = SubscribeeventNode()
-
+    time.sleep(1)
+    node.record_takeoff_position()
     while not rospy.is_shutdown():
         rospy.spin()
