@@ -3,6 +3,7 @@
   <arg name="rm" default="True" />
   <arg name="sim" default="False" />
   <arg name="estimate_mode"  default= "0" />
+  <!-- <arg name="worldtype" default="$(find mini_quadrotor)/gazebo_model/world/simple_april_tags.world" /> -->
   <arg name="headless" default="True" />
 
   <arg name="direct_model" default="True" />
