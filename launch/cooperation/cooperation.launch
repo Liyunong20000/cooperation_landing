@@ -10,7 +10,7 @@
   <arg name="direct_model_name" value="$(find cooperation_landing)/robots/uav.gazebo.xacro" if="$(arg sim)" />
 
   <arg name="takeoff_height" default="0.8" />
-  <arg name="land_descend_vel" default="-0.3" />
+  <!-- <arg name="land_descend_vel" default="-0.3" /> -->
 
   <include file="$(find mini_quadrotor)/launch/bringup.launch" >
     <arg name="rm" value="$(arg rm)" />
@@ -23,6 +23,6 @@
   </include>
 
   <param name="/quadrotor/navigation/takeoff_height" value="$(arg takeoff_height)"/>
-  <param name="/quadrotor/navigation/land_descend_vel" value="$(arg land_descend_vel)"/>
+  <!-- <param name="/quadrotor/navigation/land_descend_vel" value="$(arg land_descend_vel)"/> -->
 
 </launch>
