@@ -2,8 +2,6 @@
 <launch>
 
   <!-- USB camera -->
-
-
   <node name="usb_camera_upward" pkg="usb_cam" type="usb_cam_node" output="screen" >
     <param name="video_device" value="/dev/video2" />
     <param name="image_width" value="1280" />
@@ -19,12 +17,17 @@
     <param name="autosize" value="true" />
   </node>
 
-  <!-- Landing Tracking Motion -->
-    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+  <!-- Apriltag detection -->
+  <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
     <arg name="camera_name" value="/usb_camera_upward" />
     <arg name="image_topic" value="image_raw" />
   </include>
   <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/tags.yaml" ns="/apriltag_ros_continuous_node"/>
-  <!-- UAV -->
+
+  <!-- GR2UAV -->
+  <include file="$(find cooperation_landing)/launch/quadruped_robot/GR2UAV.launch">
+    <arg name="GROUND_ROBOT_IP" default="$(env ROS_IP)" />
+    <arg name="UAV_IP" default="192.168.1.106" />
+  </include>
 
 </launch>

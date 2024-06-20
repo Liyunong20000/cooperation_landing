@@ -23,4 +23,7 @@
     <param name="topic_prefix" value="" />
   </node>
   
+  ### UAV subscriber of event
+  <node pkg="cooperation_landing" type="subscribeevent.py" name="subscribeevent" output="screen">
+  </node>
 </launch>
