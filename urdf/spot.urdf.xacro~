@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="spot" >
+
+  <!-- spot -->
+  <xacro:include filename="$(find spot_description)/urdf/spot.urdf.xacro" />
+  <!-- attachment -->
+  <link name="base_fixture">
+    <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://chimera_ros/meshes/base_fixture.STL" />
+      </geometry>
+      <material name="grey">
+        <color rgba="0.3 0.3 0.3 1" />
+      </material>
+    </visual>
+  </link>
+  <joint name="fixture_joint" type="fixed">
+    <origin xyz="-0.1 0.0 0.008" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <parent link="front_rail" />
+    <child link="base_fixture" />
+  </joint>
+
+</robot>

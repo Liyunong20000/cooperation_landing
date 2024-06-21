@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="dragon" >
+
+  <xacro:arg name="fixed_grapple" default="true" />
+
+  <xacro:include filename="$(find dragon)/urdf/dragon_common.xacro" />
+  <xacro:include filename="$(find dragon)/urdf/dragon_link.urdf.xacro" />
+
+  <!-- spot -->
+  <xacro:include filename="$(find chimera_ros)/urdf/spot.urdf.xacro" />
+
+  <!-- free arm -->
+  <xacro:include filename="$(find free_arm_robot)/robots/quad.urdf.xacro" />
+
+
+  <!-- the following joint should be configurable-->
+  <xacro:if value="$(arg fixed_grapple)">
+    <joint name="grapple_attachment_joint" type="fixed">
+      <origin xyz="0.0 0.0 0.224" rpy="${pi} ${pi/2} 0" />
+      <axis xyz="1 0 0" />
+      <parent link="base_fixture" />
+      <child link="link1" />
+    </joint>
+  </xacro:if>
+
+
+</robot>
