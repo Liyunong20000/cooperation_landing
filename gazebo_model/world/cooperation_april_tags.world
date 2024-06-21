@@ -35,7 +35,7 @@
     </include>
 
     <model name="april_tag0" >
-      <pose>3.0 0.0 2.0 3.14 0 0</pose>
+      <pose>3.0 3.0 3.0 3.14 0 0</pose>
       <include>
         <uri>model://Apriltag36_11_00000_small//</uri>
       </include>
