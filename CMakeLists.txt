@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   tf
+  urdf
+  xacro
   message_generation
   geometry_msgs
   jsk_network_tools
