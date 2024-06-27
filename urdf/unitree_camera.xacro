@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+
+<robot name="unitree_camera" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find go1_description)/xacro/robot.xacro" />
+  <xacro:include filename="$(find cooperation_landing)/urdf/camera.xacro" />
+</robot>

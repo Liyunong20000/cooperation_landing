@@ -4,7 +4,8 @@
 
   <!-- spot -->
   <xacro:include filename="$(find spot_description)/urdf/spot.urdf.xacro" />
-  <!-- <!-\- attachment -\-> -->
+
+  <!-- attachment -->
   <!-- <link name="base_fixture"> -->
   <!--   <visual> -->
   <!--     <origin xyz="0.0 0.0 0.0" rpy="0 0 0" /> -->
