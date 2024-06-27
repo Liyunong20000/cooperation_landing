@@ -3,9 +3,9 @@
 <launch>
   <arg name="unitree_spawn_x" default="0.0" />
   <arg name="unitree_spawn_y" default="0.0" />
-  <arg name="unitree_spawn_z" default="0.5" />
-  <arg name="quadrotor_spawn_x" default="1.0" />
-  <arg name="quadrotor_spawn_y" default="1.0" />
+  <arg name="unitree_spawn_z" default="0.1" />
+  <arg name="quadrotor_spawn_x" default="0.0" />
+  <arg name="quadrotor_spawn_y" default="0.0" />
   <arg name="quadrotor_spawn_z" default="0.7" />
   <arg name="quadrotor_spawn_yaw" default="0.0"/>
 
@@ -22,6 +22,12 @@
     <arg name="rname" default="go1"/>
   </include>
 
+  <!-- Apriltag detection -->
+  <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+    <arg name="camera_name" value="/unitree_camera/upword_camera" />
+    <arg name="image_topic" value="image_raw" />
+  </include>
+  <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/tags.yaml" ns="/apriltag_ros_continuous_node"/>
 
   <!--Call the mini_quadrotor to attend the simulation-->
   <include file="$(find mini_quadrotor)/launch/bringup.launch">
