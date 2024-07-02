@@ -11,17 +11,17 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
+from gazebo_msgs.msg import ModelState
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
 
-# use the class to create a node
 
 
-class AprillandqilinNode:
+class CooperationNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprillandqilin', anonymous=True)
+        rospy.init_node('Cooperation', anonymous=True)
 
         self.lx, self.ly, self.lz = 0, 0, 0
         self.qx, self.qy, self.qz, self.qw = 0, 0, 0, 0
@@ -45,14 +45,21 @@ class AprillandqilinNode:
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
         # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
 
+        self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
+        self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
+        self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
+
         self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
+        # simulation: unitree position
+
+        self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
 
         self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
         self.pub_qilin_pose = rospy.Publisher('/go1/body_pose', Pose, queue_size=10)
-        rospy.wait_for_service('/go1/sit')
-        rospy.wait_for_service('/go1/stand')
-        self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
-        self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
+        # rospy.wait_for_service('/go1/sit')
+        # rospy.wait_for_service('/go1/stand')
+        # self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
+        # self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
         rospy.set_param('/converge_interval', 0.05)
         self.converge_interval = rospy.get_param("/converge_interval")
@@ -73,12 +80,17 @@ class AprillandqilinNode:
         if data.detections:
             #rospy.loginfo("latest arigtarg timestamp: {}".format(data.header.stamp.to_sec()))
             a = data.detections[0]
-            self.april_x = a.pose.pose.pose.position.x
-            self.april_y = a.pose.pose.pose.position.y
-            self.april_qx = a.pose.pose.pose.orientation.x
-            self.april_qy = a.pose.pose.pose.orientation.y
-            self.april_qz = a.pose.pose.pose.orientation.z
-            self.april_qw = a.pose.pose.pose.orientation.w
+            self.april_uav_x = a.pose.pose.pose.position.x
+            self.april_uav_y = a.pose.pose.pose.position.y
+            self.april_uav_qx = a.pose.pose.pose.orientation.x
+            self.april_uav_qy = a.pose.pose.pose.orientation.y
+            self.april_uav_qz = a.pose.pose.pose.orientation.z
+            self.april_uav_qw = a.pose.pose.pose.orientation.w
+
+            b = data.detections[1]
+            self.april_valve_x = b.pose.pose.pose.position.x
+            self.april_valve_y = b.pose.pose.pose.position.y
+
 
             if self.beginfollow == 1:
                 self.lx = - 2 * self.april_y
@@ -112,6 +124,20 @@ class AprillandqilinNode:
 
     def _callback_state(self, msg):
         self.state = msg.data
+
+    # drone takeoff
+    def takeoff(self):
+        time.sleep(0.5)
+        rospy.loginfo("Publishing takeoff command...")
+        empty_msg = Empty()
+        self.pub_takeoff.publish(empty_msg)
+
+    # drone land
+    def land(self):
+        time.sleep(0.5)
+        rospy.loginfo("Publishing land command...")
+        empty_msg = Empty()
+        self.pub_land.publish(empty_msg)
 
     def event(self, x):
         event_msgs = UInt8()
@@ -169,6 +195,32 @@ class AprillandqilinNode:
         except rospy.ServiceException as e:
             rospy.logerr('Service call failed: %s', e)
 
+    def sim_pose(self, px, py, ox, oy, oz, ow):
+
+        sim_pose = ModelState()
+        sim_pose.model_name = 'unitree'
+        sim_pose.pose.position.x = px
+        sim_pose.pose.position.y = py
+        sim_pose.pose.orientation.x = ox
+        sim_pose.pose.orientation.y = oy
+        sim_pose.pose.orientation.z = oz
+        sim_pose.pose.orientation.w = ow
+        sim_pose.reference_frame = 'world'
+        self.pub_sim_pose.publish(sim_pose)
+        print(f'move it')
+
+    def drone_nav_info(self, x, y, z):
+        flight_nav_msg = FlightNav()
+        flight_nav_msg.header.seq = self._seq
+        self._seq += 1
+        flight_nav_msg.header.stamp = rospy.Time.now()
+        flight_nav_msg.header.frame_id = 'world'
+        flight_nav_msg.pos_xy_nav_mode = 2
+        flight_nav_msg.target_pos_x = x
+        flight_nav_msg.target_pos_y = y
+        flight_nav_msg.pos_z_nav_mode = 2
+        flight_nav_msg.target_pos_z = z
+        self.pub_drone_nav.publish(flight_nav_msg)
     def qilin_cmd_vel(self, lx, ly, ax, ay, az):
         qilin_cmd_vel = Twist()
         qilin_cmd_vel.linear.x = lx
@@ -189,7 +241,6 @@ class AprillandqilinNode:
         self.pub_qilin_pose.publish(qilin_body_pose)
 
     def quaternion_to_euler_angle(self, x, y, z, w):
-
         R = np.array([[1 - 2 * y ** 2 - 2 * z ** 2, 2 * x * y - 2 * w * z, 2 * x * z + 2 * w * y],
                       [2 * x * y + 2 * w * z, 1 - 2 * x ** 2 - 2 * z ** 2, 2 * y * z - 2 * w * x],
                       [2 * x * z - 2 * w * y, 2 * y * z + 2 * w * x, 1 - 2 * x ** 2 - 2 * y ** 2]])
@@ -211,12 +262,24 @@ class AprillandqilinNode:
         self.beginfollow = 1
         print(f'begin follow')
 
+    def sim(self):
+        self.takeoff()
+        while not rospy.is_shutdown():
+            if self.state == 5:
+                break
+            time.sleep(0.1)
+        self.sim_pose(2,2,0,0,0,1)
+        self.drone_nav_info(self.)
+
 if __name__ == '__main__':
-    node = AprillandqilinNode()
-    node.stand()
-    time.sleep(3)
-    node.event(1)
-    node.come_back()
-    node.drone_landing_condition()
+    node = CooperationNode()
+    # node.stand()
+    time.sleep(1)
+    node.takeoff()
+
+    # node.event(1)
+    # node.come_back()
+    # node.drone_landing_condition()
+    node.sim_pose(-1, -1, 0, 0, 0, 1)
     while not rospy.is_shutdown():
         rospy.spin()
