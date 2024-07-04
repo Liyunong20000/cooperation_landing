@@ -47,6 +47,44 @@
     </inertial>
   </xacro:extra_module>
 
+    <!-- New link for the AprilTag -->
+
+  <link name="apriltag_link">
+    <gazebo reference="apriltag_link">
+      <material>Apriltag36_11_00000</material>
+    </gazebo>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="${-pi} 0 0"/>
+      <geometry>
+        <box size="0.032 0.032 0.001"/>
+      </geometry>
+      <material name="apriltag_material">
+        <texture filename="package://cooperation_landing/gazebo_model/models/Apriltag36_11_00000/materials/textures/tag36_11_00000.png"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.032 0.032 0.001"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.01"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+
+  </link>
+
+
+
+  <!-- Add a joint to attach the AprilTag to the drone -->
+  <joint name="apriltag_joint" type="fixed">
+    <parent link="trunk"/>
+    <child link="apriltag_link"/>
+    <origin xyz="0.2 0 0.2"/>
+  </joint>
 
   <!-- PROPERTY-->
   <gazebo reference="upward_camera_frame">
