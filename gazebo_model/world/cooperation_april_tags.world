@@ -6,7 +6,7 @@
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>1000</real_time_update_rate>
-      <gravity>0 0 -9.8</gravity>
+      <gravity>0 0 -9.81</gravity>
     </physics>
 
     <spherical_coordinates>
@@ -35,11 +35,10 @@
     </include>
 
     <model name="april_tag1" >
-      <pose>3.0 3.0 1.0 3.14 0 0</pose>
+      <pose>3.0 3.0 1.0 3.14 0 1.57</pose>
       <include>
         <uri>model://Apriltag36_11_00001_small//</uri>
       </include>
     </model>
-
   </world>
 </sdf>
