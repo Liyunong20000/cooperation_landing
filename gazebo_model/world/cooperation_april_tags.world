@@ -34,11 +34,12 @@
       <uri>model://ground_plane</uri>
     </include>
 
-    <model name="april_tag1" >
-      <pose>3.0 3.0 1.0 3.14 0 1.57</pose>
+    <model name="Apriltag36_11_00001_small" >
+      <pose>3.0 3.0 1.0 0 0 1.57</pose>
       <include>
-        <uri>model://Apriltag36_11_00001_small//</uri>
+        <uri>model://Apriltag36_11_00001</uri>
       </include>
     </model>
+
   </world>
 </sdf>
