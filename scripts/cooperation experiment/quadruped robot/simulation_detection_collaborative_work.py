@@ -28,9 +28,19 @@ class CooperationNode:
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self.april_qx,self.april_qy, self.april_qz, self.april_qw = 0.0, 0.0, 0.0, 0.0
 
+        self.camera2base_x = 0.27
+        self.camera2base_y = 0
+        self.camera2base_z = 0.137
+        self.valve2tag_x, self.valve2tag_y = 1.0, 1.0
+        self.valve_x, self.valve_y = 0, 0
+        self.april_valve_x, self.april_valve_y = 0, 0
+
+        self.dog_x, self.dog_y, self.dog_z = 0.0 , 0.0, 0.0
         self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
 
+        self.data_array = 0
+        self.find_valve_tag = 0
         self.D = 0
         self.time_rece = rospy.Time()
         self._seq = 0
@@ -78,6 +88,8 @@ class CooperationNode:
 
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
+            self.find_valve_tag = self.find_target_tag(data.detections, 1)
+
             #rospy.loginfo("latest arigtarg timestamp: {}".format(data.header.stamp.to_sec()))
             a = data.detections[0]
             self.april_uav_x = a.pose.pose.pose.position.x
@@ -87,9 +99,13 @@ class CooperationNode:
             self.april_uav_qz = a.pose.pose.pose.orientation.z
             self.april_uav_qw = a.pose.pose.pose.orientation.w
 
-            b = data.detections[1]
-            self.april_valve_x = b.pose.pose.pose.position.x
-            self.april_valve_y = b.pose.pose.pose.position.y
+            # b = data.detections[1]
+            # self.april_valve_x = b.pose.pose.pose.position.x
+            # self.april_valve_y = b.pose.pose.pose.position.y
+            # if len(data.detections) > 1 :
+                # print(f'222222222222')
+            # else:
+            #     print(f'111111111111')
 
 
             if self.beginfollow == 1:
@@ -124,6 +140,24 @@ class CooperationNode:
 
     def _callback_state(self, msg):
         self.state = msg.data
+
+    def find_target_tag(self,data,target_id):
+        y = len(data)
+        x = 0
+
+        while x < y:
+            a = target_id in data[x].id
+            print(f'{a}')
+            if a:
+                self.april_valve_x = -data[x].pose.pose.pose.position.y
+                self.april_valve_y = data[x].pose.pose.pose.position.x
+                self.valve_x = self.april_valve_x + self.valve2tag_x
+                self.valve_y = self.april_valve_y + self.valve2tag_y
+                print(f'{self.april_valve_x},{self.april_valve_y}')
+                return 1
+            else:
+                return 0
+
 
     # drone takeoff
     def takeoff(self):
@@ -207,7 +241,7 @@ class CooperationNode:
         sim_pose.pose.orientation.w = ow
         sim_pose.reference_frame = 'world'
         self.pub_sim_pose.publish(sim_pose)
-        print(f'move it')
+
 
     def drone_nav_info(self, x, y, z):
         flight_nav_msg = FlightNav()
@@ -262,24 +296,66 @@ class CooperationNode:
         self.beginfollow = 1
         print(f'begin follow')
 
+    def tag_detection(self, step, scope):
+        while self.dog_x < scope:
+            while self.dog_y < scope:
+                self.dog_y += step
+                self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+                self.tag_detection_gank()
+                time.sleep(1)
+            self.dog_x += step
+            print(f'{self.dog_y}')
+            time.sleep(0.5)
+            self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+            self.tag_detection_gank()
+            while self.dog_y > 0:
+                self.dog_y -= step
+                self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+                self.tag_detection_gank()
+                time.sleep(1)
+            self.dog_x += step
+            self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+            self.tag_detection_gank()
+        while self.dog_y < scope:
+            self.dog_y += step
+            self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+            self.tag_detection_gank()
+            time.sleep(1)
+        self.dog_x = 0
+        self.dog_y = 0
+        self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+        self.tag_detection_gank()
+
+    def tag_detection_gank(self):
+        if self.find_valve_tag == 1:
+            time.sleep(2)
+            print(f'{self.april_valve_x},{self.april_valve_y}')
+
+            while abs(self.april_valve_x) > 0.1 and abs(self.april_valve_y) > 0.1:
+                print(f'{self.dog_x + self.april_valve_x + self.camera2base_x}')
+                self.sim_pose(self.dog_x + self.april_valve_x + self.camera2base_x,
+                              self.dog_y + self.april_valve_y + self.camera2base_y, 0, 0, 0, 1)
+
     def sim(self):
         self.takeoff()
         while not rospy.is_shutdown():
             if self.state == 5:
                 break
             time.sleep(0.1)
-        self.sim_pose(2,2,0,0,0,1)
-        self.drone_nav_info(self.)
+        self.tag_detection(0.5,5)
+        # self.sim_pose(2.7, 2.7, 0, 0, 0, 1)
+
+
+
+
+
+
 
 if __name__ == '__main__':
     node = CooperationNode()
     # node.stand()
     time.sleep(1)
-    node.takeoff()
+    node.sim()
 
-    # node.event(1)
-    # node.come_back()
-    # node.drone_landing_condition()
-    node.sim_pose(-1, -1, 0, 0, 0, 1)
     while not rospy.is_shutdown():
         rospy.spin()
