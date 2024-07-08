@@ -36,7 +36,7 @@
   </xacro:extra_module>
 
   <xacro:extra_module name = "upward_camera_optical_frame" parent = "upward_camera_frame">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0 0 0" rpy="${-pi / 2} 0 0"/>
     <inertial>
      <mass value = "0.00001" />
      <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -48,13 +48,13 @@
   </xacro:extra_module>
 
   <!-- PROPERTY-->
-  <gazebo reference="upward_camera_frame">
+  <gazebo reference="upward_camera_optical_frame">
     <sensor type="camera" name="upward_camera">
       <update_rate>30.0</update_rate>
       <camera name="head">
         <horizontal_fov>1.57</horizontal_fov>
         <image>
-          <width>1080</width>
+          <width>1280</width>
           <height>720</height>
           <format>RGB</format>
         </image>
