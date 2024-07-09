@@ -49,11 +49,14 @@ class CooperationNode:
         self.beginfollow = 0
         self.flag = 0
 
+        self.qilin_odom_x, self.qilin_odom_y, self.qilin_odom_th = 0, 0, 0
+        self.last_time = None
         # Subscribe and publish.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
         rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
         # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
+        rospy.Subscriber('/go1/cmd_vel',Twist, self._callback_twist)
 
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
@@ -88,7 +91,7 @@ class CooperationNode:
 
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
-            self.find_valve_tag = self.find_target_tag(data.detections, 1)
+            self.find_valve_tag = self.find_target_tag(data.detections)
 
             #rospy.loginfo("latest arigtarg timestamp: {}".format(data.header.stamp.to_sec()))
             a = data.detections[0]
@@ -141,12 +144,33 @@ class CooperationNode:
     def _callback_state(self, msg):
         self.state = msg.data
 
-    def find_target_tag(self,data,target_id):
+    def _callback_twist(self,twist):
+        current_time = rospy.Time.now()
+
+        if self.last_time is None:
+            self.last_time = current_time
+            return
+        dt = (current_time - self.last_time).to_sec()
+        self.last_time = current_time
+
+        vx = twist.linear.x
+        vy = twist.linear.y
+        vth = twist.angular.z
+
+        delta_x = (vx * math.cos(self.qilin_odom_th) - vy * math.sin(self.qilin_odom_th)) * dt
+        delta_y = (vx * math.sin(self.qilin_odom_th) + vy * math.cos(self.qilin_odom_th)) * dt
+        delta_th = vth * dt
+
+        self.qilin_odom_x += delta_x
+        self.qilin_odom_y += delta_y
+        self.qilin_odom_th += delta_th
+
+    def find_target_tag(self,data):
         y = len(data)
         x = 0
 
         while x < y:
-            a = target_id in data[x].id
+            a = 1 in data[x].id
             # print(f'{a}')
             if a:
                 self.april_valve_x = -data[x].pose.pose.pose.position.y
@@ -340,24 +364,24 @@ class CooperationNode:
         # self.event.wait()
         time.sleep(2)
         # print(f'{self.april_valve_x},{self.april_valve_y}')
-        while (abs(self.april_valve_x) > 0.5 or abs(self.april_valve_y) > 0.05 or abs(self.april_z) >1) and self.find_valve_tag == 1:
+        while (abs(self.april_valve_x) > 0.05 or abs(self.april_valve_y) > 0.05 or abs(self.april_z) >1) and self.find_valve_tag == 1:
             # print(f'11111111111111111111111111111')
             self.qilin_cmd_vel(0.5*self.april_valve_x, 0.5* self.april_valve_y, 0, 0, 0.03*self.april_z)
             # print(f'finish')
 
     def work(self):
-        # self.takeoff()
-        # while not rospy.is_shutdown():
-        #     if self.state == 5:
-        #         break
-        #     time.sleep(0.1)
+        self.takeoff()
+        while not rospy.is_shutdown():
+            if self.state == 5:
+                break
+            time.sleep(0.1)
         while not self.find_valve_tag:
             self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
         self.tag_detection_gank()
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
-        print(f'{self.april_z}')
 
+        #
         # self.drone_nav_info(self.dog_x + self.april_valve_x + self.camera2base_x + self.valve2tag_x, self.dog_y +
         #                     self.april_valve_y + self.camera2base_y + self.valve2tag_y, self.april_valve_z)
 
@@ -368,6 +392,7 @@ if __name__ == '__main__':
     node.stand()
     time.sleep(2)
     node.work()
+
 
     while not rospy.is_shutdown():
         rospy.spin()
