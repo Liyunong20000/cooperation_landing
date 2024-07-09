@@ -22,7 +22,7 @@ class CooperationNode:
         print(f'Hi, I am Cloud Cube')
         rospy.init_node('Cooperation', anonymous=True)
 
-        self.event = threading.Event()
+        # self.event = threading.Event()
         self.lx, self.ly, self.lz = 0, 0, 0
         self.qx, self.qy, self.qz, self.qw = 0, 0, 0, 0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
@@ -35,7 +35,7 @@ class CooperationNode:
         self.valve_x, self.valve_y = 0, 0
         self.april_valve_x, self.april_valve_y, self.april_valve_z = 0, 0, 0
 
-        self.dog_x, self.dog_y, self.dog_z = 2.8 , 2.8, 0.0
+        self.dog_x, self.dog_y, self.dog_z = (2.8, 2.8, 0.0)
         self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
 
@@ -62,24 +62,24 @@ class CooperationNode:
         self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
         # simulation: unitree position
 
-        self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
+        # self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
 
         self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
         self.pub_qilin_pose = rospy.Publisher('/go1/body_pose', Pose, queue_size=10)
-        # rospy.wait_for_service('/go1/sit')
-        # rospy.wait_for_service('/go1/stand')
-        # self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
-        # self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
+        rospy.wait_for_service('/go1/sit')
+        rospy.wait_for_service('/go1/stand')
+        self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
+        self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
         rospy.set_param('/converge_interval', 0.05)
         self.converge_interval = rospy.get_param("/converge_interval")
         rospy.set_param('/above_z', 0.3)
         self.above_z = rospy.get_param("/above_z")
 
-        # rospy.set_param('/move_parameter', 2)
-        # self.move_parameter = rospy.get_param("/move_parameter")
-        # rospy.set_param('/pose_parameter', 0.05)
-        # self.pose_parameter = rospy.get_param("/pose_parameter")
+        rospy.set_param('/move_parameter', 2)
+        self.move_parameter = rospy.get_param("/move_parameter")
+        rospy.set_param('/pose_parameter', 0.05)
+        self.pose_parameter = rospy.get_param("/pose_parameter")
 
 
     def _callback_apriltag(self, data):
@@ -108,30 +108,30 @@ class CooperationNode:
             #     print(f'111111111111')
 
 
-            if self.beginfollow == 1:
-                self.lx = - 2 * self.april_y
-                self.ly = 2 * self.april_x
-                self.april_z = 0.05 * self.quaternion_to_euler_angle(self.april_qx, self.april_qy,
-                                                                                    self.april_qz, self.april_qw)
-                # self.qx = self.pose_parameter * self.april_qx
-                # self.qy = self.pose_parameter * self.april_qy
-                # self.qz = self.pose_parameter * self.april_qz
-                # self.qw = self.pose_parameter * self.april_qw
-                apriltag_time = rospy.Time.now()
-                print("euler_z (degree):", self.lx, self.ly)
-                # print(f'apriltag_time:{apriltag_time.to_sec()}')
-                if abs(self.lx) < 5 and abs(self.ly) < 5:
-                    navigation_time = rospy.Time.now()
-                    print("enter")
-                    # print(f'navigation_time:{navigation_time.to_sec()}')
-                    self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
-                    # self.qilin_body_pose(self.qx, self.qy, self.qz, self.qw)
-                    # self.qilin_body_pose(self.april_qx, self.april_qy, self.april_qz, self.april_qw)
-        else:
-            if self.beginfollow == 1:
-                self.qilin_cmd_vel(0, 0, 0, 0, 0)
-
-            # self.qilin_body_pose(0, 0, 0, 1)
+        #     if self.beginfollow == 1:
+        #         self.lx = - 2 * self.april_y
+        #         self.ly = 2 * self.april_x
+        #         self.april_z = 0.05 * self.quaternion_to_euler_angle(self.april_qx, self.april_qy,
+        #                                                                             self.april_qz, self.april_qw)
+        #         # self.qx = self.pose_parameter * self.april_qx
+        #         # self.qy = self.pose_parameter * self.april_qy
+        #         # self.qz = self.pose_parameter * self.april_qz
+        #         # self.qw = self.pose_parameter * self.april_qw
+        #         apriltag_time = rospy.Time.now()
+        #         print("euler_z (degree):", self.lx, self.ly)
+        #         # print(f'apriltag_time:{apriltag_time.to_sec()}')
+        #         if abs(self.lx) < 5 and abs(self.ly) < 5:
+        #             navigation_time = rospy.Time.now()
+        #             print("enter")
+        #             # print(f'navigation_time:{navigation_time.to_sec()}')
+        #             self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
+        #             # self.qilin_body_pose(self.qx, self.qy, self.qz, self.qw)
+        #             # self.qilin_body_pose(self.april_qx, self.april_qy, self.april_qz, self.april_qw)
+        # else:
+        #     if self.beginfollow == 1:
+        #         self.qilin_cmd_vel(0, 0, 0, 0, 0)
+        #
+        #     # self.qilin_body_pose(0, 0, 0, 1)
 
     def _callback_position(self, odom_msg):
         self.drone_x = odom_msg.pose.pose.position.x
@@ -147,14 +147,18 @@ class CooperationNode:
 
         while x < y:
             a = target_id in data[x].id
-            print(f'{a}')
+            # print(f'{a}')
             if a:
                 self.april_valve_x = -data[x].pose.pose.pose.position.y
                 self.april_valve_y = data[x].pose.pose.pose.position.x
                 self.april_valve_z = data[x].pose.pose.pose.position.z
+                self.april_z = self.quaternion_to_euler_angle(data[x].pose.pose.pose.orientation.x,
+                                                                     data[x].pose.pose.pose.orientation.y,
+                                                                     data[x].pose.pose.pose.orientation.z,
+                                                                     data[x].pose.pose.pose.orientation.w)
                 self.valve_x = self.april_valve_x + self.valve2tag_x
                 self.valve_y = self.april_valve_y + self.valve2tag_y
-                print(f'{self.april_valve_x},{self.april_valve_y}')
+                # print(f'{self.april_valve_x},{self.april_valve_y}')
                 return 1
             else:
                 return 0
@@ -334,42 +338,36 @@ class CooperationNode:
 
     def tag_detection_gank(self):
         # self.event.wait()
-        if self.find_valve_tag == 1:
-            time.sleep(2)
-            print(f'{self.april_valve_x},{self.april_valve_y}')
+        time.sleep(2)
+        # print(f'{self.april_valve_x},{self.april_valve_y}')
+        while (abs(self.april_valve_x) > 0.1 or abs(self.april_valve_y) > 0.1) and self.find_valve_tag == 1:
+            # print(f'11111111111111111111111111111')
+            self.qilin_cmd_vel(0.5*self.april_valve_x, 0.5* self.april_valve_y, 0, 0, 0)
+            # print(f'finish')
 
-            while abs(self.april_valve_x) > 0.1 and abs(self.april_valve_y) > 0.1:
-                print(f'11111111111111111111111111111')
-                print(f'{self.dog_x + self.april_valve_x + self.camera2base_x}')
-                self.sim_pose(self.dog_x + self.april_valve_x + self.camera2base_x,
-                              self.dog_y + self.april_valve_y + self.camera2base_y, 0, 0, 0, 1)
-                self.dog_x=self.dog_x + self.april_valve_x + self.camera2base_x
-                self.dog_y=self.dog_y + self.april_valve_y + self.camera2base_y
-                print(f'finish')
-            print(
-                f'{self.dog_x + self.april_valve_x + self.camera2base_x + self.valve2tag_x},{self.dog_y + self.april_valve_y + self.camera2base_y + self.valve2tag_y},{self.april_valve_z}')
-            self.drone_nav_info(self.dog_x + self.april_valve_x + self.camera2base_x + self.valve2tag_x, self.dog_y +
-                                self.april_valve_y + self.camera2base_y + self.valve2tag_y, self.april_valve_z)
-    def sim(self):
-        self.takeoff()
-        while not rospy.is_shutdown():
-            if self.state == 5:
-                break
-            time.sleep(0.1)
-        self.sim_pose(self.dog_x, self.dog_y, 0, 0, 0, 1)
+    def work(self):
+        # self.takeoff()
+        # while not rospy.is_shutdown():
+        #     if self.state == 5:
+        #         break
+        #     time.sleep(0.1)
+        while not self.find_valve_tag:
+            self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
+        self.qilin_cmd_vel(0, 0, 0, 0, 0)
         self.tag_detection_gank()
+        self.qilin_cmd_vel(0, 0, 0, 0, 0)
+        print(f'{self.april_z}')
 
-
-
-
-
+        # self.drone_nav_info(self.dog_x + self.april_valve_x + self.camera2base_x + self.valve2tag_x, self.dog_y +
+        #                     self.april_valve_y + self.camera2base_y + self.valve2tag_y, self.april_valve_z)
 
 
 if __name__ == '__main__':
     node = CooperationNode()
-    # node.stand()
     time.sleep(1)
-    node.sim()
+    node.stand()
+    time.sleep(2)
+    node.work()
 
     while not rospy.is_shutdown():
         rospy.spin()
