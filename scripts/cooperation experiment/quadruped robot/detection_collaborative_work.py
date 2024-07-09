@@ -340,9 +340,9 @@ class CooperationNode:
         # self.event.wait()
         time.sleep(2)
         # print(f'{self.april_valve_x},{self.april_valve_y}')
-        while (abs(self.april_valve_x) > 0.1 or abs(self.april_valve_y) > 0.1) and self.find_valve_tag == 1:
+        while (abs(self.april_valve_x) > 0.5 or abs(self.april_valve_y) > 0.05 or abs(self.april_z) >1) and self.find_valve_tag == 1:
             # print(f'11111111111111111111111111111')
-            self.qilin_cmd_vel(0.5*self.april_valve_x, 0.5* self.april_valve_y, 0, 0, 0)
+            self.qilin_cmd_vel(0.5*self.april_valve_x, 0.5* self.april_valve_y, 0, 0, 0.03*self.april_z)
             # print(f'finish')
 
     def work(self):
