@@ -1,0 +1,5 @@
+# unitree_ros
+- git:
+    local-name: unitree_ros
+    uri: https://github.com/unitreerobotics/unitree_ros.git
+    version: 1d86ed7 
