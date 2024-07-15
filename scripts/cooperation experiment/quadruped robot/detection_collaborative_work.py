@@ -3,6 +3,7 @@
 import rospy, sys
 import numpy as np
 import time, math, threading
+import keyboard
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
 from std_msgs.msg import Empty, UInt8
@@ -11,6 +12,7 @@ from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from gazebo_msgs.msg import ModelState
+
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
 
@@ -25,6 +27,7 @@ class CooperationNode:
         # self.event = threading.Event()
         self.lx, self.ly, self.lz = 0, 0, 0
         self.qx, self.qy, self.qz, self.qw = 0, 0, 0, 0
+        self.tag_target_x, self.tag_target_y, self.tag_target_z, self.tag_target_yaw = 0, 0, 0, 0
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self.april_qx,self.april_qy, self.april_qz, self.april_qw = 0.0, 0.0, 0.0, 0.0
 
@@ -33,7 +36,8 @@ class CooperationNode:
         self.camera2base_z = 0.137
         self.valve2tag_x, self.valve2tag_y = 1.0, 1.0
         self.valve_x, self.valve_y = 0, 0
-        self.april_valve_x, self.april_valve_y, self.april_valve_z = 0, 0, 0
+        self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0, 0, 0, 0
+        self.april_drone_x, self.april_drone_y, self.april_drone_z, self.april_drone_yaw = 0, 0, 0, 0
 
         self.dog_x, self.dog_y, self.dog_z = (2.8, 2.8, 0.0)
         self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
@@ -48,6 +52,7 @@ class CooperationNode:
         self.beginland = 0
         self.beginfollow = 0
         self.flag = 0
+        self.user_input = None
 
         self.qilin_odom_x, self.qilin_odom_y, self.qilin_odom_th = 0, 0, 0
         self.last_time = None
@@ -55,7 +60,6 @@ class CooperationNode:
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
         rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
-        # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
         rospy.Subscriber('/go1/cmd_vel',Twist, self._callback_twist)
 
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
@@ -63,6 +67,7 @@ class CooperationNode:
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
         self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
+        self.pub_UavAndGr_Uav_Nav = rospy.Publisher('/uavandgr/uav_nav_info', Pose, queue_size=10)
         # simulation: unitree position
 
         # self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
@@ -91,25 +96,7 @@ class CooperationNode:
 
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
-            self.find_valve_tag = self.find_target_tag(data.detections)
-
-            #rospy.loginfo("latest arigtarg timestamp: {}".format(data.header.stamp.to_sec()))
-            a = data.detections[0]
-            self.april_uav_x = a.pose.pose.pose.position.x
-            self.april_uav_y = a.pose.pose.pose.position.y
-            self.april_uav_qx = a.pose.pose.pose.orientation.x
-            self.april_uav_qy = a.pose.pose.pose.orientation.y
-            self.april_uav_qz = a.pose.pose.pose.orientation.z
-            self.april_uav_qw = a.pose.pose.pose.orientation.w
-
-            # b = data.detections[1]
-            # self.april_valve_x = b.pose.pose.pose.position.x
-            # self.april_valve_y = b.pose.pose.pose.position.y
-            # if len(data.detections) > 1 :
-                # print(f'222222222222')
-            # else:
-            #     print(f'111111111111')
-
+            self.find_valve_tag = self.find_target_tag(data.detections,1)
 
         #     if self.beginfollow == 1:
         #         self.lx = - 2 * self.april_y
@@ -165,24 +152,32 @@ class CooperationNode:
         self.qilin_odom_y += delta_y
         self.qilin_odom_th += delta_th
 
-    def find_target_tag(self,data):
-        y = len(data)
-        x = 0
+    def find_target_tag(self,data,target_id):
+        b = len(data)
+        a = 0
 
-        while x < y:
-            a = 1 in data[x].id
+        while a < b:
+            c = target_id in data[a].id
             # print(f'{a}')
-            if a:
-                self.april_valve_x = -data[x].pose.pose.pose.position.y
-                self.april_valve_y = data[x].pose.pose.pose.position.x
-                self.april_valve_z = data[x].pose.pose.pose.position.z
-                self.april_z = self.quaternion_to_euler_angle(data[x].pose.pose.pose.orientation.x,
-                                                                     data[x].pose.pose.pose.orientation.y,
-                                                                     data[x].pose.pose.pose.orientation.z,
-                                                                     data[x].pose.pose.pose.orientation.w)
-                self.valve_x = self.april_valve_x + self.valve2tag_x
-                self.valve_y = self.april_valve_y + self.valve2tag_y
-                # print(f'{self.april_valve_x},{self.april_valve_y}')
+            if c:
+                if target_id == 0:
+                    self.april_drone_x = -data[a].pose.pose.pose.position.y
+                    self.april_drone_y = data[a].pose.pose.pose.position.x
+                    self.april_drone_z = data[a].pose.pose.pose.position.z
+                    self.april_drone_yaw = self.quaternion_to_euler_angle(data[a].pose.pose.pose.orientation.x,
+                                                                          data[a].pose.pose.pose.orientation.y,
+                                                                          data[a].pose.pose.pose.orientation.z,
+                                                                          data[a].pose.pose.pose.orientation.w)
+
+                if target_id == 1:
+                    self.april_valve_x = -data[a].pose.pose.pose.position.y
+                    self.april_valve_y = data[a].pose.pose.pose.position.x
+                    self.april_valve_z = data[a].pose.pose.pose.position.z
+                    self.april_valve_yaw = self.quaternion_to_euler_angle(data[a].pose.pose.pose.orientation.x,
+                                                         data[a].pose.pose.pose.orientation.y,
+                                                         data[a].pose.pose.pose.orientation.z,
+                                                         data[a].pose.pose.pose.orientation.w)
+
                 return 1
             else:
                 return 0
@@ -202,17 +197,28 @@ class CooperationNode:
         empty_msg = Empty()
         self.pub_land.publish(empty_msg)
 
-    def event(self, x):
+    def uavandgr_event(self, x):
         event_msgs = UInt8()
         event_msgs.data = x
         self.pub_event.publish(event_msgs)
+
+    def uavandgr_uav_nav_info(self, pos_x, pos_y, pos_z, ori_x, ori_y, ori_z, ori_w):
+        uav_nav_msgs = Pose()
+        uav_nav_msgs.position.x = pos_x
+        uav_nav_msgs.position.y = pos_y
+        uav_nav_msgs.position.z = pos_z
+        uav_nav_msgs.orientation.x = ori_x
+        uav_nav_msgs.orientation.y = ori_y
+        uav_nav_msgs.orientation.z = ori_z
+        uav_nav_msgs.orientation.w = ori_w
+        self.pub_UavAndGr_Uav_Nav.publish(uav_nav_msgs)
 
     def drone_landing_detection(self, i):
         r = rospy.Rate(i)
         number = i
         while not rospy.is_shutdown():
             number = number - 1
-            if math.sqrt(self.april_x ** 2 + self.april_y ** 2) < 0.03 and abs(self.april_z) < 10:
+            if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.03 and abs(self.april_drone_yaw) < 10:
                 i = i - 1
             if number == 0:
                 break
@@ -363,14 +369,17 @@ class CooperationNode:
     def tag_detection_gank(self):
         # self.event.wait()
         time.sleep(2)
-        # print(f'{self.april_valve_x},{self.april_valve_y}')
-        while (abs(self.april_valve_x) > 0.05 or abs(self.april_valve_y) > 0.05 or abs(self.april_z) >1) and self.find_valve_tag == 1:
-            # print(f'11111111111111111111111111111')
-            self.qilin_cmd_vel(0.5*self.april_valve_x, 0.5* self.april_valve_y, 0, 0, 0.03*self.april_z)
-            # print(f'finish')
+        # print(f'gankgankgankgank')
+        print(f'{self.april_valve_x},{self.april_valve_y},{self.april_valve_z}')
+        while ((abs(self.april_valve_x) > 0.1 or abs(self.april_valve_y) > 0.1 or abs(self.april_valve_yaw) > 1) and
+               (self.find_valve_tag == 1)):
+            print(f'11111111111111111111111111111')
+            self.qilin_cmd_vel(0.7 * self.april_valve_x, 0.7 * self.april_valve_y, 0, 0, 0.03 * self.april_valve_yaw)
+            time.sleep(1)
+
 
     def work(self):
-        self.takeoff()
+        self.uavandgr_event(1)
         while not rospy.is_shutdown():
             if self.state == 5:
                 break
@@ -380,10 +389,17 @@ class CooperationNode:
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
         self.tag_detection_gank()
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
-
-        #
-        # self.drone_nav_info(self.dog_x + self.april_valve_x + self.camera2base_x + self.valve2tag_x, self.dog_y +
-        #                     self.april_valve_y + self.camera2base_y + self.valve2tag_y, self.april_valve_z)
+        print(f'{-(self.qilin_odom_x - 0.3)},{self.qilin_odom_y},{self.april_valve_z - 1.0}')
+        print(f'go on?')
+        self.user_input = input()
+        if self.user_input == 'y':
+            print(f'yes')
+            self.uavandgr_uav_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0),0, 0, 0, 0)
+            time.sleep(1)
+            self.uavandgr_event(2)
+        else:
+            print(f'landon')
+            self.uavandgr_event(3)
 
 
 if __name__ == '__main__':

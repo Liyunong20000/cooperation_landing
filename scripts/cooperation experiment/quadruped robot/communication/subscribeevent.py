@@ -28,6 +28,8 @@ class SubscribeeventNode:
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self.april_qx,self.april_qy, self.april_qz, self.april_qw = 0.0, 0.0, 0.0, 0.0
 
+        self.uav_nav_info_pose_x, self.uav_nav_info_pose_y, self.uav_nav_info_pose_z = 0.0, 0.0, 0.0
+        self.uav_nav_info_orientation_x, self.uav_nav_info_orientation_y, self.uav_nav_info_orientation_z, self.uav_nav_info_orientation_w = 0.0, 0.0, 0.0, 0.0
         self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
 
@@ -37,11 +39,13 @@ class SubscribeeventNode:
         self.state = 0
         self.flag_takeoff = 1
         self.flag_landon = 1
-        self.flag_nav = 1
+
         # Subscribe and publish.
         rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
+        rospy.Subscriber('/uavandgr/uav_nav_info', Pose, self._callback_uav_nav_info)
         rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
+
 
         # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
 
@@ -67,20 +71,27 @@ class SubscribeeventNode:
     def _callback_state(self, msg):
         self.state = msg.data
 
+    def _callback_uav_nav_info(self, msg):
+        self.uav_nav_info_pose_x = msg.position.x
+        self.uav_nav_info_pose_y = msg.position.y
+        self.uav_nav_info_pose_z = msg.position.z
+
+        self.uav_nav_info_orientation_x = msg.orientation.x
+        self.uav_nav_info_orientation_y = msg.orientation.y
+        self.uav_nav_info_orientation_z = msg.orientation.z
+        self.uav_nav_info_orientation_w = msg.orientation.w
     def _callback_event(self,msg):
         self.event = msg.data
+        self.uavandgr_uav_nav = msg
         if self.flag_takeoff == 1 and self.event == 1 :
             self.flag_takeoff = 0
             self.takeoff()
             print('take off')
-        if self.flag_nav == 1 and self.event == 2:
-            self.flag_nav = 0
-            tz = self.takeoff_z + self.above_z
-            self.drone_nav_info(self.takeoff_x + 0.2, self.takeoff_y + 0.1, tz + 0.5)
-            print(f'move to {self.takeoff_x + 0.3}, {self.takeoff_y + 0.1}, {self.takeoff_z + 0.5}' )
+        if self.event == 2:
+            self.drone_nav_info(self.uav_nav_info_pose_x, self.uav_nav_info_pose_y, self.uav_nav_info_pose_z)
+            print(f'move to {self.uav_nav_info_pose_x}, {self.uav_nav_info_pose_y}, {self.uav_nav_info_pose_z}' )
             time.sleep(4)
-            self.drone_nav_info(self.takeoff_x, self.takeoff_y, tz)
-            time.sleep(1)
+
         if self.flag_landon == 1 and self.event == 3:
             self.flag_landon = 0
             self.land()
