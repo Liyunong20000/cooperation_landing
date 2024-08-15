@@ -204,10 +204,10 @@ class AprillandqilinNode:
             if self.state == 5:
                 break
             time.sleep(0.1)
-        self.event(2)
+        # self.event(2)
         print(f'Move to above takeoff_Z')
         # self.converge(self.takeoff_x, self.takeoff_y, tz)
-        time.sleep(7)
+        time.sleep(3)
         self.beginfollow = 1
         print(f'begin follow')
 
