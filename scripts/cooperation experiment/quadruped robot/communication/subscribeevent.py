@@ -80,22 +80,22 @@ class SubscribeeventNode:
         self.uav_nav_info_orientation_y = msg.orientation.y
         self.uav_nav_info_orientation_z = msg.orientation.z
         self.uav_nav_info_orientation_w = msg.orientation.w
-    def _callback_event(self,msg):
-        self.event = msg.data
-        self.uavandgr_uav_nav = msg
-        if self.flag_takeoff == 1 and self.event == 1 :
-            self.flag_takeoff = 0
-            self.takeoff()
-            print('take off')
-        if self.event == 2:
-            self.drone_nav_info(self.uav_nav_info_pose_x, self.uav_nav_info_pose_y, self.uav_nav_info_pose_z)
-            print(f'move to {self.uav_nav_info_pose_x}, {self.uav_nav_info_pose_y}, {self.uav_nav_info_pose_z}' )
-            time.sleep(4)
-
-        if self.flag_landon == 1 and self.event == 3:
-            self.flag_landon = 0
-            self.land()
-            print(f'land on')
+    # def _callback_event(self,msg):
+    #     self.event = msg.data
+    #     self.uavandgr_uav_nav = msg
+    #     if self.flag_takeoff == 1 and self.event == 1 :
+    #         self.flag_takeoff = 0
+    #         self.takeoff()
+    #         print('take off')
+    #     if self.event == 2:
+    #         self.drone_nav_info(self.uav_nav_info_pose_x, self.uav_nav_info_pose_y, self.uav_nav_info_pose_z)
+    #         print(f'move to {self.uav_nav_info_pose_x}, {self.uav_nav_info_pose_y}, {self.uav_nav_info_pose_z}' )
+    #         time.sleep(4)
+    #
+    #     if self.flag_landon == 1 and self.event == 3:
+    #         self.flag_landon = 0
+    #         self.land()
+    #         print(f'land on')
 
     def event(self, x):
         event_msgs = UInt8()
@@ -144,7 +144,7 @@ class SubscribeeventNode:
         flight_nav_msg.target_pos_y = y
         flight_nav_msg.target_vel_y = 0.0
         flight_nav_msg.target_acc_y = 0.0
-        flight_nav_msg.yaw_nav_mode = 0
+        flight_nav_msg.yaw_nav_mode = 4
         flight_nav_msg.target_omega_z = 0.0
         flight_nav_msg.target_yaw = 0.0
         flight_nav_msg.pos_z_nav_mode = 2

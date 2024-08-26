@@ -66,8 +66,8 @@ class CooperationNode:
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
-        self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
-        self.pub_UavAndGr_Uav_Nav = rospy.Publisher('/uavandgr/uav_nav_info', Pose, queue_size=10)
+        # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
+        # self.pub_UavAndGr_Uav_Nav = rospy.Publisher('/uavandgr/uav_nav_info', Pose, queue_size=10)
         # simulation: unitree position
 
         # self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
@@ -197,22 +197,6 @@ class CooperationNode:
         empty_msg = Empty()
         self.pub_land.publish(empty_msg)
 
-    def uavandgr_event(self, x):
-        event_msgs = UInt8()
-        event_msgs.data = x
-        self.pub_event.publish(event_msgs)
-
-    def uavandgr_uav_nav_info(self, pos_x, pos_y, pos_z, ori_x, ori_y, ori_z, ori_w):
-        uav_nav_msgs = Pose()
-        uav_nav_msgs.position.x = pos_x
-        uav_nav_msgs.position.y = pos_y
-        uav_nav_msgs.position.z = pos_z
-        uav_nav_msgs.orientation.x = ori_x
-        uav_nav_msgs.orientation.y = ori_y
-        uav_nav_msgs.orientation.z = ori_z
-        uav_nav_msgs.orientation.w = ori_w
-        self.pub_UavAndGr_Uav_Nav.publish(uav_nav_msgs)
-
     def drone_landing_detection(self, i):
         r = rospy.Rate(i)
         number = i
@@ -277,19 +261,32 @@ class CooperationNode:
         sim_pose.reference_frame = 'world'
         self.pub_sim_pose.publish(sim_pose)
 
-
-    def drone_nav_info(self, x, y, z):
+    def drone_nav_info(self, x, y, z, omega_z, yaw):
         flight_nav_msg = FlightNav()
         flight_nav_msg.header.seq = self._seq
         self._seq += 1
         flight_nav_msg.header.stamp = rospy.Time.now()
         flight_nav_msg.header.frame_id = 'world'
+
+        flight_nav_msg.control_frame = 0
+        flight_nav_msg.target = 0
         flight_nav_msg.pos_xy_nav_mode = 2
         flight_nav_msg.target_pos_x = x
+        flight_nav_msg.target_vel_x = 0.0
+        flight_nav_msg.target_acc_x = 0.0
         flight_nav_msg.target_pos_y = y
+        flight_nav_msg.target_vel_y = 0.0
+        flight_nav_msg.target_acc_y = 0.0
+        flight_nav_msg.yaw_nav_mode = 4
+        flight_nav_msg.target_omega_z = omega_z
+        flight_nav_msg.target_yaw = yaw
         flight_nav_msg.pos_z_nav_mode = 2
         flight_nav_msg.target_pos_z = z
+        flight_nav_msg.target_vel_z = 0.0
+        flight_nav_msg.target_pos_diff_z = 0.0
+
         self.pub_drone_nav.publish(flight_nav_msg)
+
     def qilin_cmd_vel(self, lx, ly, ax, ay, az):
         qilin_cmd_vel = Twist()
         qilin_cmd_vel.linear.x = lx
@@ -379,7 +376,7 @@ class CooperationNode:
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
 
     def work(self):
-        self.uavandgr_event(1)
+        self.takeoff()
         while not rospy.is_shutdown():
             if self.state == 5:
                 break
@@ -394,21 +391,37 @@ class CooperationNode:
         if self.user_input == 'y':
             print(f'yes')
             # add the odom function
-            self.uavandgr_uav_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0),0, 0, 0, 0)
+            self.drone_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0),0, 0)
+            self.drone_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0), 0, 0)
+            self.drone_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0), 0, 0)
             time.sleep(1)
-            self.uavandgr_event(2)
         else:
             print(f'landon')
-            self.uavandgr_event(3)
+            self.land()
 
+    def manipulation(self,x,y,z,h,omega):
+        time.sleep(2)
+        self.drone_nav_info(x, y, z, 0, 0)
+        time.sleep(5)
+        self.drone_nav_info(x, y, z+h, 0, 0)
+        time.sleep(5)
+        self.drone_nav_info(x, y, z+h, omega, 1.57)
+        time.sleep(3)
+        self.drone_nav_info(x, y, z+h, omega, 3.14)
+        time.sleep(3)
+        self.drone_nav_info(x, y, z+h, omega, 4.71)
+        time.sleep(3)
+        self.drone_nav_info(x, y, z+h, omega, 6.28)
+        time.sleep(2)
+        self.drone_nav_info(x, y, z, 0, 0)
 
 if __name__ == '__main__':
     node = CooperationNode()
-    time.sleep(1)
-    node.stand()
-    time.sleep(2)
-    node.work()
-
+    # time.sleep(1)
+    # node.stand()
+    # time.sleep(2)
+    # node.work()
+    node.manipulation(0,0,1.0,0.2,1)
 
     while not rospy.is_shutdown():
         rospy.spin()
