@@ -3,7 +3,7 @@
 import rospy, sys
 import numpy as np
 import time, math, threading
-import keyboard
+
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
 from std_msgs.msg import Empty, UInt8
@@ -376,7 +376,7 @@ class CooperationNode:
             print(f'11111111111111111111111111111')
             self.qilin_cmd_vel(0.7 * self.april_valve_x, 0.7 * self.april_valve_y, 0, 0, 0.03 * self.april_valve_yaw)
             time.sleep(1)
-
+        self.qilin_cmd_vel(0, 0, 0, 0, 0)
 
     def work(self):
         self.uavandgr_event(1)
@@ -388,12 +388,12 @@ class CooperationNode:
             self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
         self.tag_detection_gank()
-        self.qilin_cmd_vel(0, 0, 0, 0, 0)
         print(f'{-(self.qilin_odom_x - 0.3)},{self.qilin_odom_y},{self.april_valve_z - 1.0}')
         print(f'go on?')
         self.user_input = input()
         if self.user_input == 'y':
             print(f'yes')
+            # add the odom function
             self.uavandgr_uav_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0),0, 0, 0, 0)
             time.sleep(1)
             self.uavandgr_event(2)
