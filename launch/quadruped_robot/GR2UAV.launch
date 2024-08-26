@@ -3,6 +3,7 @@
   <arg name="UAV_IP" default="192.168.1.235" />
   <arg name="HIGH_PORT1" default="16484" />
   <arg name="HIGH_PORT2" default="8192" />
+  <arg name="LOW_PORT" default="1024" />
 
   ### GR receiver from UAV
   <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver" output="screen">
@@ -22,4 +23,23 @@
     <param name="packet_size" value="1000" />
   </node>
 
+    ### GR low speed streamer1 to UAV
+   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer" output="screen">
+    <remap from="~input" to="/uavandgr/event" />
+    <param name="message" value="std_msgs/UInt8" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg LOW_PORT)" />
+    <param name="send_rate" value="1" />
+    <param name="event_driven" value="True" />
+  </node>
+
+      ### GR low speed streamer2 to UAV
+   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer" output="screen">
+    <remap from="~input" to="/uavandgr/uav_nav_info" />
+    <param name="message" value="geometry_msgs/Pose" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg LOW_PORT)" />
+    <param name="send_rate" value="1" />
+    <param name="event_driven" value="True" />
+  </node>
 </launch>

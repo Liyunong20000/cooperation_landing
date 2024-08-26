@@ -4,6 +4,7 @@
   <arg name="UAV_IP" default="$(env ROS_IP)" />
   <arg name="HIGH_PORT1" default="16484" />
   <arg name="HIGH_PORT2" default="8192" />
+  <arg name="LOW_PORT" default="1024" />
 
     ### UAV streamer to Ground Robot
   <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer" output="screen">
@@ -22,8 +23,26 @@
     <param name="receive_port" value="$(arg HIGH_PORT2)" />
     <param name="topic_prefix" value="" />
   </node>
-  
+
+  ### UAV low speed receiver1 from GR
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver">
+    <remap from="~output" to="/uavandgr/event" />
+    <param name="message" value="std_msgs/UInt8" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
+
+  ### UAV low speed receiver2 from GR
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver">
+    <remap from="~output" to="/uavandgr/uav_nav_info" />
+    <param name="message" value="geometry_msgs/Pose" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
+
   ### UAV subscriber of event
-  <node pkg="cooperation_landing" type="subscribeevent.py" name="subscribeevent" output="screen">
+  <node pkg="cooperation_landing" type="subscribeevent.py" name="subscribe_event" output="screen">
   </node>
 </launch>
