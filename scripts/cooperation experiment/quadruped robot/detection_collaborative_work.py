@@ -127,6 +127,9 @@ class CooperationNode:
         self.drone_x = odom_msg.pose.pose.position.x
         self.drone_y = odom_msg.pose.pose.position.y
         self.drone_z = odom_msg.pose.pose.position.z
+        if self.drone_z <-0.5 or self.drone_z > 4:
+            rospy.loginfo("Wrong state! land!")
+            self.land()
 
     def _callback_state(self, msg):
         self.state = msg.data
@@ -186,9 +189,13 @@ class CooperationNode:
     # drone takeoff
     def takeoff(self):
         time.sleep(0.5)
-        rospy.loginfo("Publishing takeoff command...")
-        empty_msg = Empty()
-        self.pub_takeoff.publish(empty_msg)
+        if (-10 < self.drone_x <10) and (-10 < self.drone_y <10) and (-0.5 < self.drone_z <3):
+            rospy.loginfo("Publishing takeoff command...")
+            empty_msg = Empty()
+            self.pub_takeoff.publish(empty_msg)
+        else:
+            rospy.loginfo("Don`t takeoff, state is wrong!!!")
+
 
     # drone land
     def land(self):
@@ -414,14 +421,23 @@ class CooperationNode:
         self.drone_nav_info(x, y, z+h, omega, 6.28)
         time.sleep(2)
         self.drone_nav_info(x, y, z, 0, 0)
-
+    def demo(self):
+        time.sleep(2)
+        self.takeoff()
+        while not rospy.is_shutdown():
+            if self.state == 5:
+                break
+            time.sleep(0.1)
+        time.sleep(3)
+        self.manipulation(0,0,1,0.2,0.5)
+        self.land()
 if __name__ == '__main__':
     node = CooperationNode()
     # time.sleep(1)
     # node.stand()
     # time.sleep(2)
     # node.work()
-    node.manipulation(0,0,1.0,0.2,1)
-
+    # node.manipulation(0,0,1.0,0.2,1)
+    node.demo()
     while not rospy.is_shutdown():
         rospy.spin()
