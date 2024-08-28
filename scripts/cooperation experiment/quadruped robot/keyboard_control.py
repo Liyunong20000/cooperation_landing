@@ -7,7 +7,7 @@ import rospy
 from std_msgs.msg import Empty
 from geometry_msgs.msg import Twist
 import rosgraph
-
+from std_srvs.srv import Trigger
 
 
 
@@ -19,8 +19,8 @@ Instruction:
      q           w           e      
 (turn left)  (forward)  (turn right)
 
-     a           s           d      
-(move left)  (backward) (move right) 
+     a           s           d          j       k       l
+(move left)  (backward) (move right)  (stop) (stand)  (sit)
 
 
 Please don't have caps lock on.
@@ -37,10 +37,28 @@ def getKey():
 
 def printMsg(msg, msg_len = 50):
         print(msg.ljust(msg_len) + "\r", end="")
+def service_client_stand():
+    try:
+        service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
+        response = service_client_stand()
+        return response
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
+def service_client_sit():
+    try:
+        service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
+        response = service_client_sit()
+        return response
+    except rospy.ServiceException as e:
+        rospy.logerr(f"Service call failed: {e}")
+
+
+
 
 if __name__=="__main__":
         settings = termios.tcgetattr(sys.stdin)
         rospy.init_node("keyboard_control")
+
         # robot_ns = rospy.get_param("~robot_ns", "");
         print(msg)
 
@@ -109,6 +127,21 @@ if __name__=="__main__":
                                 nav_msg.angular.z = 0
                                 msg = "stop!"
                                 nav_pub.publish(nav_msg)
+                        if key == 'k':
+                                response = service_client_stand()
+                                if response.success:
+                                        rospy.loginfo("Stand command sent successfully!")
+                                else:
+                                        rospy.logwarn("Failed to send stand command.")
+                                msg = "stand!"
+                        if key == 'l':
+                                response = service_client_sit()
+                                if response.success:
+                                        rospy.loginfo("Sit command sent successfully!")
+                                else:
+                                        rospy.logwarn("Failed to send sit command.")
+                                msg = "sit!"
+
                         if key == '\x03':
                                 break
 
