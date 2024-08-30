@@ -6,6 +6,7 @@ import time, math, threading
 
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
+
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
@@ -45,6 +46,7 @@ class CooperationNode:
 
         self.data_array = 0
         self.find_valve_tag = 0
+        self.find_drone_tag = 0
         self.D = 0
         self.time_rece = rospy.Time()
         self._seq = 0
@@ -61,6 +63,7 @@ class CooperationNode:
         rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
         rospy.Subscriber('/go1/cmd_vel',Twist, self._callback_twist)
+        rospy.Subscriber('/odom', Odometry, self._callback_qilin_odom)
 
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
@@ -97,7 +100,12 @@ class CooperationNode:
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
             self.find_valve_tag = self.find_target_tag(data.detections,1)
-
+            self.find_drone_tag = self.find_target_tag(data.detections, 0)
+            if self.beginfollow == 1:
+                self.align_dog_with_drone()
+        else:
+            if self.beginfollow == 1:
+                self.qilin_cmd_vel(0, 0, 0, 0, 0)
         #     if self.beginfollow == 1:
         #         self.lx = - 2 * self.april_y
         #         self.ly = 2 * self.april_x
@@ -130,6 +138,10 @@ class CooperationNode:
         if self.drone_z <-0.5 or self.drone_z > 4:
             rospy.loginfo("Wrong state! land!")
             self.land()
+    def _callback_qilin_odom(self, msg):
+        self.qilin_odom_x = msg.pose.pose.position.x
+        self.qilin_odom_y = msg.pose.pose.position.y
+        self.qilin_odom_z = msg.pose.pose.position.z
 
     def _callback_state(self, msg):
         self.state = msg.data
@@ -229,10 +241,9 @@ class CooperationNode:
                 print(f'plus = {plus}')
             if plus == 0:
                 self.beginfollow = 0
-                self.event(3)
                 self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                self.land()
                 print(f'landon')
-
                 break
 
     def sit(self):
@@ -382,30 +393,6 @@ class CooperationNode:
             time.sleep(1)
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
 
-    def work(self):
-        self.takeoff()
-        while not rospy.is_shutdown():
-            if self.state == 5:
-                break
-            time.sleep(0.1)
-        while not self.find_valve_tag:
-            self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
-        self.qilin_cmd_vel(0, 0, 0, 0, 0)
-        self.tag_detection_gank()
-        print(f'{-(self.qilin_odom_x - 0.3)},{self.qilin_odom_y},{self.april_valve_z - 1.0}')
-        print(f'go on?')
-        self.user_input = input()
-        if self.user_input == 'y':
-            print(f'yes')
-            # add the odom function
-            self.drone_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0),0, 0)
-            self.drone_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0), 0, 0)
-            self.drone_nav_info(-2, self.qilin_odom_y, (self.april_valve_z - 1.0), 0, 0)
-            time.sleep(1)
-        else:
-            print(f'landon')
-            self.land()
-
     def manipulation(self,x,y,z,h,omega):
         time.sleep(2)
         self.drone_nav_info(x, y, z, 0, 0)
@@ -420,24 +407,78 @@ class CooperationNode:
         time.sleep(3)
         self.drone_nav_info(x, y, z+h, omega, 6.28)
         time.sleep(2)
-        self.drone_nav_info(x, y, z, 0, 0)
-    def demo(self):
+        self.drone_nav_info(x, y, z + h, omega, 1.57)
+        time.sleep(3)
+        self.drone_nav_info(x, y, z + h, omega, 3.14)
+        time.sleep(3)
+        self.drone_nav_info(x, y, z, 0, 3.14)
+    def align_dog_with_drone(self):
+        self.lx = 0.8* self.april_drone_x
+        self.ly = 0.8* self.april_drone_y
+        self.april_z = 0.03 *self.april_drone_yaw
+        if self.april_z > 0.4:
+            self.april_z = 0.4
+
+        # print("align speed lx, ly, :", self.lx, self.ly, self.april_z)
+        # print(f'apriltag_time:{apriltag_time.to_sec()}')
+        if abs(self.lx) < 1 and abs(self.ly) < 1:
+            navigation_time = rospy.Time.now()
+            # print(f'navigation_time:{navigation_time.to_sec()}')
+            self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
+
+    def work(self):
+        while (not self.find_valve_tag) and (self.qilin_odom_x < 4):
+            self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
         time.sleep(2)
-        self.takeoff()
+        self.qilin_cmd_vel(0, 0, 0, 0, 0)
+        print(f'can I takeoff? press y pls.')
+        self.user_input = input()
+        if self.user_input == 'y':
+            print(f'yes')
+            self.takeoff()
+
         while not rospy.is_shutdown():
             if self.state == 5:
                 break
             time.sleep(0.1)
+
+
+        print(f'{self.qilin_odom_x},{self.qilin_odom_y+0.5},{self.april_valve_z + 0.5 - 2}')
+        print(f'go on? press y pls.')
+        self.user_input = input()
+        if self.user_input == 'y':
+            print(f'yes')
+            # add the odom function
+            self.manipulation(self.qilin_odom_x, self.qilin_odom_y + 0.5, self.april_valve_z - 1.2,0.3, 0.2)
+            time.sleep(1)
         time.sleep(3)
-        self.manipulation(0,0,1,0.2,0.5)
-        self.land()
+        self.drone_nav_info(self.qilin_odom_x,self.qilin_odom_y + 0.5, 0.9, 0, 3.14)
+        print(f'Begin align?')
+        self.user_input = input()
+        if self.user_input == 'y':
+            print(f'yes')
+            self.beginfollow = 1
+
+        print(f'precise landing? press y pls.')
+        self.user_input = input()
+        if self.user_input == 'y':
+            print(f'yes')
+            self.drone_landing_condition()
+
+        print(f"Cooperative manipulation finished!")
+
+
+
+    def demo(self):
+        self.beginfollow = 1
+
+
 if __name__ == '__main__':
     node = CooperationNode()
-    # time.sleep(1)
-    # node.stand()
-    # time.sleep(2)
-    # node.work()
-    # node.manipulation(0,0,1.0,0.2,1)
-    node.demo()
+    time.sleep(1)
+    node.stand()
+    time.sleep(2)
+    node.work()
+    # node.demo()
     while not rospy.is_shutdown():
         rospy.spin()

@@ -143,8 +143,8 @@ class AprillandqilinNode:
                 print(f'plus = {plus}')
             if plus == 0:
                 self.beginfollow = 0
-                self.event(3)
                 self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                self.event(3)
                 print(f'landon')
 
                 break
