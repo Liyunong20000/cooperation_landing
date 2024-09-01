@@ -45,13 +45,24 @@
     <param name="event_driven" value="True" />
   </node>
 
-  ### GR low speed streamer3 to UAV
-  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_FlightNav" output="screen">
-    <remap from="~input" to="/quadrotor/uav/nav" />
-    <param name="message" value="aerial_robot_msgs/FlightNav" />
+    ### GR low speed streamer3 to UAV
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_nav_trigger" output="screen">
+    <remap from="~input" to="/quadrotor/uav/nav/trigger" />
+    <param name="message" value="std_msgs/Empty" />
     <param name="to_ip" value="$(arg UAV_IP)" />
     <param name="to_port" value="$(arg LOW_PORT_3)" />
     <param name="send_rate" value="1" />
     <param name="event_driven" value="True" />
   </node>
+
+<!--   ### GR low speed streamer3 to UAV -->
+<!--   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_FlightNav" output="screen"> -->
+<!--     <remap from="~input" to="/quadrotor/uav/nav" /> -->
+<!--     <param name="message" value="aerial_robot_msgs/FlightNav" /> -->
+<!--     <param name="to_ip" value="$(arg UAV_IP)" /> -->
+<!--     <param name="to_port" value="$(arg LOW_PORT_3)" /> -->
+<!--     <param name="send_rate" value="1" /> -->
+<!--     <param name="event_driven" value="True" /> -->
+<!--   </node> -->
+
 </launch>

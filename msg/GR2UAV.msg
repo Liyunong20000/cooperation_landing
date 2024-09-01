@@ -1,4 +1,4 @@
 apriltag_ros/AprilTagDetectionArray tag_detection
 geometry_msgs/Twist go1__cmd_vel
 geometry_msgs/Pose go1__body_pose
-
+aerial_robot_msgs/FlightNav quadrotor__uav__nav__info

@@ -6,6 +6,7 @@ import time
 import math
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
+from pandas import set_eng_float_format
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
@@ -23,28 +24,10 @@ class SubscribeeventNode:
         print(f'Hi, I am Cloud Cube')
         rospy.init_node('Aprillandqilin', anonymous=True)
 
-        self.lx, self.ly, self.lz = 0, 0, 0
-        self.qx, self.qy, self.qz, self.qw = 0, 0, 0, 0
-        self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
-        self.april_qx,self.april_qy, self.april_qz, self.april_qw = 0.0, 0.0, 0.0, 0.0
-
-        self.uav_nav_info_pose_x, self.uav_nav_info_pose_y, self.uav_nav_info_pose_z = 0.0, 0.0, 0.0
-        self.uav_nav_info_orientation_x, self.uav_nav_info_orientation_y, self.uav_nav_info_orientation_z, self.uav_nav_info_orientation_w = 0.0, 0.0, 0.0, 0.0
-        self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
-        self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
-
-        self.D = 0
-        self.time_rece = rospy.Time()
         self._seq = 0
-        self.state = 0
-        self.flag_takeoff = 1
-        self.flag_landon = 1
-
         # Subscribe and publish.
-        rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
-        rospy.Subscriber('/uavandgr/uav_nav_info', Pose, self._callback_uav_nav_info)
-        rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
-        rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
+        rospy.Subscriber('/quadrotor/uav/nav/trigger', Empty, self._callback_nav_trigger)
+        rospy.Subscriber('/quadrotor/uav/nav/info', FlightNav, self._callback_nav_info)
 
 
         # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
@@ -53,54 +36,19 @@ class SubscribeeventNode:
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
-        rospy.set_param('/converge_interval', 0.05)
-        self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/above_z', 0.4)
-        self.above_z = rospy.get_param("/above_z")
+        self.target_x, self.target_y, self.target_z= 0.0, 0.0, 0.0
+        self.yaw_nav_mode, self.target_omega_z, self.target_yaw = 0.0, 0.0, 0.0
+    def _callback_nav_info(self, msg):
+        self.target_x= msg.target_pos_x
+        self.target_y= msg.target_pos_y
+        self.target_z= msg.target_pos_z
+        self.yaw_nav_mode = msg.yaw_nav_mode
+        self.target_omega_z = msg.target_omega_z
+        self.target_yaw = msg.target_yaw
 
-        rospy.set_param('/move_parameter', 2)
-        self.move_parameter = rospy.get_param("/move_parameter")
-        rospy.set_param('/pose_parameter', 0.05)
-        self.pose_parameter = rospy.get_param("/pose_parameter")
-
-    def _callback_position(self, odom_msg):
-        self.drone_x = odom_msg.pose.pose.position.x
-        self.drone_y = odom_msg.pose.pose.position.y
-        self.drone_z = odom_msg.pose.pose.position.z
-
-    def _callback_state(self, msg):
-        self.state = msg.data
-
-    def _callback_uav_nav_info(self, msg):
-        self.uav_nav_info_pose_x = msg.position.x
-        self.uav_nav_info_pose_y = msg.position.y
-        self.uav_nav_info_pose_z = msg.position.z
-
-        self.uav_nav_info_orientation_x = msg.orientation.x
-        self.uav_nav_info_orientation_y = msg.orientation.y
-        self.uav_nav_info_orientation_z = msg.orientation.z
-        self.uav_nav_info_orientation_w = msg.orientation.w
-    # def _callback_event(self,msg):
-    #     self.event = msg.data
-    #     self.uavandgr_uav_nav = msg
-    #     if self.flag_takeoff == 1 and self.event == 1 :
-    #         self.flag_takeoff = 0
-    #         self.takeoff()
-    #         print('take off')
-    #     if self.event == 2:
-    #         self.drone_nav_info(self.uav_nav_info_pose_x, self.uav_nav_info_pose_y, self.uav_nav_info_pose_z)
-    #         print(f'move to {self.uav_nav_info_pose_x}, {self.uav_nav_info_pose_y}, {self.uav_nav_info_pose_z}' )
-    #         time.sleep(4)
-    #
-    #     if self.flag_landon == 1 and self.event == 3:
-    #         self.flag_landon = 0
-    #         self.land()
-    #         print(f'land on')
-
-    def event(self, x):
-        event_msgs = UInt8()
-        event_msgs.data = x
-        self.pub_event.publish(event_msgs)
+    def _callback_nav_trigger(self, msg):
+        self.drone_nav_info(self.target_x,self.target_y,self.target_z,self.yaw_nav_mode, self.target_omega_z, self.target_yaw)
+        print(f"pub")
 
     def takeoff(self):
         time.sleep(0.5)
@@ -115,20 +63,7 @@ class SubscribeeventNode:
         empty_msg = Empty()
         self.pub_land.publish(empty_msg)
 
-    def converge(self, x, y, z):
-        while not rospy.is_shutdown():
-            if abs(self.drone_x - x) < self.converge_interval and abs(self.drone_y - y) < self.converge_interval and abs(self.drone_z - z) < self.converge_interval:  # reach hover state
-                break
-            time.sleep(0.1)
-
-    # record the take off position
-    def record_takeoff_position(self):
-        self.takeoff_x = self.drone_x
-        self.takeoff_y = self.drone_y
-        self.takeoff_z = self.drone_z
-        print(self.takeoff_x, self.takeoff_y)
-
-    def drone_nav_info(self, x, y, z):
+    def drone_nav_info(self, x, y, z, yaw_mode, omega_z, yaw):
         flight_nav_msg = FlightNav()
         flight_nav_msg.header.seq = self._seq
         self._seq += 1
@@ -144,9 +79,9 @@ class SubscribeeventNode:
         flight_nav_msg.target_pos_y = y
         flight_nav_msg.target_vel_y = 0.0
         flight_nav_msg.target_acc_y = 0.0
-        flight_nav_msg.yaw_nav_mode = 4
-        flight_nav_msg.target_omega_z = 0.0
-        flight_nav_msg.target_yaw = 0.0
+        flight_nav_msg.yaw_nav_mode = yaw_mode
+        flight_nav_msg.target_omega_z = omega_z
+        flight_nav_msg.target_yaw = yaw
         flight_nav_msg.pos_z_nav_mode = 2
         flight_nav_msg.target_pos_z = z
         flight_nav_msg.target_vel_z = 0.0
@@ -161,6 +96,6 @@ class SubscribeeventNode:
 if __name__ == '__main__':
     node = SubscribeeventNode()
     time.sleep(1)
-    node.record_takeoff_position()
+
     while not rospy.is_shutdown():
         rospy.spin()
