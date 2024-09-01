@@ -37,7 +37,7 @@ class SubscribeeventNode:
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
         self.target_x, self.target_y, self.target_z= 0.0, 0.0, 0.0
-        self.yaw_nav_mode, self.target_omega_z, self.target_yaw = 0.0, 0.0, 0.0
+        self.yaw_nav_mode, self.target_omega_z, self.target_yaw = 0, 0.0, 0.0
     def _callback_nav_info(self, msg):
         self.target_x= msg.target_pos_x
         self.target_y= msg.target_pos_y
