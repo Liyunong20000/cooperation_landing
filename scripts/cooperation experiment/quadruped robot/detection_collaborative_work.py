@@ -45,6 +45,7 @@ class CooperationNode:
         self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w = 0.0, 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
 
+        self.miss_first_time, self.miss_second_time = rospy.Time.now(), rospy.Time.now()
         self.data_array = 0
         self.find_valve_tag = 0
         self.find_drone_tag = 0
@@ -55,6 +56,7 @@ class CooperationNode:
         self.beginland = 0
         self.beginfollow = 0
         self.flag = 0
+
         self.user_input = None
 
         self.qilin_odom_x, self.qilin_odom_y, self.qilin_odom_th = 0, 0, 0
@@ -107,7 +109,14 @@ class CooperationNode:
 
         else:
             if self.beginfollow == 1:
-                self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                self.miss_second_time = rospy.Time.now()
+                duration = self.miss_second_time - self.miss_first_time
+                # print(f'{duration.to_sec()}')
+                if duration.to_sec() > 0.2:
+                    self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    self.miss_first_time = self.miss_second_time
+                else:
+                    self.miss_first_time = self.miss_second_time
         #     if self.beginfollow == 1:
         #         self.lx = - 2 * self.april_y
         #         self.ly = 2 * self.april_x
@@ -373,21 +382,30 @@ class CooperationNode:
         self.drone_nav_info(x, y, z, 0, 3.14)
     def inspection(self,x,y,drift,z,omega,yaw):
         self.drone_nav_info(x, y, z,0, 0, 0)
-        time.sleep(3)
+        time.sleep(2)
         self.drone_nav_info(x, y+drift, z, 0,0, 0)
-        time.sleep(3)
-        self.drone_nav_info(x, y+drift, z, 1,omega, 0)
-        time.sleep(10)
-        self.drone_nav_info(x, y + drift, z, 4, omega,0)
+        time.sleep(2)
+        self.drone_nav_info(x, y+drift, z, 4,omega, yaw+90)
+        time.sleep(2)
+        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+180)
+        time.sleep(2)
+        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+270)
+        time.sleep(2)
+        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+360)
+        time.sleep(2)
+        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+450)
+        time.sleep(2)
+        self.drone_nav_info(x, y + drift, z, 4, omega,180)
         time.sleep(3)
 
     def align_dog_with_drone(self):
-        self.lx = 0.8* self.april_drone_x
-        self.ly = 0.8* self.april_drone_y
+        self.lx =  self.april_drone_x
+        self.ly =  self.april_drone_y
         self.april_z = 0.03 *self.april_drone_yaw
-        if self.april_z > 0.4:
-            self.april_z = 0.4
-
+        if self.april_z > 0.3:
+            self.april_z = 0.3
+        if self.april_z < -0.3:
+            self.april_z = -0.3
         # print("align speed lx, ly, :", self.lx, self.ly, self.april_z)
         # print(f'apriltag_time:{apriltag_time.to_sec()}')
         if abs(self.lx) < 2 and abs(self.ly) < 2:
@@ -414,23 +432,23 @@ class CooperationNode:
             if self.state == 5:
                 break
             time.sleep(0.1)
-        self.drone_nav_info(self.takeoff_x, self.takeoff_y, self.takeoff_z+0.2, 0, 0, 0)
-        time.sleep(1)
-        self.inspection(self.takeoff_x, self.takeoff_y, 1.5, self.april_valve_z - 1,0.2,self.takeoff_yaw)
+
+        self.inspection(self.takeoff_x-self.april_valve_x, self.takeoff_y-self.april_valve_y, -1.5, self.april_valve_z - 1,0.2,self.takeoff_yaw)
         self.drone_nav_info(self.takeoff_x,self.takeoff_y,self.april_valve_z - 1,0,0,0)
-        time.sleep(5)
+        time.sleep(3)
         self.drone_nav_info(self.takeoff_x, self.takeoff_y, self.takeoff_z + 0.5, 0, 0,0)
         self.beginfollow = 1
         self.drone_landing_condition()
-
+    def demo2(self):
+        self.beginfollow=1
 if __name__ == '__main__':
     node = CooperationNode()
 
     time.sleep(1)
     node.stand()
-    time.sleep(2)
-    # node.work()
-    print(f"11111111111")
-    node.demo()
+    # time.sleep(2)
+    # # node.work()
+    # print(f"11111111111")
+    node.demo2()
     while not rospy.is_shutdown():
         rospy.spin()
