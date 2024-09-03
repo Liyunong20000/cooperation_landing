@@ -41,7 +41,7 @@ class CooperationNode:
         self.april_drone_x, self.april_drone_y, self.april_drone_z, self.april_drone_yaw = 0, 0, 0, 0
 
         self.dog_x, self.dog_y, self.dog_z = (2.8, 2.8, 0.0)
-        self.drone_x, self.drone_y, self.drone_z, self.drone_yaw = 0.0, 0.0, 0.0, 0.0
+        self.drone_x, self.drone_y, self.drone_z, self.drone_roll, self.drone_pitch, self.drone_yaw = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w = 0.0, 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
 
@@ -150,9 +150,12 @@ class CooperationNode:
         self.drone_ori_y = odom_msg.pose.pose.orientation.y
         self.drone_ori_z = odom_msg.pose.pose.orientation.z
         self.drone_ori_w = odom_msg.pose.pose.orientation.w
-        self.drone_yaw = self.quaternion_to_euler_angle(self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w)
-        # print(f'drone_yaw:{self.drone_yaw}')
-        if self.drone_z <-0.5 or self.drone_z > 3:
+        self.drone_roll = self.quaternion_to_euler_angle(self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w)[0]
+        self.drone_pitch = self.quaternion_to_euler_angle(self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w)[1]
+        self.drone_yaw = self.quaternion_to_euler_angle(self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w)[2]
+
+        print(f'drone_yaw:{self.drone_roll}, {self.drone_pitch},{self.drone_yaw}')
+        if self.drone_z <-0.5 or self.drone_z > 3 or abs(self.drone_roll) < 45 or abs(self.drone_pitch) < 45 or abs(self.drone_yaw) > 45:
             rospy.loginfo("Wrong state! land!")
             self.land()
     def _callback_qilin_odom(self, msg):
@@ -178,7 +181,7 @@ class CooperationNode:
                     self.april_drone_yaw = self.quaternion_to_euler_angle(data[a].pose.pose.pose.orientation.x,
                                                                           data[a].pose.pose.pose.orientation.y,
                                                                           data[a].pose.pose.pose.orientation.z,
-                                                                          data[a].pose.pose.pose.orientation.w)
+                                                                          data[a].pose.pose.pose.orientation.w)[2]
 
                 if target_id == 1:
                     self.april_valve_x = -data[a].pose.pose.pose.position.y
@@ -187,7 +190,7 @@ class CooperationNode:
                     self.april_valve_yaw = self.quaternion_to_euler_angle(data[a].pose.pose.pose.orientation.x,
                                                          data[a].pose.pose.pose.orientation.y,
                                                          data[a].pose.pose.pose.orientation.z,
-                                                         data[a].pose.pose.pose.orientation.w)
+                                                         data[a].pose.pose.pose.orientation.w)[2]
 
                 return 1
             else:
@@ -337,10 +340,11 @@ class CooperationNode:
         R = np.array([[1 - 2 * y ** 2 - 2 * z ** 2, 2 * x * y - 2 * w * z, 2 * x * z + 2 * w * y],
                       [2 * x * y + 2 * w * z, 1 - 2 * x ** 2 - 2 * z ** 2, 2 * y * z - 2 * w * x],
                       [2 * x * z - 2 * w * y, 2 * y * z + 2 * w * x, 1 - 2 * x ** 2 - 2 * y ** 2]])
-        # theta_x = math.degrees(np.arctan2(R[2, 1], R[2, 2]))
-        # theta_y = math.degrees(np.arctan2(-R[2, 0], np.sqrt(R[2, 1] ** 2 + R[2, 2] ** 2)))
+        theta_x = math.degrees(np.arctan2(R[2, 1], R[2, 2]))
+        theta_y = math.degrees(np.arctan2(-R[2, 0], np.sqrt(R[2, 1] ** 2 + R[2, 2] ** 2)))
         theta_z = math.degrees(np.arctan2(R[1, 0], R[0, 0]))
-        return theta_z
+        theta = np.array([theta_x, theta_y, theta_z])
+        return theta
 
     def record_takeoff_position(self):
         self.takeoff_x = self.drone_x
@@ -439,16 +443,15 @@ class CooperationNode:
         self.drone_nav_info(self.takeoff_x, self.takeoff_y, self.takeoff_z + 0.5, 0, 0,0)
         self.beginfollow = 1
         self.drone_landing_condition()
-    def demo2(self):
-        self.beginfollow=1
+
 if __name__ == '__main__':
     node = CooperationNode()
 
     time.sleep(1)
     node.stand()
-    # time.sleep(2)
-    # # node.work()
-    # print(f"11111111111")
-    node.demo2()
+    time.sleep(2)
+    # node.work()
+    print(f"11111111111")
+    node.demo()
     while not rospy.is_shutdown():
         rospy.spin()
