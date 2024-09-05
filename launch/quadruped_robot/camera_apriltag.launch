@@ -3,7 +3,7 @@
 
   <!-- USB camera -->
   <node name="usb_camera_upward" pkg="usb_cam" type="usb_cam_node" output="screen" >
-    <param name="video_device" value="/dev/video2" />
+    <param name="video_device" value="/dev/dragon_qilin_camera_upward" />
     <param name="image_width" value="1280" />
     <param name="image_height" value="720" />
     <param name="pixel_format" value="yuyv" />
@@ -24,10 +24,5 @@
   </include>
   <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/tags.yaml" ns="/apriltag_ros_continuous_node"/>
 
-<!--    --><!-- GR2UAV -->
-<!--   <include file="$(find cooperation_landing)/launch/quadruped_robot/GR2UAV.launch"> -->
-<!--     <arg name="GROUND_ROBOT_IP" default="$(env ROS_IP)" /> -->
-<!--     <arg name="UAV_IP" default="192.168.1.106" /> -->
-<!--   </include> -->
 
 </launch>
