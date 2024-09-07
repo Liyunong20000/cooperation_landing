@@ -105,7 +105,10 @@ class CooperationNode:
             self.find_valve_tag = self.find_target_tag(data.detections,1)
             self.find_drone_tag = self.find_target_tag(data.detections, 0)
             if self.beginfollow == 1:
-                self.align_dog_with_drone()
+                if self.find_drone_tag == 1:
+                    self.align_dog_with_drone()
+                else:
+                    self.qilin_cmd_vel(0, 0, 0, 0, 0)
 
         else:
             if self.beginfollow == 1:
@@ -154,8 +157,8 @@ class CooperationNode:
         self.drone_pitch = self.quaternion_to_euler_angle(self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w)[1]
         self.drone_yaw = self.quaternion_to_euler_angle(self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w)[2]
 
-        print(f'drone_yaw:{self.drone_roll}, {self.drone_pitch},{self.drone_yaw}')
-        if self.drone_z <-0.5 or self.drone_z > 3 or abs(self.drone_roll) < 45 or abs(self.drone_pitch) < 45 or abs(self.drone_yaw) > 45:
+        # print(f'drone_yaw:{self.drone_roll}, {self.drone_pitch},{self.drone_yaw}')
+        if self.drone_z <-0.5 or self.drone_z > 3 or abs(self.drone_roll) > 45 or abs(self.drone_pitch) > 45:
             rospy.loginfo("Wrong state! land!")
             self.land()
     def _callback_qilin_odom(self, msg):
@@ -385,26 +388,24 @@ class CooperationNode:
         time.sleep(3)
         self.drone_nav_info(x, y, z, 0, 3.14)
     def inspection(self,x,y,drift,z,omega,yaw):
-        self.drone_nav_info(x, y, z,0, 0, 0)
-        time.sleep(2)
         self.drone_nav_info(x, y+drift, z, 0,0, 0)
         time.sleep(2)
-        self.drone_nav_info(x, y+drift, z, 4,omega, yaw+90)
+        self.drone_nav_info(x, y+drift, z, 4,omega, 90)
         time.sleep(2)
-        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+180)
+        self.drone_nav_info(x, y + drift, z, 4, omega, 180)
         time.sleep(2)
-        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+270)
+        self.drone_nav_info(x, y + drift, z, 4, omega, -90)
         time.sleep(2)
-        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+360)
+        self.drone_nav_info(x, y + drift, z, 4, omega, 0)
         time.sleep(2)
-        self.drone_nav_info(x, y + drift, z, 4, omega, yaw+450)
+        self.drone_nav_info(x, y + drift, z, 4, omega, 90)
         time.sleep(2)
-        self.drone_nav_info(x, y + drift, z, 4, omega,180)
+        self.drone_nav_info(x, y + drift, z, 4, omega,yaw+180)
         time.sleep(3)
 
     def align_dog_with_drone(self):
-        self.lx =  self.april_drone_x
-        self.ly =  self.april_drone_y
+        self.lx = 1.2 * self.april_drone_x
+        self.ly = 1.2 * self.april_drone_y
         self.april_z = 0.03 *self.april_drone_yaw
         if self.april_z > 0.3:
             self.april_z = 0.3
@@ -420,7 +421,7 @@ class CooperationNode:
 
 
     def demo(self):
-        while (not self.find_valve_tag) and (self.qilin_odom_x < 4):
+        while not self.find_valve_tag:
             self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
         time.sleep(2)
         self.qilin_cmd_vel(0, 0, 0, 0, 0)
@@ -437,16 +438,17 @@ class CooperationNode:
                 break
             time.sleep(0.1)
 
-        self.inspection(self.takeoff_x-self.april_valve_x, self.takeoff_y-self.april_valve_y, -1.5, self.april_valve_z - 1,0.2,self.takeoff_yaw)
+        self.inspection(self.takeoff_x+self.april_valve_x, self.takeoff_y-self.april_valve_y, -1.5, self.april_valve_z - 1,0.2,self.takeoff_yaw)
         self.drone_nav_info(self.takeoff_x,self.takeoff_y,self.april_valve_z - 1,0,0,0)
         time.sleep(3)
         self.drone_nav_info(self.takeoff_x, self.takeoff_y, self.takeoff_z + 0.5, 0, 0,0)
         self.beginfollow = 1
         self.drone_landing_condition()
+    def demo2(self):
+        self.beginfollow = 1
 
 if __name__ == '__main__':
     node = CooperationNode()
-
     time.sleep(1)
     node.stand()
     time.sleep(2)
