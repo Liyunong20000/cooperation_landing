@@ -13,6 +13,7 @@ from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from gazebo_msgs.msg import ModelState
+from tf.tfwtf import rostime_delta
 
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
@@ -418,8 +419,12 @@ class CooperationNode:
             # print(f'navigation_time:{navigation_time.to_sec()}')
             self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
 
-
-
+    def patrol(self):
+        self.qilin_cmd_vel(0.1,0,0,0,0)
+        print(f'{rospy.Time.now}')
+        left = threading.Timer(5,lambda: self.qilin_cmd_vel(0,0.1,0,0,0))
+        left.start()
+        print(f'{rospy.Time.now}')
     def demo(self):
         while not self.find_valve_tag:
             self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
@@ -465,6 +470,6 @@ if __name__ == '__main__':
     time.sleep(2)
     # node.work()
     print(f"11111111111")
-    node.demo3()
+    node.patrol()
     while not rospy.is_shutdown():
         rospy.spin()
