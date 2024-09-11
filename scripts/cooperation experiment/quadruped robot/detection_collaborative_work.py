@@ -404,7 +404,7 @@ class CooperationNode:
         time.sleep(3)
 
     def align_dog_with_drone(self):
-        self.lx = 1.2 * self.april_drone_x
+        self.lx = 1.2 * (self.april_drone_x+ 0.0825)
         self.ly = 1.2 * self.april_drone_y
         self.april_z = 0.03 *self.april_drone_yaw
         if self.april_z > 0.3:
@@ -446,7 +446,18 @@ class CooperationNode:
         self.drone_landing_condition()
     def demo2(self):
         self.beginfollow = 1
-
+    def demo3(self):
+        self.record_takeoff_position()
+        time.sleep(1)
+        self.takeoff()
+        while not rospy.is_shutdown():
+            if self.state == 5:
+                break
+            time.sleep(0.1)
+        self.drone_nav_info(self.takeoff_x, self.takeoff_y, self.takeoff_z+0.4,0,0,0)
+        self.beginfollow = 1
+        self.drone_landing_condition()
+        
 if __name__ == '__main__':
     node = CooperationNode()
     time.sleep(1)
@@ -454,6 +465,6 @@ if __name__ == '__main__':
     time.sleep(2)
     # node.work()
     print(f"11111111111")
-    node.demo()
+    node.demo3()
     while not rospy.is_shutdown():
         rospy.spin()

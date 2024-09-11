@@ -23,7 +23,7 @@
     <arg name="image_topic" value="image_raw" />
   </include>
   <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/tags.yaml" ns="/apriltag_ros_continuous_node"/>
-
+  
   <!-- Mocap -->
    <include file="$(find cooperation_landing)/launch/quadruped_robot/mocap.launch">
     <arg name="robot_id" default="2"/>

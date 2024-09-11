@@ -1,6 +1,6 @@
 <launch>
   <arg name="GROUND_ROBOT_IP" default="$(env ROS_IP)" />
-  <arg name="UAV_IP" default="192.168.1.235" />
+  <arg name="UAV_IP" default="192.168.1.120" />
   <arg name="HIGH_PORT1" default="16484" />
   <arg name="HIGH_PORT2" default="8192" />
   <arg name="LOW_PORT_1" default="1024" />
