@@ -36,18 +36,21 @@ class SubscribeeventNode:
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
+        self.x_y_mode, self.z_mode = 0, 0
         self.target_x, self.target_y, self.target_z= 0.0, 0.0, 0.0
         self.yaw_nav_mode, self.target_omega_z, self.target_yaw = 0, 0.0, 0.0
     def _callback_nav_info(self, msg):
+        self.x_y_mode= msg.pos_xy_nav_mode
         self.target_x= msg.target_pos_x
         self.target_y= msg.target_pos_y
+        self.z_mode= msg.pos_z_nav_mode
         self.target_z= msg.target_pos_z
         self.yaw_nav_mode = msg.yaw_nav_mode
         self.target_omega_z = msg.target_omega_z
         self.target_yaw = msg.target_yaw
 
     def _callback_nav_trigger(self, msg):
-        self.drone_nav_info(self.target_x,self.target_y,self.target_z,self.yaw_nav_mode, self.target_omega_z, self.target_yaw)
+        self.drone_nav_info(self.x_y_mode, self.target_x, self.target_y, self.z_mode, self.target_z,self.yaw_nav_mode, self.target_omega_z, self.target_yaw)
         print(f"pub")
 
     def takeoff(self):
@@ -63,7 +66,7 @@ class SubscribeeventNode:
         empty_msg = Empty()
         self.pub_land.publish(empty_msg)
 
-    def drone_nav_info(self, x, y, z, yaw_mode, omega_z, yaw):
+    def drone_nav_info(self, x_y_mode, x, y, z_mode, z, yaw_mode, omega_z, yaw):
         flight_nav_msg = FlightNav()
         flight_nav_msg.header.seq = self._seq
         self._seq += 1
@@ -72,7 +75,7 @@ class SubscribeeventNode:
 
         flight_nav_msg.control_frame = 0
         flight_nav_msg.target = 0
-        flight_nav_msg.pos_xy_nav_mode = 2
+        flight_nav_msg.pos_xy_nav_mode = x_y_mode
         flight_nav_msg.target_pos_x = x
         flight_nav_msg.target_vel_x = 0.0
         flight_nav_msg.target_acc_x = 0.0
@@ -82,7 +85,7 @@ class SubscribeeventNode:
         flight_nav_msg.yaw_nav_mode = yaw_mode
         flight_nav_msg.target_omega_z = omega_z
         flight_nav_msg.target_yaw = yaw
-        flight_nav_msg.pos_z_nav_mode = 2
+        flight_nav_msg.pos_z_nav_mode = z_mode
         flight_nav_msg.target_pos_z = z
         flight_nav_msg.target_vel_z = 0.0
         flight_nav_msg.target_pos_diff_z = 0.0
