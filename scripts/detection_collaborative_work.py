@@ -17,7 +17,7 @@ from gazebo_msgs.msg import ModelState
 from tf.tfwtf import rostime_delta
 
 
-# It is for  the Coopration for Mini_Quadrotor and Qilin
+# The Cooperative inspection system by mini_quadrotor and Qilin
 
 
 
