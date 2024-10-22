@@ -18,7 +18,7 @@
   <arg name="worldtype" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
 
   <!--Call the unitree dog to attend the simulation-->
-  <include file="$(find cooperation_landing)/launch/quadruped_robot/normal.launch">
+  <include file="$(find cooperation_landing)/launch/normal.launch">
     <arg name="rname" default="go1"/>
   </include>
 
@@ -44,7 +44,7 @@
   </include>
 
   <!--Give me a usb camera-->
-<!--   <include file="$(find cooperation_landing)/launch/quadruped_robot/includes/sensors.launch.xml" > -->
+<!--   <include file="$(find cooperation_landing)/launch/includes/sensors.launch.xml" > -->
 <!--     <arg name="robot_ns" value="unitree_go1" /> -->
 <!--   </include > -->
 
