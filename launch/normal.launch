@@ -1,60 +1,76 @@
 <launch>
-    <arg name="wname" default="earth"/>
+    <arg name="headless" default="false"/>
+    <arg name="simulation" default="true"/>
+    <arg name="worldtype" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
+    <arg name="robot_name" default="go1"/>
     <arg name="rname" default="go1"/>
-    <arg name="robot_path" value="(find $(arg rname)_description)"/>
+    <arg name="robot_path" value="(find go1_description)"/>
     <arg name="dollar" value="$"/>
+
+    <arg name="unitree_spawn_x" default="0.0" />
+    <arg name="unitree_spawn_y" default="0.0" />
+    <arg name="unitree_spawn_z" default="0.6" />
 
     <!-- <arg name="paused" default="true"/> -->
     <!-- <arg name="use_sim_time" default="true"/> -->
     <!-- <arg name="gui" default="true"/> -->
     <!-- <arg name="headless" default="false"/> -->
-    <arg name="debug" default="false"/>
+<!--     <arg name="debug" default="false"/> -->
     <!-- <arg name="world_name" default="($(find unitree_gazebo)/worlds/$(arg wname).world)"/> -->
     
     <!-- Debug mode will hung up the robot, use "true" or "false" to switch it. -->
-    <arg name="user_debug" default="false"/>
-    <!-- <include file="$(find gazebo_ros)/launch/empty_world.launch"> -->
-    <!--     <arg name="world_name" value="$(arg world_name)"/> -->
-    <!--     <arg name="debug" value="$(arg debug)"/> -->
-    <!--     <arg name="gui" value="$(arg gui)"/> -->
-    <!--     <arg name="paused" value="$(arg paused)"/> -->
-    <!--     <arg name="use_sim_time" value="$(arg use_sim_time)"/> -->
-    <!--     <arg name="headless" value="$(arg headless)"/> -->
-    <!-- </include> -->
+<!--     <arg name="user_debug" default="false"/> -->
+<!--     <include file="$(find gazebo_ros)/launch/empty_world.launch"> -->
+<!--         <arg name="world_name" value="$(arg world_name)"/> -->
+<!--         <arg name="debug" value="$(arg debug)"/> -->
+<!--         <arg name="gui" value="$(arg gui)"/> -->
+<!--         <arg name="paused" value="$(arg paused)"/> -->
+<!--         <arg name="use_sim_time" value="$(arg use_sim_time)"/> -->
+<!--         <arg name="headless" value="$(arg headless)"/> -->
+<!--     </include> -->
 
-    <!-- Load the URDF into the ROS Parameter Server -->
-    <param name="robot_description"
-           command="$(find xacro)/xacro '$(find cooperation_landing)/urdf/camera.gazebo.xacro'
-           DEBUG:=$(arg user_debug)"/>
+    <group if ="$(arg simulation)">
+                <!-- Load the URDF into the ROS Parameter Server -->
+        <param name="robot_description"
+               command="$(find xacro)/xacro '$(find cooperation_landing)/urdf/camera.gazebo.xacro' "/>
 
-    <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
-    <!-- Set trunk and joint positions at startup -->
-    <!--<node pkg="gazebo_ros" type="spawn_model" name="urdf_spawner" respawn="false" output="screen"
-          args="-urdf -z 0.1 -model $(arg rname)_gazebo -param robot_description -unpause"/>-->
+         <node pkg="tf" type="static_transform_publisher" name="landing_gear_broadcaster" args="$(arg unitree_spawn_x) $(arg unitree_spawn_y) 0 0 0 0 /world /base 50" />
 
-    <!-- Load joint controller configurations from YAML file to parameter server -->
-    <rosparam file="$(arg dollar)$(arg robot_path)/config/robot_control.yaml" command="load"/>
+          <!--    Gazebo -->
+        <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+          <arg name="world_name" value="$(arg worldtype)" />
+        </include>
 
-    <!-- load the controllers -->
-    <node pkg="controller_manager" type="spawner" name="controller_spawner" respawn="false"
-          output="screen" ns="/$(arg rname)_gazebo" args="joint_state_controller
-          FL_hip_controller FL_thigh_controller FL_calf_controller
-          FR_hip_controller FR_thigh_controller FR_calf_controller
-          RL_hip_controller RL_thigh_controller RL_calf_controller
-          RR_hip_controller RR_thigh_controller RR_calf_controller "/>
+        <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+        <!-- Set trunk and joint positions at startup -->
+        <node pkg="gazebo_ros" type="spawn_model" name="spawn_unitree" respawn="false" output="screen" args="-urdf -model unitree -x $(arg unitree_spawn_x) -y $(arg unitree_spawn_y) -z $(arg unitree_spawn_z) -param robot_description -unpause" />
 
-    <!-- convert joint states to TF transforms for rviz, etc -->
-    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"
-          respawn="false" output="screen">
-        <remap from="/joint_states" to="/$(arg rname)_gazebo/joint_states"/>
-    </node>
+        <!-- Load joint controller configurations from YAML file to parameter server -->
+        <rosparam file="$(arg dollar)$(arg robot_path)/config/robot_control.yaml" command="load"/>
 
-<!--     <node pkg="unitree_gazebo" type="servo" name="servo" required="true" output="screen"/> -->
+        <!-- load the controllers -->
+        <node pkg="controller_manager" type="spawner" name="controller_spawner" respawn="false"
+              output="screen" ns="/$(arg rname)_gazebo" args="joint_state_controller
+              FL_hip_controller FL_thigh_controller FL_calf_controller
+              FR_hip_controller FR_thigh_controller FR_calf_controller
+              RL_hip_controller RL_thigh_controller RL_calf_controller
+              RR_hip_controller RR_thigh_controller RR_calf_controller "/>
 
-    <!-- load the parameter unitree_controller -->
-    <include file="$(find unitree_controller)/launch/set_ctrl.launch">
-        <arg name="rname" value="$(arg rname)"/>
-    
-    </include>
-    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cooperation_landing)/config/robot/unitree.rviz" /> -->
+        <!-- convert joint states to TF transforms for rviz, etc -->
+        <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"
+              respawn="false" output="screen">
+            <remap from="/joint_states" to="/$(arg robot_name)_gazebo/joint_states"/>
+            <param name="publish_frequency" type="double" value="100.0" />
+        </node>
+
+        <!--     <node pkg="unitree_gazebo" type="servo" name="servo" required="true" output="screen"/> -->
+
+        <!-- load the parameter unitree_controller -->
+        <include file="$(find unitree_controller)/launch/set_ctrl.launch">
+            <arg name="rname" value="$(arg robot_name)"/>
+        </include>
+    </group>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cooperation_landing)/config/robot/unitree.rviz" />
+
 </launch>

@@ -4,7 +4,7 @@
 
   <node pkg="mocap_optitrack"
     type="mocap_node"
-    name="mocap_node_go1"
+    name="mocap_node"
     respawn="false"
     launch-prefix=""
     required="true">

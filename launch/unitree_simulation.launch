@@ -53,18 +53,10 @@
   <node pkg="tf" type="static_transform_publisher" name="landing_gear_broadcaster" args="$(arg unitree_spawn_x) $(arg unitree_spawn_y) 0 0 0 0 /world /base 50" />
 <!--   <node pkg="tf" type="static_transform_publisher" name="quadrotor_broadcaster" args="$(arg quadrotor_spawn_x) $(arg quadrotor_spawn_y) $(arg quadrotor_spawn_z) 1 1 0 /base /quadrotor/root 50" /> -->
 
-  <!--    Gazebo -->
-  <include file="$(find gazebo_ros)/launch/empty_world.launch" >
-    <arg name="world_name" value="$(arg worldtype)" />
-    <arg name="gui" default="true"/>
-    <arg name="headless" default="false"/>
-    <arg name="debug" value="$(arg debug)"/>
-    <arg name="paused" value="$(arg paused)"/>
-    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
-  </include>
 
 
-  <node pkg="gazebo_ros" type="spawn_model" name="spawn_unitree" respawn="false" output="screen" args="-urdf -model unitree -x $(arg unitree_spawn_x) -y $(arg unitree_spawn_y) -z $(arg unitree_spawn_z) -param robot_description -unpause" />
+
+
 <!--   <node name="quadrotor" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" -->
 <!--         args="-urdf -model quadrotor -x $(arg quadrotor_spawn_x) -y $(arg quadrotor_spawn_y) -z $(arg quadrotor_spawn_z) -Y $(arg quadrotor_spawn_yaw) -param quadrotor/robot_description"/> -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cooperation_landing)/config/robot/unitree.rviz" />
