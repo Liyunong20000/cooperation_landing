@@ -1,7 +1,7 @@
 <launch>
     <arg name="headless" default="false"/>
     <arg name="simulation" default="true"/>
-    <arg name="worldtype" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
+    <arg name="world_type" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
     <arg name="robot_name" default="go1"/>
     <arg name="rname" default="go1"/>
     <arg name="robot_path" value="(find go1_description)"/>
@@ -38,7 +38,7 @@
 
           <!--    Gazebo -->
         <include file="$(find gazebo_ros)/launch/empty_world.launch" >
-          <arg name="world_name" value="$(arg worldtype)" />
+          <arg name="world_name" value="$(arg world_type)" />
         </include>
 
         <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
@@ -71,6 +71,6 @@
         </include>
     </group>
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cooperation_landing)/config/robot/unitree.rviz" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cooperation_landing)/config/robot/unitree.rviz" unless= "$(arg headless)"/>
 
 </launch>

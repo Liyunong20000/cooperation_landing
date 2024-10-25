@@ -15,11 +15,13 @@
   <arg name="paused" default="true"/>
   <arg name="use_sim_time" default="true"/>
   <arg name="debug" default="false"/>
-  <arg name="worldtype" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
+  <arg name="world_type" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
 
   <!--Call the unitree dog to attend the simulation-->
-  <include file="$(find cooperation_landing)/launch/normal.launch">
+  <include file="$(find cooperation_landing)/launch/go1.launch">
     <arg name="rname" default="go1"/>
+    <arg name="simulation" default="true"/>
+    <arg name="world_type" default="go1"/>
   </include>
 
   <!-- Apriltag detection -->

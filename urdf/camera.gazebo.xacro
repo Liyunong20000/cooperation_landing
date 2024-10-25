@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<robot name="upward_camera_gazebo" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="go1_upward_camera_gazebo" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:arg name="robot_name" default="qilin" />
 
   <!-- robot urdf -->
