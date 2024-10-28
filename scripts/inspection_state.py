@@ -14,12 +14,11 @@ from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from gazebo_msgs.msg import ModelState
+from gazebo_msgs.msg import ModelStates
 from tf.tfwtf import rostime_delta
 
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
-from docutils.utils.smartquotes import default_smartypants_attr
-from wx.lib.flashwin import clsID
 
 
 # The Cooperative inspection system by mini_quadrotor and Qilin
@@ -27,8 +26,8 @@ class Start(smach.State):
     def __init__(self):
 
         smach.State.__init__(self, outcomes=['succeeded'])
-        rospy.wait_for_service('/go1/sit')
-        rospy.wait_for_service('/go1/stand')
+        # rospy.wait_for_service('/go1/sit')
+        # rospy.wait_for_service('/go1/stand')
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
@@ -54,20 +53,23 @@ class Start(smach.State):
 
     def execute(self, userdata):
 
-        self.stand()
+        # self.stand()
+        print(f'pass begin.')
         return 'succeeded'
 
 class MarkerSearch(smach.State):
     def __init__(self):
 
-        smach.State.__init__(self, outcomes=['succeeded'])
+        smach.State.__init__(self, outcomes=['succeeded'], io_keys=['takeoff_position'])
 
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
 
         self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
+        self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
 
         self.find_valve_tag, self.find_drone_tag = 0, 0
-
+        self.position = 0
+        self.user_input = None
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
         # print(f'apriltag:{current_time.to_sec()}')
@@ -101,18 +103,40 @@ class MarkerSearch(smach.State):
 
         self.pub_qilin_vel.publish(qilin_cmd_vel)
 
+    def sim_pose(self, px, py, ox, oy, oz, ow):
+
+        sim_pose = ModelState()
+        sim_pose.model_name = 'unitree'
+        sim_pose.pose.position.x = px
+        sim_pose.pose.position.y = py
+        sim_pose.pose.orientation.x = ox
+        sim_pose.pose.orientation.y = oy
+        sim_pose.pose.orientation.z = oz
+        sim_pose.pose.orientation.w = ow
+        sim_pose.reference_frame = 'world'
+        self.pub_sim_pose.publish(sim_pose)
+
     def execute(self, userdata):
-        while not self.find_valve_tag:
-            self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
-        time.sleep(2)
-        self.qilin_cmd_vel(0, 0, 0, 0, 0)
-        return 'succeeded'
+        print(f'simulation go to 1!')
+        self.user_input = input()
+        if self.user_input == '1':
+            while not self.find_valve_tag:
+                self.position += 0.5
+                self.sim_pose(self.position, 0, 0, 0, 0, 1)
+                time.sleep(1)
+            userdata.takeoff_position = np.array([self.position, 0.0, 0.5, 0.0])
+            print(f'This is takeoff_position:{userdata.takeoff_position}')
+            return 'succeeded'
+        else:
+            while not self.find_valve_tag:
+                self.qilin_cmd_vel(0.2, 0, 0, 0, 0)
+            time.sleep(2)
+            self.qilin_cmd_vel(0, 0, 0, 0, 0)
+            return 'succeeded'
 
 class TargetCalculation(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'],io_keys=['takeoff_x', 'takeoff_y', 'takeoff_z',
-                                                                   'takeoff_yaw','target_x', 'target_y',
-                                                                   'target_z'])
+        smach.State.__init__(self, outcomes=['succeeded'],input_keys=['takeoff_position'],io_keys=['target_position'])
 
         rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
@@ -122,8 +146,8 @@ class TargetCalculation(smach.State):
         self.valve2tag_x, self.valve2tag_y, self.valve2tag_z= 0.0, 2.0, 1.0
         self.valve_x, self.valve_y, self.valve_z = 0.0, 0.0, 0.0
         self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0.0, 0.0, 0.0, 0.0
-
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
+
         self.drone_x, self.drone_y, self.drone_z, self.drone_roll, self.drone_pitch, self.drone_yaw = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w = 0.0, 0.0, 0.0, 0.0
 
@@ -199,22 +223,32 @@ class TargetCalculation(smach.State):
         print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
 
     def execute(self, userdata):
-        self.record_takeoff_position()
+        # self.record_takeoff_position()
+        self.takeoff_x = userdata.takeoff_position[0]
+        self.takeoff_y = userdata.takeoff_position[1]
+        self.takeoff_z = userdata.takeoff_position[2]
+        self.takeoff_yaw = userdata.takeoff_position[3]
         self.valve_x= self.takeoff_x + self.april_valve_x + self.valve2tag_x
         self.valve_y= self.takeoff_y + self.april_valve_y + self.valve2tag_y
         self.valve_z= self.april_valve_z - self.valve2tag_z
-        userdata.takeoff_position = np.array([self.takeoff_x,self.takeoff_y,self.takeoff_z,self.takeoff_yaw])
+        # userdata.takeoff_position = np.array([self.takeoff_x,self.takeoff_y,self.takeoff_z,self.takeoff_yaw])
         userdata.target_position = np.array([self.valve_x,self.valve_y,self.valve_z])
 
+        print(f'This is the target_position:{userdata.target_position}')
+        print(type(userdata.target_position))
         time.sleep(1)
+        return 'succeeded'
 
 class UavTakeoff(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded', 'failed'])
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
+        self.pub_arm = rospy.Publisher("/quadrotor/teleop_command/start", Empty, queue_size=1)
+
+        rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
 
         self.drone_x, self.drone_y, self.drone_z, self.drone_roll, self.drone_pitch, self.drone_yaw = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-
+        self.state= 0
         self.user_input = None
 
     def takeoff(self):
@@ -222,9 +256,13 @@ class UavTakeoff(smach.State):
         if (-10 < self.drone_x <10) and (-10 < self.drone_y <10) and (-0.5 < self.drone_z <3):
             rospy.loginfo("Publishing takeoff command...")
             empty_msg = Empty()
+            self.pub_arm.publish(empty_msg)
+            time.sleep(0.1)
             self.pub_takeoff.publish(empty_msg)
         else:
             rospy.loginfo("Don`t takeoff, state is wrong!!!")
+    def _callback_state(self, msg):
+        self.state = msg.data
 
     def execute(self, userdata):
         print(f'takeoff?')
@@ -232,19 +270,24 @@ class UavTakeoff(smach.State):
         if self.user_input == 'y':
             print(f'yes')
             self.takeoff()
+            while not rospy.is_shutdown():
+                if self.state == 5:
+                    break
+                time.sleep(0.1)
             return 'succeeded'
         else:
             return 'failed'
 
 class FlyTarget(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['target_position'])
+        smach.State.__init__(self, outcomes=['succeeded'], io_keys=['target_position', 'nav_seq'])
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_drone_nav_info = rospy.Publisher('/quadrotor/uav/nav/info', FlightNav, queue_size=10)
         self.pub_drone_nav_trigger = rospy.Publisher('/quadrotor/uav/nav/trigger', Empty, queue_size=10)
 
         self._seq = 0
         self.valve_x, self.valve_y, self.valve_z = 0.0, 0.0, 0.0
+        self.user_input = None
     def drone_nav_trigger(self):
         time.sleep(0.5)
         rospy.loginfo("Publishing nav trigger command...")
@@ -279,15 +322,38 @@ class FlyTarget(smach.State):
         rospy.sleep(0.5)
         self.drone_nav_trigger()
 
+    def drone_nav_info_sim(self, x, y, z):
+        flight_nav_msg = FlightNav()
+        flight_nav_msg.header.seq = self._seq
+        self._seq += 1
+        flight_nav_msg.header.stamp = rospy.Time.now()
+        flight_nav_msg.header.frame_id = 'world'
+        flight_nav_msg.pos_xy_nav_mode = 2
+        flight_nav_msg.target_pos_x = x
+        flight_nav_msg.target_pos_y = y
+        flight_nav_msg.pos_z_nav_mode = 2
+        flight_nav_msg.target_pos_z = z
+        self.pub_drone_nav.publish(flight_nav_msg)
 
     def execute(self, userdata):
-        self.valve_x, self.valve_y, self.valve_z = userdata.target_position[0], userdata.target_position[1], userdata.target_position[2]
-        self.drone_nav_info(2, self.valve_x, self.valve_y, 2, self.valve_z, 0, 0, 0)
-        time.sleep(3)
+        print(f'{userdata.target_position[0]}, {userdata.target_position[1]}, {userdata.target_position[2]}')
+        # print(f'{userdata.target_position}')
 
+        self.valve_x, self.valve_y, self.valve_z = userdata.target_position[0], userdata.target_position[1], userdata.target_position[2]
+        print(f'simulation go to 1!')
+        self.user_input = input()
+        if self.user_input == '1':
+            self.drone_nav_info_sim(self.valve_x, self.valve_y,self.valve_z)
+        else:
+            self.drone_nav_info(2, self.valve_x, self.valve_y, 2, self.valve_z, 0, 0, 0)
+        time.sleep(3)
+        userdata.nav_seq = self._seq
+        return 'succeeded'
 class Inspection(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'])
+        self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
+
         self.pub_drone_nav_info = rospy.Publisher('/quadrotor/uav/nav/info', FlightNav, queue_size=10)
         self.pub_drone_nav_trigger = rospy.Publisher('/quadrotor/uav/nav/trigger', Empty, queue_size=10)
 
@@ -319,9 +385,7 @@ class Inspection(smach.State):
         flight_nav_msg.target_vel_z = 0.0
         flight_nav_msg.target_pos_diff_z = 0.0
 
-        self.pub_drone_nav_info.publish(flight_nav_msg)
-        rospy.sleep(0.5)
-        self.drone_nav_trigger()
+        self.pub_drone_nav.publish(flight_nav_msg)
 
     def execute(self, userdata):
         self.drone_nav_info(0, 0, 0, 0, 0, 4, 0.2, 90)
@@ -340,12 +404,13 @@ class Inspection(smach.State):
         time.sleep(2)
         self.drone_nav_info(0, 0, 0, 0, 0, 4, 0.2, 0)
         time.sleep(2)
-
+        return 'succeeded'
 class FlyBack(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'],input_keys=['takeoff_position'])
         self.pub_drone_nav_info = rospy.Publisher('/quadrotor/uav/nav/info', FlightNav, queue_size=10)
         self.pub_drone_nav_trigger = rospy.Publisher('/quadrotor/uav/nav/trigger', Empty, queue_size=10)
+        self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
         self.land_offset = 0.4
@@ -377,22 +442,28 @@ class FlyBack(smach.State):
         flight_nav_msg.target_vel_z = 0.0
         flight_nav_msg.target_pos_diff_z = 0.0
 
-        self.pub_drone_nav_info.publish(flight_nav_msg)
-        rospy.sleep(0.5)
-        self.drone_nav_trigger()
+        self.pub_drone_nav.publish(flight_nav_msg)
+
+        # self.pub_drone_nav_info.publish(flight_nav_msg)
+        # rospy.sleep(0.5)
+        # self.drone_nav_trigger()
 
     def execute(self, userdata):
         self.takeoff_x = userdata.takeoff_position[0]
         self.takeoff_y = userdata.takeoff_position[1]
         self.takeoff_z = userdata.takeoff_position[2]
+        print(f'This is the fly back position: {self.takeoff_x}, {self.takeoff_y}, {self.takeoff_z}')
+        time.sleep(1)
         self.drone_nav_info(2, self.takeoff_x, self.takeoff_y, 2, self.takeoff_z+ self.land_offset, 0, 0, 0)
-
+        time.sleep(1)
+        return 'succeeded'
 class VisibilityAdjustment(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['takeoff_position'])
 
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
 
+        self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_drone_nav_info = rospy.Publisher('/quadrotor/uav/nav/info', FlightNav, queue_size=10)
         self.pub_drone_nav_trigger = rospy.Publisher('/quadrotor/uav/nav/trigger', Empty, queue_size=10)
 
@@ -401,6 +472,7 @@ class VisibilityAdjustment(smach.State):
 
         self.find_drone_tag = 0
         self.timer_detector_maker = 0
+
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
         # print(f'apriltag:{current_time.to_sec()}')
@@ -475,9 +547,11 @@ class VisibilityAdjustment(smach.State):
         flight_nav_msg.target_vel_z = 0.0
         flight_nav_msg.target_pos_diff_z = 0.0
 
-        self.pub_drone_nav_info.publish(flight_nav_msg)
-        rospy.sleep(0.5)
-        self.drone_nav_trigger()
+        # self.pub_drone_nav_info.publish(flight_nav_msg)
+        # rospy.sleep(0.5)
+        # self.drone_nav_trigger()
+
+        self.pub_drone_nav.publish(flight_nav_msg)
 
     def scanning(self,x,y,z,c):
         self.drone_nav_info(2, x+c, y, 2, z, 0, 0, 0)
@@ -507,23 +581,31 @@ class VisibilityAdjustment(smach.State):
 
     def execute(self, userdata):
         print('begin follow')
+        self.takeoff_x = userdata.takeoff_position[0]
+        self.takeoff_y = userdata.takeoff_position[1]
+        self.takeoff_z = userdata.takeoff_position[2]
         while not rospy.is_shutdown():
-            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.2)
+            # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.2)
+            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z , 0.2)
             if self.timer_detector_marker <= 0:
                 break
-            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.3)
+            # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.3)
+            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z , 0.3)
+
             if self.timer_detector_marker <= 0:
                 break
         return 'succeeded'
 
 class AlignAndLand(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded','false'])
+        smach.State.__init__(self, outcomes=['succeeded','failed'])
 
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
+        rospy.Subscriber('/gazebo/model_states', ModelStates, self._callback_dog_position)
 
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
         self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
+        self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
 
         self.miss_first_time, self.miss_second_time = rospy.Time.now(), rospy.Time.now()
         self.find_valve_tag = 0
@@ -537,6 +619,7 @@ class AlignAndLand(smach.State):
         self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
         self.april_drone_x, self.april_drone_y, self.april_drone_z, self.april_drone_yaw = 0.0, 0.0, 0.0, 0.0
         self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0.0, 0.0, 0.0, 0.0
+        self.dog_x, self.dog_y, self.dog_z, self.dog_yaw = 0.0, 0.0, 0.0, 0.0
 
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
@@ -548,7 +631,7 @@ class AlignAndLand(smach.State):
             self.find_drone_tag = self.find_target_tag(data.detections, 0)
             if self.find_drone_tag == 1:
                 if  self.beginfollow == 1:
-                    self.align_dog_with_drone()
+                    self.align_dog_with_drone_sim()
 
         else:
             self.find_valve_tag = 0
@@ -562,6 +645,23 @@ class AlignAndLand(smach.State):
                     self.qilin_cmd_vel(0, 0, 0, 0, 0)
                     self.miss_first_time = self.miss_second_time
 
+    def _callback_dog_position(self, data):
+        self.dog_x= data.pose[2].position.x
+        self.dog_y= data.pose[2].position.y
+        self.dog_z= data.pose[2].position.z
+
+    def sim_pose(self, px, py, ox, oy, oz, ow):
+
+        sim_pose = ModelState()
+        sim_pose.model_name = 'unitree'
+        sim_pose.pose.position.x = px
+        sim_pose.pose.position.y = py
+        sim_pose.pose.orientation.x = ox
+        sim_pose.pose.orientation.y = oy
+        sim_pose.pose.orientation.z = oz
+        sim_pose.pose.orientation.w = ow
+        sim_pose.reference_frame = 'world'
+        self.pub_sim_pose.publish(sim_pose)
 
     def find_target_tag(self,data,target_id):
         b = len(data)
@@ -607,6 +707,11 @@ class AlignAndLand(smach.State):
             navigation_time = rospy.Time.now()
             # print(f'navigation_time:{navigation_time.to_sec()}')
             self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
+
+    def align_dog_with_drone_sim(self):
+        self.lx = self.april_drone_x + self.dog_x
+        self.ly = self.april_drone_y + self.dog_y
+        self.sim_pose(self.lx, self.ly, 0,0,0,1)
 
     def land(self):
         time.sleep(0.5)
@@ -679,7 +784,7 @@ class AlignAndLand(smach.State):
             return 'failed'
 class Idle(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded', 'preempted'])
+        smach.State.__init__(self, outcomes=['succeeded'])
 
     def execute(self, userdata):
         return 'succeeded'
