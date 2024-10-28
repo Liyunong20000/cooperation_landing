@@ -466,12 +466,20 @@ class VisibilityAdjustment(smach.State):
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_drone_nav_info = rospy.Publisher('/quadrotor/uav/nav/info', FlightNav, queue_size=10)
         self.pub_drone_nav_trigger = rospy.Publisher('/quadrotor/uav/nav/trigger', Empty, queue_size=10)
+        self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
+        self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
+        self.april_drone_x, self.april_drone_y, self.april_drone_z, self.april_drone_yaw = 0.0, 0.0, 0.0, 0.0
+        self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0.0, 0.0, 0.0, 0.0
+        self.dog_x, self.dog_y, self.dog_z, self.dog_yaw = 0.0, 0.0, 0.0, 0.0
         self.land_offset = 0.4
 
+        self.beginfollow = 0
         self.find_drone_tag = 0
         self.timer_detector_maker = 0
+
+        self.miss_first_time, self.miss_second_time = rospy.Time.now(), rospy.Time.now()
 
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
@@ -479,12 +487,23 @@ class VisibilityAdjustment(smach.State):
 
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
-            self.find_valve_tag = self.find_target_tag(data.detections,1)
+            self.find_valve_tag = self.find_target_tag(data.detections, 1)
             self.find_drone_tag = self.find_target_tag(data.detections, 0)
+            if self.find_drone_tag == 1:
+                if self.beginfollow == 1:
+                    self.align_dog_with_drone_sim()
 
         else:
             self.find_valve_tag = 0
             self.find_drone_tag = 0
+            if self.beginfollow == 1:
+                self.miss_second_time = rospy.Time.now()
+                duration = self.miss_second_time - self.miss_first_time
+                # print(f'{duration.to_sec()}')
+
+                if duration.to_sec() > 0.5:
+                    self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    self.miss_first_time = self.miss_second_time
 
     def find_target_tag(self,data,target_id):
         b = len(data)
@@ -495,9 +514,71 @@ class VisibilityAdjustment(smach.State):
             # print(f'{a}')
             if c:
                 if target_id == 0:
-                    return 1
+                    self.april_drone_x = -data[a].pose.pose.pose.position.y
+                    self.april_drone_y = data[a].pose.pose.pose.position.x
+                    self.april_drone_z = data[a].pose.pose.pose.position.z
+                    self.april_drone_yaw = self.quaternion_to_euler_angle(data[a].pose.pose.pose.orientation.x,
+                                                                          data[a].pose.pose.pose.orientation.y,
+                                                                          data[a].pose.pose.pose.orientation.z,
+                                                                          data[a].pose.pose.pose.orientation.w)[2]
+
+                if target_id == 1:
+                    self.april_valve_x = -data[a].pose.pose.pose.position.y
+                    self.april_valve_y = data[a].pose.pose.pose.position.x
+                    self.april_valve_z = data[a].pose.pose.pose.position.z
+                    self.april_valve_yaw = self.quaternion_to_euler_angle(data[a].pose.pose.pose.orientation.x,
+                                                         data[a].pose.pose.pose.orientation.y,
+                                                         data[a].pose.pose.pose.orientation.z,
+                                                         data[a].pose.pose.pose.orientation.w)[2]
+
+                return 1
             else:
                 return 0
+
+
+    def sim_pose(self, px, py, ox, oy, oz, ow):
+
+        sim_pose = ModelState()
+        sim_pose.model_name = 'unitree'
+        sim_pose.pose.position.x = px
+        sim_pose.pose.position.y = py
+        sim_pose.pose.orientation.x = ox
+        sim_pose.pose.orientation.y = oy
+        sim_pose.pose.orientation.z = oz
+        sim_pose.pose.orientation.w = ow
+        sim_pose.reference_frame = 'world'
+        self.pub_sim_pose.publish(sim_pose)
+
+    def qilin_cmd_vel(self, lx, ly, ax, ay, az):
+        qilin_cmd_vel = Twist()
+        qilin_cmd_vel.linear.x = lx
+        qilin_cmd_vel.linear.y = ly
+        qilin_cmd_vel.angular.x = ax
+        qilin_cmd_vel.angular.y = ay
+        qilin_cmd_vel.angular.z = az
+
+        self.pub_qilin_vel.publish(qilin_cmd_vel)
+
+    def align_dog_with_drone(self):
+        self.lx = 1.2 * self.april_drone_x
+        self.ly = 1.2 * self.april_drone_y
+        self.april_z = 0.03 *self.april_drone_yaw
+        if self.april_z > 0.3:
+            self.april_z = 0.3
+        if self.april_z < -0.3:
+            self.april_z = -0.3
+        # print("align speed lx, ly, :", self.lx, self.ly, self.april_z)
+        # print(f'apriltag_time:{apriltag_time.to_sec()}')
+        if abs(self.lx) < 2 and abs(self.ly) < 2:
+            navigation_time = rospy.Time.now()
+            # print(f'navigation_time:{navigation_time.to_sec()}')
+            self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
+
+    def align_dog_with_drone_sim(self):
+        self.lx = self.april_drone_x + self.dog_x
+        self.ly = self.april_drone_y + self.dog_y
+        self.sim_pose(self.lx, self.ly, 0,0,0,1)
+        print(f"This is the align:{self.lx},{self.ly}")
 
     def timer_detector(self,time,number):
         begin = rospy.Time.now()
@@ -553,6 +634,16 @@ class VisibilityAdjustment(smach.State):
 
         self.pub_drone_nav.publish(flight_nav_msg)
 
+    def quaternion_to_euler_angle(self, x, y, z, w):
+        R = np.array([[1 - 2 * y ** 2 - 2 * z ** 2, 2 * x * y - 2 * w * z, 2 * x * z + 2 * w * y],
+                      [2 * x * y + 2 * w * z, 1 - 2 * x ** 2 - 2 * z ** 2, 2 * y * z - 2 * w * x],
+                      [2 * x * z - 2 * w * y, 2 * y * z + 2 * w * x, 1 - 2 * x ** 2 - 2 * y ** 2]])
+        theta_x = math.degrees(np.arctan2(R[2, 1], R[2, 2]))
+        theta_y = math.degrees(np.arctan2(-R[2, 0], np.sqrt(R[2, 1] ** 2 + R[2, 2] ** 2)))
+        theta_z = math.degrees(np.arctan2(R[1, 0], R[0, 0]))
+        theta = np.array([theta_x, theta_y, theta_z])
+        return theta
+
     def scanning(self,x,y,z,c):
         self.drone_nav_info(2, x+c, y, 2, z, 0, 0, 0)
         print(f'1')
@@ -584,6 +675,7 @@ class VisibilityAdjustment(smach.State):
         self.takeoff_x = userdata.takeoff_position[0]
         self.takeoff_y = userdata.takeoff_position[1]
         self.takeoff_z = userdata.takeoff_position[2]
+        self.beginfollow = 1
         while not rospy.is_shutdown():
             # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.2)
             self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z , 0.2)
@@ -610,7 +702,7 @@ class AlignAndLand(smach.State):
         self.miss_first_time, self.miss_second_time = rospy.Time.now(), rospy.Time.now()
         self.find_valve_tag = 0
         self.find_drone_tag = 0
-        self.beginfollow = 0
+
         self.detection = 0.0
         self.flag = 0
         self.timer_detector_marker = 5
@@ -629,21 +721,21 @@ class AlignAndLand(smach.State):
         if data.detections:
             self.find_valve_tag = self.find_target_tag(data.detections,1)
             self.find_drone_tag = self.find_target_tag(data.detections, 0)
-            if self.find_drone_tag == 1:
-                if  self.beginfollow == 1:
-                    self.align_dog_with_drone_sim()
+            # if self.find_drone_tag == 1:
+            #     if  self.beginfollow == 1:
+            #         self.align_dog_with_drone_sim()
 
         else:
             self.find_valve_tag = 0
             self.find_drone_tag = 0
-            if self.beginfollow == 1:
-                self.miss_second_time = rospy.Time.now()
-                duration = self.miss_second_time - self.miss_first_time
-                # print(f'{duration.to_sec()}')
-
-                if duration.to_sec() > 0.5:
-                    self.qilin_cmd_vel(0, 0, 0, 0, 0)
-                    self.miss_first_time = self.miss_second_time
+            # if self.beginfollow == 1:
+            #     self.miss_second_time = rospy.Time.now()
+            #     duration = self.miss_second_time - self.miss_first_time
+            #     # print(f'{duration.to_sec()}')
+            #
+            #     if duration.to_sec() > 0.5:
+            #         self.qilin_cmd_vel(0, 0, 0, 0, 0)
+            #         self.miss_first_time = self.miss_second_time
 
     def _callback_dog_position(self, data):
         self.dog_x= data.pose[2].position.x
@@ -712,7 +804,7 @@ class AlignAndLand(smach.State):
         self.lx = self.april_drone_x + self.dog_x
         self.ly = self.april_drone_y + self.dog_y
         self.sim_pose(self.lx, self.ly, 0,0,0,1)
-
+        print(f"This is the align:{self.lx},{self.ly}")
     def land(self):
         time.sleep(0.5)
         rospy.loginfo("Publishing land command...")
@@ -775,7 +867,7 @@ class AlignAndLand(smach.State):
         self.pub_qilin_vel.publish(qilin_cmd_vel)
 
     def execute(self, userdata):
-        self.beginfollow = 1
+
         a = rospy.get_time()
         if rospy.get_time() - a < 10:
             self.drone_landing_condition()
