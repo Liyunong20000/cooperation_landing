@@ -45,7 +45,7 @@
 
   ### UAV low speed receiver3 from GR
   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_nav_trigger">
-    <remap from="~output" to="/quadrotor/uav/nav/trigger" />
+    <remap from="~output" to="/quadrotor/target_pose/trigger" />
     <param name="message" value="std_msgs/Empty" />
     <param name="receive_ip" value="$(arg UAV_IP)" />
     <param name="receive_port" value="$(arg LOW_PORT_3)" />
