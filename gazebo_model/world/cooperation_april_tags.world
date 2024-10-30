@@ -47,10 +47,10 @@
       <uri>model://ground_plane</uri>
     </include>
 
-    <model name="Apriltag36_11_00001_small" >
+    <model name="Apriltag36_11_00001_small_simulation" >
       <pose>3.0 0.2 3.0 0 0 1.57</pose>
       <include>
-        <uri>model://Apriltag36_11_00001</uri>
+        <uri>model://Apriltag36_11_00001_small_simulation//</uri>
       </include>
     </model>
 
