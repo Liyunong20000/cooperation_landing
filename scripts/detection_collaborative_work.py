@@ -4,15 +4,16 @@ import rospy, sys
 import numpy as np
 import time, math, threading
 
+
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
-from docutils.utils.smartquotes import default_smartypants_attr
 
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.msg import ModelState
 from tf.tfwtf import rostime_delta
 
@@ -72,6 +73,7 @@ class CooperationNode:
         rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
         rospy.Subscriber('/odom', Odometry, self._callback_qilin_odom)
 
+        self.pub_drone_target= rospy.Publisher('/quadrotor/target_pose', PoseStamped, queue_size=10)
         self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
@@ -85,8 +87,8 @@ class CooperationNode:
 
         self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
         self.pub_qilin_pose = rospy.Publisher('/go1/body_pose', Pose, queue_size=10)
-        rospy.wait_for_service('/go1/sit')
-        rospy.wait_for_service('/go1/stand')
+        # rospy.wait_for_service('/go1/sit')
+        # rospy.wait_for_service('/go1/stand')
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
@@ -308,6 +310,19 @@ class CooperationNode:
         #             print(f'checking')
         #             break
         #         time.sleep(0.1)
+
+    def drone_target_pose(self,x,y,z,ox,oy,oz,ow):
+        drone_target_pose = PoseStamped()
+        drone_target_pose.header.frame_id = '0'
+        drone_target_pose.pose.position.x = x
+        drone_target_pose.pose.position.y = y
+        drone_target_pose.pose.position.z = z
+        drone_target_pose.pose.orientation.x = ox
+        drone_target_pose.pose.orientation.y = oy
+        drone_target_pose.pose.orientation.z = oz
+        drone_target_pose.pose.orientation.w = ow
+
+        self.pub_drone_target.publish(drone_target_pose)
 
     def qilin_cmd_vel(self, lx, ly, ax, ay, az):
         qilin_cmd_vel = Twist()
@@ -552,10 +567,15 @@ class CooperationNode:
 if __name__ == '__main__':
     node = CooperationNode()
     time.sleep(1)
-    node.stand()
-    time.sleep(2)
-    # node.work()
-    print(f"11111111111")
-    node.demo4()
+    # node.stand()
+    # time.sleep(2)
+    # # node.work()
+    # print(f"11111111111")
+    # node.demo4()
+    node.drone_target_pose(2,2,2,0,0,0,1)
+    time.sleep(10)
+    # node.drone_target_pose(0, 0, 2, 0, 0, 0, 1)
+    # time.sleep(3)
+    node.drone_target_pose(0, 0, 1, 0, 0, 1, 0)
     while not rospy.is_shutdown():
         rospy.spin()

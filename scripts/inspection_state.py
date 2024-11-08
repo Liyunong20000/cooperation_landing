@@ -426,8 +426,8 @@ class FlyTarget(smach.State):
             self.drone_target_pose(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
         else:
             self.drone_target_pose_sim(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
+            time.sleep(5)
 
-        time.sleep(3)
 
         return 'succeeded'
 class Inspection(smach.State):
@@ -582,51 +582,52 @@ class Inspection(smach.State):
             time.sleep(5)
 
         else:
-            while not rospy.is_shutdown():
-                if abs(self.drone_x- self.valve_x) < 0.05 and abs(self.drone_y - self.valve_y) < 0.05:
-                    break
-            time.sleep(5)
+            # self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_x- self.valve_x) < 0.05 and abs(self.drone_y - self.valve_y) < 0.05:
+            #         break
+            time.sleep(10)
 
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw - 1.57) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw - 1.57) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw - 3.14) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw - 3.14) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw + 1.57) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw + 1.57) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw - 1.57) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw - 1.57) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw - 3.14) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw - 3.14) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw + 1.57) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw + 1.57) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw) < self.tolerance_yaw:
-                    break
-            time.sleep(3)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw) < self.tolerance_yaw:
+            #         break
+            time.sleep(10)
         return 'succeeded'
 class FlyBack(smach.State):
     def __init__(self):
