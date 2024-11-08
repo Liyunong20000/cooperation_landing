@@ -17,7 +17,7 @@ def main():
     sm_top.userdata.takeoff_position = [(0.0, 0.0, 0.0, 0.0)]
     sm_top.userdata.target_position = [(0.0, 0.0, 0.0)]
 
-    sm_top.userdata.rm = 0  # if real_machine,= 1
+    sm_top.userdata.rm = 1  # if real_machine,= 1
     sm_top.userdata.camera_offset = 0.5
 
     with sm_top:
@@ -51,7 +51,7 @@ def main():
         with sm_precise_landing:
             smach.StateMachine.add('VisibilityAdjustment', VisibilityAdjustment(),transitions={'succeeded': 'AlignAndLand'}, remapping={'takeoff_position': 'takeoff_position', 'rm': 'rm'})
 
-            smach.StateMachine.add('AlignAndLand', AlignAndLand(),transitions={'succeeded': 'succeeded','failed': 'VisibilityAdjustment'})
+            smach.StateMachine.add('AlignAndLand', AlignAndLand(),transitions={'succeeded': 'succeeded','failed': 'VisibilityAdjustment', 'rm': 'rm'})
         smach.StateMachine.add('PreciseLanding', sm_precise_landing,transitions={'succeeded': 'Finish'})
 
         # smach.StateMachine.add('Idle', Idle(),transitions={'succeeded': MarkerSearch})

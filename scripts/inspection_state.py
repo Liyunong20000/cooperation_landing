@@ -27,8 +27,8 @@ class Start(smach.State):
     def __init__(self):
 
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
-        # rospy.wait_for_service('/go1/sit')
-        # rospy.wait_for_service('/go1/stand')
+        rospy.wait_for_service('/go1/sit')
+        rospy.wait_for_service('/go1/stand')
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
@@ -179,7 +179,8 @@ class TargetCalculation(smach.State):
 
         self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
-        self.valve2tag_x, self.valve2tag_y, self.valve2tag_z= 0.0, 2.0, 1.0
+        self.valve2tag_x, self.valve2tag_y, self.valve2tag_z= 0.0, 2.0, 1.5
+        self.gear_offset = 0.5
         self.valve_x, self.valve_y, self.valve_z = 0.0, 0.0, 0.0
         self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0.0, 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
@@ -241,12 +242,6 @@ class TargetCalculation(smach.State):
         empty_msg = Empty()
         self.pub_land.publish(empty_msg)
 
-    def record_takeoff_position(self):
-        self.takeoff_x = self.drone_x
-        self.takeoff_y = self.drone_y
-        self.takeoff_z = self.drone_z
-        self.takeoff_yaw = self.drone_yaw
-        print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
 
     def execute(self, userdata):
         # self.record_takeoff_position()
@@ -257,7 +252,7 @@ class TargetCalculation(smach.State):
         print(f'{self.april_valve_x,self.april_valve_y,self.april_valve_z}')
         self.valve_x= self.takeoff_x + self.april_valve_x + self.valve2tag_x
         self.valve_y= self.takeoff_y + self.april_valve_y + self.valve2tag_y
-        self.valve_z= self.april_valve_z - 0.5 - self.valve2tag_z
+        self.valve_z= self.april_valve_z + self.gear_offset - self.valve2tag_z
         # userdata.takeoff_position = np.array([self.takeoff_x,self.takeoff_y,self.takeoff_z,self.takeoff_yaw])
         userdata.target_position = np.array([self.valve_x,self.valve_y,self.valve_z])
 
@@ -426,8 +421,8 @@ class FlyTarget(smach.State):
             self.drone_target_pose(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
         else:
             self.drone_target_pose_sim(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
-            time.sleep(5)
 
+        time.sleep(5)
 
         return 'succeeded'
 class Inspection(smach.State):
@@ -561,25 +556,26 @@ class Inspection(smach.State):
         self.valve_x, self.valve_y, self.valve_z = userdata.target_position[0], userdata.target_position[1], \
         userdata.target_position[2]
         if self.rm == 1:
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            while not rospy.is_shutdown():
-                if abs(self.drone_yaw-1.57)< self.tolerance_yaw:
-                    break
-                time.sleep(0.5)
+            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
+            # while not rospy.is_shutdown():
+            #     if abs(self.drone_yaw-1.57)< self.tolerance_yaw:
+            #         break
+            #     time.sleep(0.5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            time.sleep(5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            time.sleep(5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            time.sleep(5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            time.sleep(5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            time.sleep(5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            time.sleep(5)
+            time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            time.sleep(5)
+            time.sleep(10)
 
         else:
             # self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
@@ -1016,7 +1012,7 @@ class VisibilityAdjustment(smach.State):
         self.rm = userdata.rm
         while not rospy.is_shutdown():
             # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.2)
-            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z , 0.2)
+            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset , 0.2)
             if self.timer_detector_marker <= 0:
                 break
             # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.3)
@@ -1028,7 +1024,7 @@ class VisibilityAdjustment(smach.State):
 
 class AlignAndLand(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded','failed'])
+        smach.State.__init__(self, outcomes=['succeeded','failed'], input_keys=['rm'])
 
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
         rospy.Subscriber('/gazebo/model_states', ModelStates, self._callback_dog_position)
@@ -1043,6 +1039,7 @@ class AlignAndLand(smach.State):
         self.beginfollow = 0
         self.detection = 0.0
         self.flag = 0
+        self.rm= 0
         self.timer_detector_marker = 5
 
         self.lx, self.ly, self.lz = 0, 0, 0
@@ -1061,7 +1058,10 @@ class AlignAndLand(smach.State):
             self.find_drone_tag = self.find_target_tag(data.detections, 0)
             if self.find_drone_tag == 1:
                 if  self.beginfollow == 1:
-                    self.align_dog_with_drone_sim()
+                    if self.rm == 1:
+                        self.align_dog_with_drone()
+                    else:
+                        self.align_dog_with_drone_sim()
 
         else:
             self.find_valve_tag = 0
@@ -1155,11 +1155,10 @@ class AlignAndLand(smach.State):
     def drone_landing_detection(self, i):
         r = rospy.Rate(i)
         number = i
-
         while not rospy.is_shutdown():
             number = number - 1
-            # if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5 and abs(self.april_drone_yaw) < 10:
-            if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5:
+            if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5 and abs(self.april_drone_yaw) < 10:
+            # if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5:
                 i = i - 1
             if number == 0:
                 break
@@ -1188,6 +1187,7 @@ class AlignAndLand(smach.State):
             print(f'landon')
 
     def qilin_cmd_vel(self, lx, ly, ax, ay, az):
+
         qilin_cmd_vel = Twist()
         qilin_cmd_vel.linear.x = lx
         qilin_cmd_vel.linear.y = ly
@@ -1199,13 +1199,13 @@ class AlignAndLand(smach.State):
 
     def execute(self, userdata):
         self.beginfollow = 1
+        self.rm = userdata.rm
         current_time = rospy.Time.now()
         a = current_time.to_sec()
         b = 0
         while b - a < 5:
             current_time = rospy.Time.now()
             b=current_time.to_sec()
-
             self.drone_landing_condition()
             if self.beginfollow== 0:
                 return 'succeeded'
