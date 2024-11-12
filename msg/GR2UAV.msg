@@ -1,4 +1,4 @@
-apriltag_ros/AprilTagDetectionArray tag_detection
+apriltag_ros/AprilTagDetectionArray tag_detections
 geometry_msgs/Twist go1__cmd_vel
 geometry_msgs/Pose go1__body_pose
 geometry_msgs/PoseStamped quadrotor__target_pose__info

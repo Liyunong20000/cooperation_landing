@@ -60,7 +60,7 @@ class SubscribeeventNode:
         self.target_oz = msg.pose.orientation.z
         self.target_ow = msg.pose.orientation.w
 
-    def _callback_target_pose_trigger(self):
+    def _callback_target_pose_trigger(self,msg):
         self.drone_target_pose(self.target_x, self.target_y, self.target_z, self.target_ox, self.target_oy, self.target_oz, self.target_ow)
         print(f"pub target pose")
 
@@ -107,7 +107,7 @@ class SubscribeeventNode:
 
         self.pub_drone_nav.publish(flight_nav_msg)
 
-    def drone_target_pose(self,x,y,z,ox,oy,oz,ow):
+    def drone_target_pose(self, x, y, z, ox, oy, oz, ow):
         drone_target_pose = PoseStamped()
         drone_target_pose.header.frame_id = 'world'
         drone_target_pose.pose.position.x = x

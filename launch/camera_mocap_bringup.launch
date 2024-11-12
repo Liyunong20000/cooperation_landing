@@ -10,10 +10,10 @@
   </include>
 
   <!--forward_cam-->
-  <include file="$(find cooperation_landing)/launch/camera_apriltag.launch">
-    <arg name="robot_ns" default="$(arg robot_ns)" />
-    <arg name="camera_ns" default="$(arg camera_forward_ns)" />
-  </include>
+<!--   <include file="$(find cooperation_landing)/launch/camera_apriltag.launch"> -->
+<!--     <arg name="robot_ns" default="$(arg robot_ns)" /> -->
+<!--     <arg name="camera_ns" default="$(arg camera_forward_ns)" /> -->
+<!--   </include> -->
 
   <!-- Mocap -->
   <group ns="$(arg robot_ns)">

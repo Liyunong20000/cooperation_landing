@@ -250,8 +250,8 @@ class TargetCalculation(smach.State):
         self.takeoff_z = userdata.takeoff_position[2]
         self.takeoff_yaw = userdata.takeoff_position[3]
         print(f'{self.april_valve_x,self.april_valve_y,self.april_valve_z}')
-        self.valve_x= self.takeoff_x + self.april_valve_x + self.valve2tag_x
-        self.valve_y= self.takeoff_y + self.april_valve_y + self.valve2tag_y
+        self.valve_x= self.takeoff_x - self.april_valve_x - self.valve2tag_x
+        self.valve_y= self.takeoff_y - self.april_valve_y - self.valve2tag_y
         self.valve_z= self.april_valve_z + self.gear_offset - self.valve2tag_z
         # userdata.takeoff_position = np.array([self.takeoff_x,self.takeoff_y,self.takeoff_z,self.takeoff_yaw])
         userdata.target_position = np.array([self.valve_x,self.valve_y,self.valve_z])
@@ -418,7 +418,10 @@ class FlyTarget(smach.State):
         self.valve_x, self.valve_y, self.valve_z = userdata.target_position[0], userdata.target_position[1], userdata.target_position[2]
         print(f'simulation go to 1!')
         if self.rm == 1:
-            self.drone_target_pose(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
+            self.user_input = input()
+            if self.user_input == 'y':
+                print(f'yes')
+                self.drone_target_pose(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
         else:
             self.drone_target_pose_sim(self.valve_x, self.valve_y,self.valve_z,0,0,0,1)
 
@@ -564,16 +567,16 @@ class Inspection(smach.State):
             time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
             time.sleep(10)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            time.sleep(10)
+            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
+            # time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
             time.sleep(10)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            time.sleep(10)
+            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
+            # time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
             time.sleep(10)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            time.sleep(10)
+            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
+            # time.sleep(10)
             self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
             time.sleep(10)
 
@@ -1157,7 +1160,7 @@ class AlignAndLand(smach.State):
         number = i
         while not rospy.is_shutdown():
             number = number - 1
-            if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5 and abs(self.april_drone_yaw) < 10:
+            if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.3 and abs(self.april_drone_yaw) < 10:
             # if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5:
                 i = i - 1
             if number == 0:
