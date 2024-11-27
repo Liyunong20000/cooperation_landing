@@ -51,7 +51,7 @@ def main():
         with sm_precise_landing:
             smach.StateMachine.add('VisibilityAdjustment', VisibilityAdjustment(),transitions={'succeeded': 'AlignAndLand'}, remapping={'takeoff_position': 'takeoff_position', 'rm': 'rm'})
 
-            smach.StateMachine.add('AlignAndLand', AlignAndLand(),transitions={'succeeded': 'succeeded','failed': 'VisibilityAdjustment', 'rm': 'rm'})
+            smach.StateMachine.add('AlignAndLand', AlignAndLand(),transitions={'succeeded': 'succeeded','failed': 'VisibilityAdjustment'}, remapping={ 'rm': 'rm'})
         smach.StateMachine.add('PreciseLanding', sm_precise_landing,transitions={'succeeded': 'Finish'})
 
         # smach.StateMachine.add('Idle', Idle(),transitions={'succeeded': MarkerSearch})
