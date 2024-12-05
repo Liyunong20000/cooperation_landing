@@ -61,7 +61,7 @@
   <build_depend>aerial_robot_msgs</build_depend>
   <build_depend>gazebo_ros_control</build_depend>
   <build_depend>usb_cam</build_depend>
-  
+
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>

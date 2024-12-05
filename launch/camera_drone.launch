@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+<!--   <arg name="robot_ns" default="qilin" /> -->
+  <arg name="robot_ns" default="quadrotor" />
+  <arg name="camera_ns" default="usb_cam_upward" />
+  <arg name="image_width" default="1280" />
+  <arg name="image_height" default="720" />
+
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+    <param name="video_device" value="/dev/$(arg camera_ns)" />
+    <param name="image_width" value="$(arg image_width)" />
+    <param name="image_height" value="$(arg image_height)" />
+    <param name="pixel_format" value="yuyv" />
+    <param name="color_format" value="yuv422p" />
+    <param name="camera_frame_id" value="$(arg camera_ns)_usb_cam" />
+    <param name="io_method" value="mmap"/>
+    <param name="camera_info_url" value="file://$(find mini_quadrotor)/config/$(arg camera_ns)/720p/calibrationdata/ost.yaml" />
+   </node>
+
+  <node name="image_proc" pkg="image_proc" type="image_proc" output="screen">
+    <remap from="image_raw" to="/$(arg robot_ns)/$(arg camera_ns)/usb_cam/image_raw"/>
+    <remap from="camera_info" to="/$(arg robot_ns)/$(arg camera_ns)/usb_cam/camera_info"/>
+    <remap from="image_rect_color" to="/$(arg robot_ns)/$(arg camera_ns)/usb_cam/image_rect_color" />
+  </node>
+
+</launch>
