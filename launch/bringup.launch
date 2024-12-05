@@ -8,7 +8,7 @@
     <arg name="estimate_mode" value="$(arg estimate_mode)" />
   </include>
 
-  <include file="$(find mini_quadrotor)/launch/includes/camera.launch">
+  <include file="$(find mini_quadrotor)/launch/includes/camera_drone.launch">
     <arg name="robot_ns" value="quadrotor" />
     <arg name="camera_ns" value="usb_cam_forward" />
     <arg name="image_width" default="1280" />
