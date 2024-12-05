@@ -18,8 +18,8 @@
    </node>
 
   <node name="image_proc" pkg="image_proc" type="image_proc" output="screen">
-    <remap from="image_raw" to="/$(arg robot_ns)/$(arg camera_ns)/usb_cam/image_raw"/>
-    <remap from="camera_info" to="/$(arg robot_ns)/$(arg camera_ns)/usb_cam/camera_info"/>
+    <remap from="image_raw" to="/usb_cam/image_raw"/>
+    <remap from="camera_info" to="/usb_cam/camera_info"/>
     <remap from="image_rect_color" to="/$(arg robot_ns)/$(arg camera_ns)/usb_cam/image_rect_color" />
   </node>
 
