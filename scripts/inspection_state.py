@@ -1024,11 +1024,11 @@ class VisibilityAdjustment(smach.State):
         self.beginfollow = 1
         while not rospy.is_shutdown():
             # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.2)
-            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset , 0.2)
+            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset , 0.1)
             if self.timer_detector_marker <= 0:
                 break
             # self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.3)
-            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.3)
+            self.scanning(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0.2)
 
             if self.timer_detector_marker <= 0:
                 break
