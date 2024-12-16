@@ -588,7 +588,7 @@ class Inspection(smach.State):
             # while not rospy.is_shutdown():
             #     if abs(self.drone_x- self.valve_x) < 0.05 and abs(self.drone_y - self.valve_y) < 0.05:
             #         break
-            time.sleep(10)
+            time.sleep(5)
 
             self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
             # while not rospy.is_shutdown():
@@ -965,25 +965,25 @@ class VisibilityAdjustment(smach.State):
         if self.rm == 1:
             self.drone_target_pose(x + c, y, z, 0, 0, 0, 0)
             print(f'1')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 3):
                 print(f'find, return')
                 return
             self.drone_target_pose(x, y + c, z, 0, 0, 0, 0)
             print(f'2')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 3):
                 print(f'find, return')
                 return
             self.drone_target_pose( x - c, y, z, 0, 0, 0,0)
             print(f'3')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 3):
                 print(f'find, return')
                 return
             self.drone_target_pose( x, y - c, z, 0, 0, 0, 0)
             print(f'4')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 3):
                 print(f'find, return')
                 return
@@ -1064,7 +1064,6 @@ class AlignAndLand(smach.State):
     def _callback_apriltag(self, data):
         current_time = rospy.Time.now()
         # print(f'apriltag:{current_time.to_sec()}')
-
         # get the apriltag`s position information compare with camera coordination
         if data.detections:
             self.find_valve_tag = self.find_target_tag(data.detections,1)

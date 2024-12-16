@@ -1139,8 +1139,8 @@ class AlignAndLand(smach.State):
                 return 0
 
     def align_dog_with_drone(self):
-        self.lx = 1.2 * self.april_drone_x
-        self.ly = 1.2 * self.april_drone_y
+        self.lx = 1.3 * self.april_drone_x
+        self.ly = 1.3 * self.april_drone_y
         self.april_z = 0.03 *self.april_drone_yaw
         if self.april_z > 0.3:
             self.april_z = 0.3
@@ -1170,15 +1170,16 @@ class AlignAndLand(smach.State):
     def drone_landing_detection(self, i):
         r = rospy.Rate(i)
         number = i
+        check = i
         while not rospy.is_shutdown():
             number = number - 1
             if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.03 and abs(self.april_drone_yaw) < 0.5:
             # if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5:
-                i = i - 1
+                check = check - 1
             if number == 0:
                 break
             r.sleep()
-        self.flag = i
+        self.flag = check
 
     def drone_landing_condition(self):
         while not rospy.is_shutdown():
@@ -1186,16 +1187,10 @@ class AlignAndLand(smach.State):
                 break
             time.sleep(0.1)
 
-        i = 1
-        plus = 0
         self.flag = 0
-
-        while i > 0:
-            i = i - 1
-            self.drone_landing_detection(5)
-            plus = plus + self.flag
-            print(f'plus = {plus}')
-        if plus == 0:
+        self.drone_landing_detection(5)
+        print(f'plus = {self.flag}')
+        if self.flag == 0:
             self.beginfollow = 0
             # self.qilin_cmd_vel(0, 0, 0, 0, 0)
             self.land()
