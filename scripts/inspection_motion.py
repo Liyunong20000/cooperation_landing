@@ -5,7 +5,7 @@ import rospy
 import smach
 import smach_ros
 from gitlab import VISIBILITY_PRIVATE
-from inspection_state import *
+from inspection_state_update import *
 from pyasn1_modules.rfc3281 import Target
 
 

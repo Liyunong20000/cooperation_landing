@@ -967,25 +967,25 @@ class VisibilityAdjustment(smach.State):
         if self.rm == 1:
             self.drone_target_pose(x + c, y, z, 0, 0, 0, 0)
             print(f'1')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 10,5):
                 print(f'find, return')
                 return
             self.drone_target_pose(x, y + c, z, 0, 0, 0, 0)
             print(f'2')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 10,5):
                 print(f'find, return')
                 return
             self.drone_target_pose( x - c, y, z, 0, 0, 0,0)
             print(f'3')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 10,5):
                 print(f'find, return')
                 return
             self.drone_target_pose( x, y - c, z, 0, 0, 0, 0)
             print(f'4')
-            time.sleep(1.5)
+            time.sleep(3.5)
             if self.timer_detector(3, 10,5):
                 print(f'find, return')
                 return
@@ -1192,7 +1192,7 @@ class AlignAndLand(smach.State):
 
         while i > 0:
             i = i - 1
-            self.drone_landing_detection(10)
+            self.drone_landing_detection(5)
             plus = plus + self.flag
             print(f'plus = {plus}')
         if plus == 0:

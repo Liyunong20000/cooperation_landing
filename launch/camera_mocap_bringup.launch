@@ -17,6 +17,8 @@
 <!--     <arg name="image_height" default="480" /> -->
 <!--   </include> -->
 
+  <node pkg="smach_viewer" type="smach_viewer.py" name="smach_viewer" output="screen" />
+  
   <!-- Mocap -->
   <group ns="$(arg robot_ns)">
     <include file="$(find cooperation_landing)/launch/mocap.launch">
