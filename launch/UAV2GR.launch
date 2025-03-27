@@ -1,0 +1,64 @@
+<launch>
+  <arg name="GROUND_ROBOT_IP" default="192.168.123.162" />
+  <arg name="UAV_IP" default="$(env ROS_IP)" />
+  <arg name="HIGH_PORT1" default="16484" />
+  <arg name="HIGH_PORT2" default="8192" />
+  <arg name="LOW_PORT_1" default="1024" />
+  <arg name="LOW_PORT_2" default="1025" />
+  <arg name="LOW_PORT_3" default="1026" />
+
+    ### UAV streamer to Ground Robot
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer" output="screen">
+    <param name="message" value="cooperation_landing/UAV2GR" />
+    <param name="to_ip" value="$(arg GROUND_ROBOT_IP)" />
+    <param name="to_port" value="$(arg HIGH_PORT1)" />
+    <param name="send_rate" value="5" />
+    <param name="bandwidth" value="2000000" />
+    <param name="packet_size" value="1000" />
+  </node>
+
+  ### UAV receiver from GR
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver" output="screen">
+    <param name="message" value="cooperation_landing/GR2UAV" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg HIGH_PORT2)" />
+    <param name="topic_prefix" value="" />
+  </node>
+
+  ### UAV low speed receiver1 from GR
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_takeoff" output="screen">
+    <remap from="~output" to="/quadrotor/teleop_command/takeoff" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT_1)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
+
+  ### UAV low speed receiver2 from GR
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_land">
+    <remap from="~output" to="/quadrotor/teleop_command/land" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT_2)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
+
+  ### UAV low speed receiver3 from GR
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_nav_trigger">
+    <remap from="~output" to="/quadrotor/target_pose/trigger" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT_3)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
+
+<!--   ### UAV low speed receiver3 from GR -->
+<!--   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_FlightNav"> -->
+<!--     <remap from="~output" to="/quadrotor/uav/nav" /> -->
+<!--     <param name="message" value="aerial_robot_msgs/FlightNav" /> -->
+<!--     <param name="receive_ip" value="$(arg UAV_IP)" /> -->
+<!--     <param name="receive_port" value="$(arg LOW_PORT_3)" /> -->
+<!--     <param name="receive_buffer_size" value="1000" /> -->
+<!--   </node> -->
+
+</launch>
