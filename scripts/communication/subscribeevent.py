@@ -22,9 +22,8 @@ class SubscribeeventNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprillandqilin', anonymous=True)
+        rospy.init_node('Aprilfollowqilin', anonymous=True)
 
-        self._seq = 0
         # Subscribe and publish.
         rospy.Subscriber('/quadrotor/target_pose/info', PoseStamped, self._callback_target_pose_info)
         rospy.Subscriber('/quadrotor/target_pose/trigger', Empty, self._callback_target_pose_trigger)

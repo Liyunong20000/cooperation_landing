@@ -82,7 +82,7 @@ if __name__=="__main__":
         # force_landing_pub = rospy.Publisher(ns + '/force_landing', Empty, queue_size=1)
         nav_pub = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=1)
 
-        xy_vel   = rospy.get_param("xy_vel", 0.2)
+        xy_vel   = rospy.get_param("xy_vel", 0.5)
         yaw_vel  = rospy.get_param("yaw_vel", 0.4)
 
         # motion_start_pub = rospy.Publisher('task_start', Empty, queue_size=1)
