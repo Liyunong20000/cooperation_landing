@@ -1,0 +1,5 @@
+landing_info: # for landing process
+        converge_interval: 0.04
+        landing_threshold: 0.4 # degree
+        movement_constant: 2
+        rotation_constant: 0.05
