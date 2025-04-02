@@ -7,12 +7,12 @@ import math
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
 from std_msgs.msg import Empty, UInt8
-from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
-from geometry_msgs.msg import Pose
 import tf.transformations as tft
 
+from drone_basic_function import DroneBasic
+from dog_basic_function import DogBasic
 # It is for  the Coopration for xuanwu and Qilin
 
 class AprillandqilinNode:
@@ -36,9 +36,11 @@ class AprillandqilinNode:
         self.beginfollow = 0
         self.flag = 0
 
+        self.drone_basic = DroneBasic()
+        self.dog_basic = DogBasic()
+
         # Subscribe and publish.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
-        rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
         # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
 
         self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
@@ -78,46 +80,15 @@ class AprillandqilinNode:
                 duration = self.miss_second_time - self.miss_first_time
                 # print(f'{duration.to_sec()}')
                 if duration.to_sec() > 0.5:
-                    self.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                     self.miss_first_time = rospy.Time.now()
-
-    def _callback_state(self, msg):
-        self.state = msg.data
 
     def event(self, x):
         event_msgs = UInt8()
         event_msgs.data = x
         self.pub_event.publish(event_msgs)
 
-    def sit(self):
-        try:
-            response = self.service_client_sit()
-            if response.success:
-                rospy.loginfo('Sit command executed successfully')
-            else:
-                rospy.logwarn('Stand command failed: %s', response.message)
-        except rospy.ServiceException as e:
-            rospy.logerr('Service call failed: %s', e)
 
-    def stand(self):
-        try:
-            response = self.service_client_stand()
-            if response.success:
-                rospy.loginfo('Stand command executed successfully')
-            else:
-                rospy.logwarn('Stand command failed: %s', response.message)
-        except rospy.ServiceException as e:
-            rospy.logerr('Service call failed: %s', e)
-
-    def qilin_cmd_vel(self, lx, ly, ax, ay, az):
-        qilin_cmd_vel = Twist()
-        qilin_cmd_vel.linear.x = lx
-        qilin_cmd_vel.linear.y = ly
-        qilin_cmd_vel.angular.x = ax
-        qilin_cmd_vel.angular.y = ay
-        qilin_cmd_vel.angular.z = az
-
-        self.pub_qilin_vel.publish(qilin_cmd_vel)
     def find_target_tag(self,data,target_id):
         b = len(data)
         a = 0
@@ -150,25 +121,25 @@ class AprillandqilinNode:
         self.ly = np.clip((self.move_cons * self.target_y), -2, 2)
         self.ryaw = np.clip((self.rotate_cons * self.target_yaw), -0.3, 0.3)
 
-        self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.ryaw)
+        self.dog_basic.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.ryaw)
 
     def landing_determination(self):
         a = 5
         while not rospy.is_shutdown():
             if self.find_drone_tag == 1:
-                if math.sqrt(self.target_x ** 2 + self.target_y ** 2) < 0.04 and abs(
+                if math.sqrt(self.target_x ** 2 + self.target_y ** 2) < self.converge_interval and abs(
                     self.target_yaw) < 0.5:
                         a -= 1
             else:
                 a = 5
             if a == 0:
-                self.land()
+                self.drone_basic.drone_land()
             time.sleep(0.1)
 
     def come_back(self):
 
         while not rospy.is_shutdown():
-            if self.state == 5:
+            if self.drone_basic.drone_state == 5:
                 break
             time.sleep(0.1)
         # self.event(2)
@@ -179,7 +150,7 @@ class AprillandqilinNode:
 
 if __name__ == '__main__':
     node = AprillandqilinNode()
-    node.stand()
+    node.dog_basic.stand()
     time.sleep(3)
     node.event(1)
     node.come_back()

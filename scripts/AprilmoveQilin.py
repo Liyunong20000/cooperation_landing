@@ -116,15 +116,6 @@ class AprilmoveqilinNode:
 
         self.pub_qilin_vel.publish(qilin_cmd_vel)
 
-    # def qilin_body_pose(self, qx, qy, qz, qw):
-    #     qilin_body_pose = Pose()
-    #     qilin_body_pose.orientation.x = qx
-    #     qilin_body_pose.orientation.y = qy
-    #     qilin_body_pose.orientation.z = qz
-    #     qilin_body_pose.orientation.w = qw
-    #
-    #     self.pub_qilin_pose.publish(qilin_body_pose)
-
 
 if __name__ == '__main__':
     node = AprilmoveqilinNode()
