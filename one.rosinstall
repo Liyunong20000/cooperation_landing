@@ -1,0 +1,11 @@
+# unitree_ros
+- git:
+    local-name: unitree_ros
+    uri: https://github.com/Liyunong20000/unitree_ros.git
+    version: 228e01d
+
+#jsk_common
+- git:
+    local-name: jsk_common
+    uri: https://github.com/Liyunong20000/jsk_common.git
+    version: bb4e784
