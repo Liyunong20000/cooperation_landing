@@ -1,2 +1,2 @@
-nav_msgs/Odometry quadrotor__uav__cog__odom
-std_msgs/UInt8 quadrotor__flight_state
+nav_msgs/Odometry xuanwu__uav__cog__odom
+std_msgs/UInt8 xuanwu__flight_state
