@@ -6,7 +6,7 @@
   <arg name="LOW_PORT_1" default="1024" />
   <arg name="LOW_PORT_2" default="1025" />
   <arg name="LOW_PORT_3" default="1026" />
-  <arg name="LOW_PORT_4" default="1027" />
+  <arg name="LOW_PORT_4" default="2000" />
   <arg name="drone_ns" default="xuanwu" />	
 
     ### UAV streamer to Ground Robot
@@ -37,7 +37,7 @@
   </node>
 
   ### UAV low speed receiver2 from GR
-  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_land">
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_land" output="screen">
     <remap from="~output" to="/$(arg drone_ns)/teleop_command/land" />
     <param name="message" value="std_msgs/Empty" />
     <param name="receive_ip" value="$(arg UAV_IP)" />
@@ -56,7 +56,7 @@
 
 
   ### UAV low speed receiver4 from GR
-  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_nav_trigger">
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_target_pose" output="screen">
     <remap from="~output" to="/$(arg drone_ns)/target_pose" />
     <param name="message" value="geometry_msgs/PoseStamped" />
     <param name="receive_ip" value="$(arg UAV_IP)" />
