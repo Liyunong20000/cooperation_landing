@@ -23,8 +23,8 @@ class GripperKeyboardNode:
             i             o      
       (check state)  (return max)
 
-            j             k     
-          (open)       (close) 
+            j             k         l
+          (open)       (close)   (grasp) 
 
     Please don't have caps lock on.
     CTRL+c to quit
@@ -68,6 +68,9 @@ class GripperKeyboardNode:
                                 angle = self.gripper_move.servo_angle - step
                                 self.gripper_move.servo_target_cmd(self.gripper_move.servo_index, angle)
                                 msg = "close"
+                        if key == 'l':
+                                self.gripper_move.grasp(0,50)
+                                msg = "grasp"
 
                         if key == '\x03':
                                 break
