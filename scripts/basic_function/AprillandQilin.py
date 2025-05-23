@@ -51,9 +51,8 @@ class AprillandqilinNode:
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
-        rospy.set_param('/converge_interval', 0.04)
-        self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/landing_threshold', 0.4)
+
+        rospy.set_param('/landing_threshold', 0.04)
         self.landing_threshold = rospy.get_param("/landing_threshold")
 
         rospy.set_param('/movement_constant', 2)
@@ -127,7 +126,7 @@ class AprillandqilinNode:
         a = 5
         while not rospy.is_shutdown():
             if self.find_drone_tag == 1:
-                if math.sqrt(self.target_x ** 2 + self.target_y ** 2) < self.converge_interval and abs(
+                if math.sqrt(self.target_x ** 2 + self.target_y ** 2) < self.landing_interval and abs(
                     self.target_yaw) < 0.5:
                         a -= 1
             else:

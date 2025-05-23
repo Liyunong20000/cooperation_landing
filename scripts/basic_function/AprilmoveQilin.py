@@ -14,6 +14,8 @@ from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import CameraInfo
 import tf.transformations as tft
+from drone_basic_function import DroneBasic
+from dog_basic_function import DogBasic
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
 

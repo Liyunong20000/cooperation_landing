@@ -25,7 +25,7 @@ class DroneBasic:
 
         self.drone_state = 0
 
-        self.robot_ns = rospy.get_param("~robot_ns", "")
+        self.robot_ns = rospy.get_param("~robot_ns", "xuanwu")
 
         # Subscribe and publish.
 
