@@ -42,8 +42,8 @@ def generate_chessboard_with_border(rows, cols, square_size, border_size, save_p
     cv2.destroyAllWindows()
 
 # Specify the parameters for the chessboard with border
-rows = 8  # Number of rows
-cols = 8  # Number of columns
+rows = 9  # Number of rows
+cols = 7  # Number of columns
 square_size = 100  # Size of each square in pixels
 border_size = 100  # Size of the white border around the chessboard
 save_path = 'chessboard_pattern_with_border.png'  # Path to save the generated chessboard image with a border
