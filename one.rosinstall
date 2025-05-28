@@ -9,3 +9,9 @@
     local-name: jsk_common
     uri: https://github.com/Liyunong20000/jsk_common.git
     version: bb4e784
+    
+#ethz-asl/kalibr
+- git:
+    local-name: kalibr
+    uri: https://github.com/ethz-asl/kalibr.git
+    version: 1f60227
