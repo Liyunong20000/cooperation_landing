@@ -1,0 +1,26 @@
+image_width: 1280
+image_height: 720
+camera_name: elp_l180_fisheye
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [382.4542160152156,   0.     , 660.4127056910255    ,
+           0.     , 382.6381964889135, 353.07476941330583    ,
+           0.     ,   0.     ,   1.     ]
+distortion_model: equidistant
+distortion_coefficients:
+  rows: 1
+  cols: 4
+  data: [-0.030497487984345862, -0.022173200575226336, 0.010144303875861894, -0.00222284074846453]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1., 0., 0.,
+         0., 1., 0.,
+         0., 0., 1.]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [382.4542160152156,   0.     , 660.4127056910255    ,   0.     ,
+           0.     , 382.6381964889135, 353.07476941330583    ,   0.     ,
+           0.     ,   0.     ,   1.     ,   0.     ]
