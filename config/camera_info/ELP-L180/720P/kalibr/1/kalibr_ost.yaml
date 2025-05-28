@@ -1,0 +1,8 @@
+usb_cam:
+  cam_overlaps: []
+  camera_model: pinhole
+  distortion_coeffs: [-0.04495677726215446, -0.004463664830255377, 0.00659666355134659, -0.005623099316511204]
+  distortion_model: equidistant
+  intrinsics: [387.8555264549905, 389.22655764459853, 645.2067268748993, 371.60636811748157]
+  resolution: [1280, 720]
+  rostopic: /usb_cam/image_raw

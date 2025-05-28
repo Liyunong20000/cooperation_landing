@@ -1,0 +1,26 @@
+image_width: 1280
+image_height: 720
+camera_name: elp_l180_720p
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [387.8555264549905,   0.     , 645.2067268748993    ,
+           0.     , 389.22655764459853, 371.60636811748157    ,
+           0.     ,   0.     ,   1.     ]
+distortion_model: equidistant
+distortion_coefficients:
+  rows: 1
+  cols: 4
+  data: [-0.04495677726215446, -0.004463664830255377, 0.00659666355134659, -0.005623099316511204]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1., 0., 0.,
+         0., 1., 0.,
+         0., 0., 1.]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [387.8555264549905,   0.     , 645.2067268748993    ,   0.     ,
+           0.     , 389.22655764459853, 371.60636811748157    ,   0.     ,
+           0.     ,   0.     ,   1.     ,   0.     ]
