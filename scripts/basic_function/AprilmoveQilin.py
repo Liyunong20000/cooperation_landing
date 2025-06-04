@@ -17,9 +17,7 @@ import tf.transformations as tft
 from drone_basic_function import DroneBasic
 from dog_basic_function import DogBasic
 
-# It is for  the Coopration for Mini_Quadrotor and Qilin
-
-# use the class to create a node
+# It is for ground robot used to align with aerial robot
 
 class AprilmoveqilinNode:
 
@@ -36,22 +34,20 @@ class AprilmoveqilinNode:
 
         # Subscribe and publish.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
+
         self.pub_qilin_vel= rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
+
+        # Wait the service of ground robot
         rospy.wait_for_service('/go1/sit')
         rospy.wait_for_service('/go1/stand')
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
-        rospy.set_param('/converge_interval', 0.05)
+        # Load the parameter
         self.converge_interval = rospy.get_param("/converge_interval")
-        rospy.set_param('/above_z', 0.4)
         self.above_z = rospy.get_param("/above_z")
-
-        rospy.set_param('/move_parameter', 2)
         self.move_param = rospy.get_param("/move_parameter")
-        rospy.set_param('/rotate_parameter', 0.05)
         self.rotate_param = rospy.get_param("/rotate_parameter")
-        # rospy.set_param('/pose_parameter', 0.05)
         # self.pose_parameter = rospy.get_param("/pose_parameter")
 
 
