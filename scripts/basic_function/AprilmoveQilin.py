@@ -37,13 +37,14 @@ class AprilmoveqilinNode:
 
         self.pub_qilin_vel= rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
 
-        # Wait the service of ground robot
+        # Wait the service of ground robo
         rospy.wait_for_service('/go1/sit')
         rospy.wait_for_service('/go1/stand')
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
 
         # Load the parameter
+        self.rotate_param = rospy.get_param("/rotate_parameter")
         self.converge_interval = rospy.get_param("/converge_interval")
         self.above_z = rospy.get_param("/above_z")
         self.move_param = rospy.get_param("/move_parameter")
@@ -77,7 +78,7 @@ class AprilmoveqilinNode:
             if abs(self.lx) < 5 and abs(self.ly) < 5:
                 navigation_time = rospy.Time.now()
                 print("enter")
-                #print(f'navigation_time:{navigation_time.to_sec()}')
+                # print(f'navigation_time:{navigation_time.to_sec()}')
                 self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.ryaw)
                 # self.qilin_body_pose(self.qx, self.qy, self.qz, self.qw)
                 # self.qilin_body_pose(self.april_qx, self.april_qy, self.april_qz, self.april_qw)
@@ -114,6 +115,32 @@ class AprilmoveqilinNode:
 
         self.pub_qilin_vel.publish(qilin_cmd_vel)
 
+    def find_target_tag(self,data,target_id):
+        b = len(data)
+        a = 0
+
+        while a < b:
+            c = target_id in data[a].id
+            # print(f'{a}')
+            if c:
+                if target_id == 0:
+                    self.target_x = - data[a].pose.pose.pose.position.y
+                    self.target_y = data[a].pose.pose.pose.position.x
+                    self.target_qx = data[a].pose.pose.pose.orientation.x
+                    self.target_qy = data[a].pose.pose.pose.orientation.y
+                    self.target_qz = data[a].pose.pose.pose.orientation.z
+                    self.target_qw = data[a].pose.pose.pose.orientation.w
+                    self.target_roll = \
+                        tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[0]
+                    self.target_pitch = \
+                        tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[1]
+                    self.target_yaw = \
+                        tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[2]
+
+                return 1
+
+            else:
+                return 0
 
 if __name__ == '__main__':
     node = AprilmoveqilinNode()
