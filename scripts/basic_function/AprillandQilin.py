@@ -1,18 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import rospy, sys
-import numpy as np
-import time
-import math
-from aerial_robot_msgs.msg import FlightNav
-from apriltag_ros.msg import AprilTagDetectionArray
-from std_msgs.msg import Empty, UInt8
-from std_srvs.srv import Trigger
-from geometry_msgs.msg import Twist
-import tf.transformations as tft
 
-from drone_basic_function import DroneBasic
-from dog_basic_function import DogBasic
+
 # It is for  the Coopration for xuanwu and Qilin
 
 class AprillandqilinNode:

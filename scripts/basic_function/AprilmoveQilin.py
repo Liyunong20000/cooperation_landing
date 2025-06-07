@@ -116,26 +116,31 @@ class AprilmoveqilinNode:
         self.pub_qilin_vel.publish(qilin_cmd_vel)
 
     def find_target_tag(self,data,target_id):
-        b = len(data)
-        a = 0
+        image_length = len(data)
+        found = False
 
-        while a < b:
-            c = target_id in data[a].id
-            # print(f'{a}')
-            if c:
-                if target_id == 0:
-                    self.target_x = - data[a].pose.pose.pose.position.y
-                    self.target_y = data[a].pose.pose.pose.position.x
-                    self.target_qx = data[a].pose.pose.pose.orientation.x
-                    self.target_qy = data[a].pose.pose.pose.orientation.y
-                    self.target_qz = data[a].pose.pose.pose.orientation.z
-                    self.target_qw = data[a].pose.pose.pose.orientation.w
-                    self.target_roll = \
-                        tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[0]
-                    self.target_pitch = \
-                        tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[1]
-                    self.target_yaw = \
-                        tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[2]
+        if image_length > 0:
+            for det in data.detections:
+                if target_id in det.id:
+                    pose = data[a].pose.pose.pose
+                    x = pose.position.y
+                    y = pose.position.x
+                    z = pose.position.z
+                    qx = data[a].pose.pose.pose.orientation.x
+                    qy = data[a].pose.pose.pose.orientation.y
+                    qz = data[a].pose.pose.pose.orientation.z
+                    qw = data[a].pose.pose.pose.orientation.w
+                    q = [qx, qy, qz, qw]
+                    t = [x, y, z]
+                    T = tft.quaternion_matrix(q)
+                    T[:3, 3] = t
+                    # self.target_roll = \
+                    #     tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[0]
+                    # self.target_pitch = \
+                    #     tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[1]
+                    # self.target_yaw = \
+                    #     tft.euler_from_quaternion([self.target_qx, self.target_qy, self.target_qz, self.target_qw])[2]
+
 
                 return 1
 
