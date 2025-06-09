@@ -82,7 +82,7 @@ if __name__=="__main__":
         # force_landing_pub = rospy.Publisher(ns + '/force_landing', Empty, queue_size=1)
         nav_pub = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=1)
 
-        xy_vel   = rospy.get_param("xy_vel", 0.5)
+        xy_vel   = rospy.get_param("xy_vel", 0.2)
         yaw_vel  = rospy.get_param("yaw_vel", 0.4)
 
         # motion_start_pub = rospy.Publisher('task_start', Empty, queue_size=1)
@@ -102,7 +102,7 @@ if __name__=="__main__":
                                 nav_pub.publish(nav_msg)
                                 msg = "send +x vel command"
                         if key == 's':
-                                nav_msg.linear.x = -xy_vel
+                                nav_msg.linear.x = -xy_vel-0.3
                                 nav_pub.publish(nav_msg)
                                 msg = "send -x vel command"
                         if key == 'a':
@@ -110,7 +110,7 @@ if __name__=="__main__":
                                 nav_pub.publish(nav_msg)
                                 msg = "send +y vel command"
                         if key == 'd':
-                                nav_msg.linear.y = -xy_vel
+                                nav_msg.linear.y = -xy_vel-0.3
                                 nav_pub.publish(nav_msg)
                                 msg = "send -y vel command"
                         if key == 'q':
