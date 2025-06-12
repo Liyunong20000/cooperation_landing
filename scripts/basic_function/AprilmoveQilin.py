@@ -206,6 +206,10 @@ class AprilmoveqilinNode:
         lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -1, 1)
         ly = np.clip((self.move_param * self.dog_align_drone_matrix[1, 3]), -1, 1)
         # q = tft.quaternion_from_matrix(self.dog_align_drone_matrix)
+        if not isinstance(self.find_target_tag(self.msg_apriltag, 0), np.ndarray) or self.find_target_tag(self.msg_apriltag, 0).shape != (4, 4):
+            rospy.logwarn("Tag 0 not found or invalid transform.")
+            return
+      
         q = tft.quaternion_from_matrix(self.find_target_tag(self.msg_apriltag, 0))
         roll, pitch, yaw = tft.euler_from_quaternion(q)
         ryaw = np.clip((self.rotate_param * yaw), -0.3, 0.3)
