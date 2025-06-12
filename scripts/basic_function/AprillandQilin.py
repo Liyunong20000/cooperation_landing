@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from AprilmoveQilin import *
 from drone_basic_function import DroneBasic
+from dog_basic_function import DogBasic
 from std_msgs.msg import Empty, UInt8
 # It is for  the Coopration for xuanwu and Qilin
 
@@ -17,7 +18,7 @@ class AprillandqilinNode:
         self.aligned = False
         self.pause_when_lost = rospy.Duration(1)
         self.drone_pose_matrix = []
-
+        self.success_start_time = None
 
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
@@ -27,10 +28,6 @@ class AprillandqilinNode:
 
         self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
 
-    def event(self, x):
-        event_msgs = UInt8()
-        event_msgs.data = x
-        self.pub_event.publish(event_msgs)
 
     def is_alignment_success(self, T):
         pos = T[:3, 3]
@@ -38,50 +35,35 @@ class AprillandqilinNode:
         dist = np.linalg.norm([x, y])
         q = tft.quaternion_from_matrix(T)
         _, _, yaw = tft.euler_from_quaternion(q)
-        return (dist < self.aqm.coverge_interval) and (abs(yaw) < 0.15)
+        return (dist < 0.04) and (abs(yaw) < 0.15)
 
     def check_and_land(self):
-        now = rospy.Time.now()
+        self.aqm.align_dog_with_drone()
+        # this already handles tag loss and stops dog if needed
 
-        if self.aqm.msg_apriltag is None:
-            return
-        if self.aqm.msg_apriltag.detections:
-            self.last_tag_time = now
-            self.aqm.dog_align_drone_matrix = self.aqm.origin_2_camera_matrix_param @ self.aqm.find_drone_center(self.aqm.msg_apriltag)
-            if self.is_alignment_success(self.dog_align_drone_matrix):
-                if not self.aligned:
-                    print("Alignment complete. Triggering drone landing.")
-                    self.send_drone_land_command()
+        T = self.aqm.dog_align_drone_matrix
+
+        # Make sure we have a valid transform
+        if T is not None:
+            if self.is_alignment_success(T):
+                if self.success_start_time is None:
+                    self.success_start_time = time.time()
+                elif time.time() - self.success_start_time > 1.0 and not self.aligned:
+                    rospy.loginfo("Stable alignment achieved. Landing drone.")
+                    self.drone_basic.drone_land()
                     self.aligned = True
             else:
-                self.align_dog_with_drone()
+                self.success_start_time = None
                 self.aligned = False
-
         else:
-
-            time_since_last_tag = now - self.last_tag_time
-            if time_since_last_tag > self.pause_when_lost:
-                print("Tag lost. Pausing dog movement.")
-                self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
-
-    def come_back(self):
-
-        while not rospy.is_shutdown():
-            if self.drone_basic.drone_state == 5:
-                break
-            time.sleep(0.1)
-        # self.event(2)
-        print(f'Move to above takeoff_Z')
-        time.sleep(3)
-        self.beginfollow = 1
-        print(f'begin follow')
-
+            self.success_start_time = None
+            self.aligned = False
 if __name__ == '__main__':
     node = AprillandqilinNode()
     node.dog_basic.stand()
     time.sleep(3)
-    node.event(1)
-    node.come_back()
-
+    rate = rospy.Rate(10)
     while not rospy.is_shutdown():
-        rospy.spin()
+        node.check_and_land()
+        rate.sleep()
+

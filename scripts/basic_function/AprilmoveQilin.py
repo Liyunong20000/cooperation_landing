@@ -206,7 +206,7 @@ class AprilmoveqilinNode:
         self.smoothed_ryaw = (1- self.smooth_alpha) * self.smoothed_ryaw + self.smooth_alpha * ryaw
         # print(f'{self.smoothed_lx},{self.smoothed_ly},{self.smoothed_ryaw}')
         # self.dog_basic_function.qilin_cmd_vel(self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw)
-        self.dog_basic_function.qilin_cmd_vel(lx, ly, 0, 0, 0)
+        self.dog_basic_function.qilin_cmd_vel(self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw)
 
 if __name__ == '__main__':
     node = AprilmoveqilinNode()
