@@ -76,9 +76,9 @@ class AprilmoveqilinNode:
     def find_target_tag(self,data,target_id):
         T = 0
         # print(f'11111111')
-        if len(data.detections) == 0:
-            return None
-
+        # if len(data.detections) == 0:
+        #     return
+        
         for det in data.detections:
             # print(f'{det}')
             # print(f'{det.id}')
@@ -163,40 +163,50 @@ class AprilmoveqilinNode:
                 continue
 
             # Compute drone pose in world frame
-            T_camera_2_drone = T_camera_2_tag @ T_tag_2_drone
+            T_camera_2_drone = T_camera_2_tag @ T_tag_2_drone  
             drone_world_matrices.append(T_camera_2_drone)
-
+            # print(f'{drone_world_matrices}')
         if not drone_world_matrices:
             print("No valid drone tag detections")
             return None
         # print(f'{self.average_with_svd(drone_world_matrices)}')
         # return self.average_with_svd(drone_world_matrices)
-        return self.filter_and_average_tags(drone_world_matrices, sigma=1.0)
-
+        # T = self.filter_and_average_tags(drone_world_matrices, sigma = 1.0)
+        # print(f'{T}')
+        # return self.filter_and_average_tags(drone_world_matrices, sigma=1.0)
+        return T_camera_2_drone
+    
     def align_dog_with_drone(self):
         if self.msg_apriltag is None:
             rospy.logwarn("No AprilTag message yet.")
             return
 
         T_drone_center = self.find_drone_center(self.msg_apriltag)
+        
         if T_drone_center is None:
         # Check if it's been too long since last detection
             if (rospy.Time.now() - self.last_tag_time) > rospy.Duration(0.5):
                 rospy.logwarn("Tag lost for >0.5s. Stopping dog.")
                 self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
             return
-    
+
+
+        if not isinstance(T_drone_center, np.ndarray) or T_drone_center.shape != (4, 4):
+            rospy.logwarn("Tag 0 not found or invalid transform.")
+            return
+      
         self.last_tag_time = rospy.Time.now()
-        # self.dog_align_drone_matrix =  self.origin_2_camera_matrix_param @ T_drone_center
-        self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ self.find_target_tag(self.msg_apriltag, 0)
+        self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ T_drone_center
+        # self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ self.find_target_tag(self.msg_apriltag, 0)
         print(f'{self.dog_align_drone_matrix}')
         if (self.dog_align_drone_matrix[0, 3] < 0.5) or (self.dog_align_drone_matrix[1, 3] < 0.5):
-            self.move_param = 1.25
+            self.move_param = 1.3
         else:
             self.move_param = 1
         lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -1, 1)
         ly = np.clip((self.move_param * self.dog_align_drone_matrix[1, 3]), -1, 1)
-        q = tft.quaternion_from_matrix(self.dog_align_drone_matrix)
+        # q = tft.quaternion_from_matrix(self.dog_align_drone_matrix)
+        q = tft.quaternion_from_matrix(self.find_target_tag(self.msg_apriltag, 0))
         roll, pitch, yaw = tft.euler_from_quaternion(q)
         ryaw = np.clip((self.rotate_param * yaw), -0.3, 0.3)
         # print(f'{lx}, {ly}, {ryaw}')
@@ -215,7 +225,7 @@ if __name__ == '__main__':
     # print(type(node.drone_tags_matrix_param))
     # node.drone_tags_matrix()
     while not rospy.is_shutdown():
-        time.sleep(0.5)
+        time.sleep(0.1)
         node.align_dog_with_drone()
     # while not rospy.is_shutdown():
     #
