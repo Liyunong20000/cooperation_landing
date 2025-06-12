@@ -13,6 +13,7 @@ class AprillandqilinNode:
         rospy.init_node('Aprillandqilin', anonymous=True)
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
+        self.alignment_counter = 0
 
         self.last_tag_time = rospy.Time.now(), rospy.Time.now()
         self.aligned = False
@@ -44,26 +45,29 @@ class AprillandqilinNode:
         T = self.aqm.dog_align_drone_matrix
 
         # Make sure we have a valid transform
-        if T is not None:
-            if self.is_alignment_success(T):
-                if self.success_start_time is None:
-                    self.success_start_time = time.time()
-                elif time.time() - self.success_start_time > 1.0 and not self.aligned:
-                    rospy.loginfo("Stable alignment achieved. Landing drone.")
-                    self.drone_basic.drone_land()
-                    self.aligned = True
-            else:
-                self.success_start_time = None
-                self.aligned = False
+        if T is not None and self.is_alignment_success(T):
+            self.alignment_counter += 1
+            rospy.loginfo_throttle(1.0, f"Alignment frame count: {self.alignment_counter}")
+
+            if self.alignment_counter >= self.required_frames and not self.aligned:
+                rospy.loginfo("Alignment held for sufficient frames. Landing drone.")
+                self.dog_basic.send_drone_land_command()
+                self.aligned = True
         else:
-            self.success_start_time = None
+            self.alignment_counter = 0
             self.aligned = False
+
+    def run(self):
+        rate = rospy.Rate(10)  # 10 Hz
+        while not rospy.is_shutdown():
+            self.check_and_land()
+            rate.sleep()
 if __name__ == '__main__':
-    node = AprillandqilinNode()
-    node.dog_basic.stand()
-    time.sleep(3)
-    rate = rospy.Rate(10)
-    while not rospy.is_shutdown():
-        node.check_and_land()
-        rate.sleep()
+    try:
+        node = AprillandqilinNode()
+        node.dog_basic.stand()
+        time.sleep(3)
+        node.run()
+    except rospy.ROSInterruptException:
+        pass
 
