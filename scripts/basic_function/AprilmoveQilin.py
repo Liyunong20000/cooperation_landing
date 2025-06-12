@@ -15,7 +15,6 @@ class AprilmoveqilinNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprilmoveqilin', anonymous=True)
 
         self.dog_align_drone_matrix = []
         self.time_rece = rospy.Time()
@@ -198,7 +197,7 @@ class AprilmoveqilinNode:
         self.last_tag_time = rospy.Time.now()
         self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ T_drone_center
         # self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ self.find_target_tag(self.msg_apriltag, 0)
-        print(f'{self.dog_align_drone_matrix}')
+        # print(f'{self.dog_align_drone_matrix}')
         if (self.dog_align_drone_matrix[0, 3] < 0.5) or (self.dog_align_drone_matrix[1, 3] < 0.5):
             self.move_param = 1.3
         else:
@@ -223,6 +222,7 @@ class AprilmoveqilinNode:
         self.dog_basic_function.qilin_cmd_vel(self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw)
 
 if __name__ == '__main__':
+    rospy.init_node('Aprilmoveqilin', anonymous=True)
     node = AprilmoveqilinNode()
     # node.stand()
     time.sleep(1)

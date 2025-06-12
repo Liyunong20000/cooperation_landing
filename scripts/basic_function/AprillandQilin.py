@@ -14,7 +14,7 @@ class AprillandqilinNode:
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
         self.alignment_counter = 0
-
+        self.required_frames = 5
         self.last_tag_time = rospy.Time.now(), rospy.Time.now()
         self.aligned = False
         self.pause_when_lost = rospy.Duration(1)
@@ -31,11 +31,19 @@ class AprillandqilinNode:
 
 
     def is_alignment_success(self, T):
+        if not isinstance(T, np.ndarray) or T.shape != (4, 4):
+            return
         pos = T[:3, 3]
         x, y, _ = pos
         dist = np.linalg.norm([x, y])
-        q = tft.quaternion_from_matrix(T)
-        _, _, yaw = tft.euler_from_quaternion(q)
+        if not isinstance(self.aqm.find_target_tag(self.aqm.msg_apriltag, 0), np.ndarray) or self.aqm.find_target_tag(self.aqm.msg_apriltag, 0).shape != (4, 4):
+            rospy.logwarn("Tag 0 not found or invalid transform.")
+            return
+        q = tft.quaternion_from_matrix(self.aqm.find_target_tag(self.aqm.msg_apriltag, 0))
+        roll, pitch, yaw = tft.euler_from_quaternion(q)
+
+        # q = tft.quaternion_from_matrix(T)
+        # _, _, yaw = tft.euler_from_quaternion(q)
         return (dist < 0.04) and (abs(yaw) < 0.15)
 
     def check_and_land(self):
@@ -51,7 +59,8 @@ class AprillandqilinNode:
 
             if self.alignment_counter >= self.required_frames and not self.aligned:
                 rospy.loginfo("Alignment held for sufficient frames. Landing drone.")
-                self.dog_basic.send_drone_land_command()
+                print('I will land')
+                self.drone_basic.drone_land()
                 self.aligned = True
         else:
             self.alignment_counter = 0
