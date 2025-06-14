@@ -6,7 +6,7 @@
   <arg name="LOW_PORT_1" default="1024" />
   <arg name="LOW_PORT_2" default="1025" />
   <arg name="LOW_PORT_3" default="1026" />
-  <arg name="LOW_PORT_4" default="2000" />
+  <arg name="LOW_PORT_4" default="1027" />
   <arg name="drone_ns" default="xuanwu" />	
 
     ### UAV streamer to Ground Robot

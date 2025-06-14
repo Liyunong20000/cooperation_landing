@@ -6,8 +6,8 @@
   <arg name="LOW_PORT_1" default="1024" />
   <arg name="LOW_PORT_2" default="1025" />
   <arg name="LOW_PORT_3" default="1026" />
-  <arg name="LOW_PORT_4" default="2000" />
-  <arg name="drone_ns" default="xuanwu" />	
+  <arg name="LOW_PORT_4" default="1027" />
+  <arg name="drone_ns" default="xuanwu" />
 
   ### GR receiver from UAV
   <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver" output="screen">
