@@ -18,11 +18,11 @@ from geometry_msgs.msg import Pose
 # use the class to create a node
 
 
-class SubscribeeventNode:
+class EventtriggerNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprilfollowqilin', anonymous=True)
+        rospy.init_node('eventtrigger', anonymous=True)
 
         # Subscribe and publish.
         rospy.Subscriber('/quadrotor/target_pose/info', PoseStamped, self._callback_target_pose_info)
@@ -33,8 +33,8 @@ class SubscribeeventNode:
         # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
         self.pub_drone_target = rospy.Publisher('/quadrotor/target_pose', PoseStamped, queue_size=10)
         # self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
-        self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
-        self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
+        # self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
+        # self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
 
         self.x_y_mode, self.z_mode = 0, 0
         self.target_x, self.target_y, self.target_z= 0.0, 0.0, 0.0
@@ -59,7 +59,7 @@ class SubscribeeventNode:
         self.target_oz = msg.pose.orientation.z
         self.target_ow = msg.pose.orientation.w
 
-    def _callback_target_pose_trigger(self,msg):
+    def _callback_target_pose_trigger(self):
         self.drone_target_pose(self.target_x, self.target_y, self.target_z, self.target_ox, self.target_oy, self.target_oz, self.target_ow)
         print(f"pub target pose")
 
@@ -116,7 +116,6 @@ class SubscribeeventNode:
         drone_target_pose.pose.orientation.y = oy
         drone_target_pose.pose.orientation.z = oz
         drone_target_pose.pose.orientation.w = ow
-
         self.pub_drone_target.publish(drone_target_pose)
 
 
