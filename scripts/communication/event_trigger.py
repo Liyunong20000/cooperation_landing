@@ -25,13 +25,13 @@ class EventtriggerNode:
         rospy.init_node('eventtrigger', anonymous=True)
 
         # Subscribe and publish.
-        rospy.Subscriber('/quadrotor/target_pose/info', PoseStamped, self._callback_target_pose_info)
-        rospy.Subscriber('/quadrotor/target_pose/trigger', Empty, self._callback_target_pose_trigger)
+        rospy.Subscriber('/xuanwu/target_pose/info', PoseStamped, self._callback_target_pose_info)
+        rospy.Subscriber('/xuanwu/target_pose/trigger', Empty, self._callback_target_pose_trigger)
         # rospy.Subscriber('/quadrotor/uav/nav/info', FlightNav, self._callback_nav_info)
 
 
         # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
-        self.pub_drone_target = rospy.Publisher('/quadrotor/target_pose', PoseStamped, queue_size=10)
+        self.pub_drone_target = rospy.Publisher('/xuanwu/target_pose', PoseStamped, queue_size=10)
         # self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         # self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         # self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
@@ -59,7 +59,7 @@ class EventtriggerNode:
         self.target_oz = msg.pose.orientation.z
         self.target_ow = msg.pose.orientation.w
 
-    def _callback_target_pose_trigger(self):
+    def _callback_target_pose_trigger(self, msg):
         self.drone_target_pose(self.target_x, self.target_y, self.target_z, self.target_ox, self.target_oy, self.target_oz, self.target_ow)
         print(f"pub target pose")
 
@@ -116,13 +116,14 @@ class EventtriggerNode:
         drone_target_pose.pose.orientation.y = oy
         drone_target_pose.pose.orientation.z = oz
         drone_target_pose.pose.orientation.w = ow
+        time.sleep(0.5)
         self.pub_drone_target.publish(drone_target_pose)
 
 
 
 
 if __name__ == '__main__':
-    node = SubscribeeventNode()
+    node = EventtriggerNode()
     time.sleep(1)
 
     while not rospy.is_shutdown():

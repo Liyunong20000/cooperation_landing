@@ -1,4 +1,3 @@
 geometry_msgs/Twist go1__cmd_vel
 geometry_msgs/Pose go1__body_pose
 geometry_msgs/PoseStamped xuanwu__target_pose__info
-geometry_msgs/PoseStamped xuanwu__target_pose

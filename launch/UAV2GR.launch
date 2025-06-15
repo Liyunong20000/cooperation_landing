@@ -63,5 +63,4 @@
 <!--     <param name="receive_port" value="$(arg LOW_PORT_4)" /> -->
 <!--     <param name="receive_buffer_size" value="1000" /> -->
 <!--   </node> -->
-  <node pkg="cooperation_landing" type="event_trigger.py" name="event_trigger_node" output="screen" respawn="false"/>
 </launch>
