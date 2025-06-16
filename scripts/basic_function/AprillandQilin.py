@@ -14,7 +14,7 @@ class AprillandqilinNode:
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
         self.alignment_counter = 0
-        self.required_frames = 5
+        self.required_frames = 10
         self.last_tag_time = rospy.Time.now(), rospy.Time.now()
         self.aligned = False
         self.pause_when_lost = rospy.Duration(1)
@@ -44,7 +44,7 @@ class AprillandqilinNode:
 
         # q = tft.quaternion_from_matrix(T)
         # _, _, yaw = tft.euler_from_quaternion(q)
-        return (dist < 0.04) and (abs(yaw) < 0.15)
+        return (dist < 0.03) and (abs(yaw) < 0.15)
 
     def check_and_land(self):
         self.aqm.align_dog_with_drone()
