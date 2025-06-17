@@ -4,7 +4,7 @@
   <xacro:arg name="robot_name" default="qilin" />
 
   <!-- robot urdf -->
-  <xacro:include filename="$(find cooperation_landing)/urdf/camera.urdf.xacro" />
+  <xacro:include filename="$(find cooperation_landing)/urdf/ground_robot.urdf.xacro" />
 
   <gazebo reference="upward_camera_optical_frame">
     <sensor type="camera" name="upward_camera">
