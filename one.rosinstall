@@ -15,3 +15,10 @@
     local-name: kalibr
     uri: https://github.com/ethz-asl/kalibr.git
     version: 1f60227
+
+#pal-robotics/gazebo_ros_link_attacher
+- git:
+    local-name: gazebo_ros_link_attacher
+    uri: https://github.com/pal-robotics/gazebo_ros_link_attacher.git
+    version: 1d170c4
+    
