@@ -36,6 +36,9 @@
 
   <rosparam file="$(find aerial_robot_simulation)/config/Gazebo.yaml" command="load" ns="$(arg aerial_robot_name)" />
 
+  <node name="sim_ground_robot_tf" pkg="cooperation_landing" type="sim_ground_robot_tf.py" >
+  </node>
+
   <!--Call the unitree dog to attend the simulation-->
   <include file="$(find cooperation_landing)/launch/simulation/ground_robot_gazebo.launch">
     <arg name="robot_name" value="$(arg ground_robot_name)"/>

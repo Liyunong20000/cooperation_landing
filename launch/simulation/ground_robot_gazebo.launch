@@ -33,7 +33,7 @@
     <group if ="$(arg simulation)">
           <!-- Load the URDF into the ROS Parameter Server -->
         <param name="robot_description"
-           command="$(find xacro)/xacro $(arg robot_model) robot_name:=$(arg robot_name)"/>
+           command="$(find xacro)/xacro $(arg robot_model)"/>
 
       <!--    Gazebo -->
 <!--         <include file="$(find gazebo_ros)/launch/empty_world.launch" > -->
@@ -42,7 +42,7 @@
 
     <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
     <!-- Set trunk and joint positions at startup -->
-        <node pkg="gazebo_ros" type="spawn_model" name="spawn_unitree" respawn="false" output="screen" args="-urdf -model $(arg robot_name) -x $(arg unitree_spawn_x) -y $(arg unitree_spawn_y) -z $(arg unitree_spawn_z) -param robot_description -unpause" />
+        <node pkg="gazebo_ros" type="spawn_model" name="spawn_unitree" respawn="false" output="screen" args="-urdf -model $(arg rname)_gazebo -x $(arg unitree_spawn_x) -y $(arg unitree_spawn_y) -z $(arg unitree_spawn_z) -param robot_description -unpause" />
 
     <!-- Load joint controller configurations from YAML file to parameter server -->
         <rosparam file="$(arg dollar)$(arg robot_path)/config/robot_control.yaml" command="load"/>
@@ -61,6 +61,10 @@
             <remap from="/joint_states" to="/$(arg rname)_gazebo/joint_states"/>
             <param name="publish_frequency" type="double" value="100.0" />
         </node>
+
+<!--         <node name="$(anon rotor_tf_publisher)" pkg="aerial_robot_model" type="rotor_tf_publisher" > -->
+<!--           <param name="tf_prefix" value="$(arg robot_name)" /> -->
+<!--         </node> -->
 
 <!--         <node pkg="unitree_gazebo" type="servo" name="servo" required="true" output="screen"/> -->
 
