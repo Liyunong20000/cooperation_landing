@@ -11,20 +11,17 @@
   <arg name="aerial_robot_x" default="0.5" />
   <arg name="aerial_robot_y" default="0.5" />
   <arg name="aerial_robot_z" default="0.0" />
-  <arg name="aerial_robot_yaw" default="0.0"/>
+  <arg name="aerial_robot_yaw" default="1.57"/>
   <arg name="estimate_mode"  default= "0" />
 
   <arg name="headless" default="false"/>
   <arg name="simulation" default="true"/>
 
-
-
-
   <arg name="paused" default="true"/>
   <arg name="use_sim_time" default="true"/>
   <arg name="debug" default="false"/>
   <arg name="world_type" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
-
+  <!--Launch gazebo world-->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(arg world_type)"/>
     <arg name="debug" value="false" />
@@ -33,11 +30,7 @@
     <arg name="use_sim_time" value="true"/>
     <arg name="headless" value="$(arg headless)"/>
   </include>
-
   <rosparam file="$(find aerial_robot_simulation)/config/Gazebo.yaml" command="load" ns="$(arg aerial_robot_name)" />
-
-  <node name="sim_ground_robot_tf" pkg="cooperation_landing" type="sim_ground_robot_tf.py" >
-  </node>
 
   <!--Call the unitree dog to attend the simulation-->
   <include file="$(find cooperation_landing)/launch/simulation/ground_robot_gazebo.launch">
@@ -47,6 +40,10 @@
     <arg name="unitree_spawn_y" value="$(arg ground_robot_y)" />
     <arg name="unitree_spawn_z" value="$(arg ground_robot_z)" />
   </include>
+
+  <!--Broadcast ground robot`s position in tf    -->
+  <node name="sim_ground_robot_tf" pkg="cooperation_landing" type="sim_ground_robot_tf.py" >
+  </node>
 
   <!--Call the aerial robot to attend the simulation-->
   <include file="$(find cooperation_landing)/launch/simulation/aerial_robot_gazebo.launch">
@@ -62,15 +59,18 @@
     <arg name="spawn_yaw" value="$(arg aerial_robot_yaw)" />
   </include>
 
+  <!--Spawn aerial robot in Gazebo-->
   <node name="$(anon urdf_spawner)" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
         args="-urdf -model $(arg aerial_robot_name) -x $(arg aerial_robot_x) -y $(arg aerial_robot_y) -z $(arg aerial_robot_z) -Y $(arg aerial_robot_yaw) -param $(arg aerial_robot_name)/robot_description"/>
 
+  <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" >
+  </node>
+
+  <!--load aerial robot controller in Gazebo-->
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
         output="screen" ns="$(arg aerial_robot_name)" args="joint_state_controller attitude_controller" />
-
-  <!--Simulation in Gazebo-->
-
 </launch>
+
 <!--    --><!-- Apriltag detection -->
 <!--   <include file="$(find apriltag_ros)/launch/continuous_detection.launch"> -->
 <!--     <arg name="camera_name" value="/unitree_camera/upward_camera" /> -->
@@ -78,18 +78,10 @@
 <!--   </include> -->
 <!--   <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/usb_cam_upward/tags.yaml" ns="/apriltag_ros_continuous_node"/> -->
 
-
-
   <!--Give me a usb camera-->
 <!--   <include file="$(find cooperation_landing)/launch/includes/sensors.launch.xml" > -->
 <!--     <arg name="robot_ns" value="unitree_go1" /> -->
 <!--   </include > -->
-
-  <!--Landing gear-->
-
-<!--   <node name="quadrotor" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" -->
-<!--         args="-urdf -model quadrotor -x $(arg quadrotor_spawn_x) -y $(arg quadrotor_spawn_y) -z $(arg quadrotor_spawn_z) -Y $(arg quadrotor_spawn_yaw) -param quadrotor/robot_description"/> -->
-<!--   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find cooperation_landing)/config/robot/unitree.rviz" /> -->
 
 
 
