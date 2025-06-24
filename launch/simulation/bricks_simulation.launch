@@ -8,8 +8,8 @@
 
   <arg name="aerial_robot_name" default="xuanwu" />
   <arg name="aerial_robot_id" default="" />
-  <arg name="aerial_robot_x" default="0.5" />
-  <arg name="aerial_robot_y" default="0.5" />
+  <arg name="aerial_robot_x" default="1.0" />
+  <arg name="aerial_robot_y" default="1.0" />
   <arg name="aerial_robot_z" default="0.0" />
   <arg name="aerial_robot_yaw" default="1.57"/>
   <arg name="estimate_mode"  default= "0" />

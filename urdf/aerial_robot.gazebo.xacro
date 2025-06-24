@@ -5,7 +5,7 @@
   <xacro:arg name="robot_name" default="quadrotor" />
 
   <!-- robot urdf -->
-  <xacro:include filename="$(find cooperation_landing)/robots/uav.urdf.xacro" />
+  <xacro:include filename="$(find cooperation_landing)/urdf/aerial_robot.urdf.xacro" />
 
   <!-- gazebo plugin for default controller and sensors -->
   <xacro:include filename="$(find aerial_robot_simulation)/xacro/spinal.gazebo.xacro" />
