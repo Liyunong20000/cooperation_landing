@@ -14,6 +14,14 @@
   <arg name="aerial_robot_yaw" default="1.57"/>
   <arg name="estimate_mode"  default= "0" />
 
+  <arg name="cube_pick_x" default="2.5" />
+  <arg name="cube_pick_y" default="2.5" />
+  <arg name="cube_pick_z" default="0.0" />
+
+  <arg name="cube_put_x" default="4.0" />
+  <arg name="cube_put_y" default="0.0" />
+  <arg name="cube_put_z" default="0.0" />
+
   <arg name="headless" default="false"/>
   <arg name="simulation" default="true"/>
 
@@ -63,8 +71,28 @@
   <node name="$(anon urdf_spawner)" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
         args="-urdf -model $(arg aerial_robot_name) -x $(arg aerial_robot_x) -y $(arg aerial_robot_y) -z $(arg aerial_robot_z) -Y $(arg aerial_robot_yaw) -param $(arg aerial_robot_name)/robot_description"/>
 
-  <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" >
-  </node>
+    <!--Spawn cube in Gazebo-->
+  <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
+    <arg name="cube_ns" value="cube_pick"/>
+    <arg name="cube_model" value="$(find cooperation_landing)/urdf/cube_spawn_pick.xacro" />
+    <arg name="cube_x" value="$(arg cube_pick_x)" />
+    <arg name="cube_y" value="$(arg cube_pick_y)" />
+    <arg name="cube_z" value="$(arg cube_pick_z)" />
+  </include>
+
+  <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
+    <arg name="cube_ns" value="cube_put"/>
+    <arg name="cube_model" value="$(find cooperation_landing)/urdf/cube_spawn_put.xacro" />
+    <arg name="cube_x" value="$(arg cube_put_x)" />
+    <arg name="cube_y" value="$(arg cube_put_y)" />
+    <arg name="cube_z" value="$(arg cube_put_z)" />
+  </include>
+
+  <node pkg="tf" type="static_transform_publisher" name="cube_pick_broadcaster" args="$(arg cube_pick_x) $(arg cube_pick_y) $(arg cube_pick_z) 0 0 0 /world /cube_pick/cube_pick 50" />
+  <node pkg="tf" type="static_transform_publisher" name="cube_put_broadcaster" args="$(arg cube_put_x) $(arg cube_put_y) $(arg cube_put_z) 0 0 0 /world /cube_put/cube_put 50" />
+
+<!--   <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" > -->
+<!--   </node> -->
 
   <!--load aerial robot controller in Gazebo-->
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
