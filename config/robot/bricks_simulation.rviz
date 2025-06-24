@@ -7,8 +7,10 @@ Panels:
         - /Global Options1
         - /Status1
         - /TF1
-        - /RobotModel1
         - /RobotModel2
+        - /RobotModel2/Status1
+        - /RobotModel3
+        - /RobotModel4
       Splitter Ratio: 0.49900200963020325
     Tree Height: 1576
   - Class: rviz/Selection
@@ -143,6 +145,12 @@ Visualization Manager:
           Value: true
         camera_right:
           Value: true
+        cube_pick/apriltag_11:
+          Value: true
+        cube_pick/cube_pick:
+          Value: true
+        cube_put/cube_put:
+          Value: true
         imu_link:
           Value: true
         landing_gear:
@@ -160,6 +168,12 @@ Visualization Manager:
         upward_camera_optical_frame:
           Value: true
         world:
+          Value: true
+        xuanwu/apriltag_0:
+          Value: true
+        xuanwu/apriltag_2:
+          Value: true
+        xuanwu/apriltag_3:
           Value: true
         xuanwu/cog:
           Value: true
@@ -186,51 +200,51 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
+        FL_calf:
+          FL_foot:
+            {}
+        FL_hip:
+          FL_thigh_rotor:
+            {}
+        FL_thigh:
+          FL_calf_rotor:
+            {}
+        FR_calf:
+          FR_foot:
+            {}
+        FR_hip:
+          FR_thigh_rotor:
+            {}
+        FR_thigh:
+          FR_calf_rotor:
+            {}
+        RL_calf:
+          RL_foot:
+            {}
+        RL_hip:
+          RL_thigh_rotor:
+            {}
+        RL_thigh:
+          RL_calf_rotor:
+            {}
+        RR_calf:
+          RR_foot:
+            {}
+        RR_hip:
+          RR_thigh_rotor:
+            {}
+        RR_thigh:
+          RR_calf_rotor:
+            {}
         world:
           base:
             trunk:
-              FL_hip:
-                FL_thigh:
-                  FL_calf:
-                    FL_foot:
-                      {}
-                  FL_calf_rotor:
-                    {}
-                FL_thigh_rotor:
-                  {}
               FL_hip_rotor:
                 {}
-              FR_hip:
-                FR_thigh:
-                  FR_calf:
-                    FR_foot:
-                      {}
-                  FR_calf_rotor:
-                    {}
-                FR_thigh_rotor:
-                  {}
               FR_hip_rotor:
                 {}
-              RL_hip:
-                RL_thigh:
-                  RL_calf:
-                    RL_foot:
-                      {}
-                  RL_calf_rotor:
-                    {}
-                RL_thigh_rotor:
-                  {}
               RL_hip_rotor:
                 {}
-              RR_hip:
-                RR_thigh:
-                  RR_calf:
-                    RR_foot:
-                      {}
-                  RR_calf_rotor:
-                    {}
-                RR_thigh_rotor:
-                  {}
               RR_hip_rotor:
                 {}
               camera_chin:
@@ -265,10 +279,21 @@ Visualization Manager:
               upward_camera_frame:
                 upward_camera_optical_frame:
                   {}
+          cube_pick/cube_pick:
+            cube_pick/apriltag_11:
+              {}
+          cube_put/cube_put:
+            {}
           xuanwu/root:
             xuanwu/cog:
               {}
             xuanwu/main_body:
+              xuanwu/apriltag_0:
+                {}
+              xuanwu/apriltag_2:
+                {}
+              xuanwu/apriltag_3:
+                {}
               xuanwu/fc:
                 {}
               xuanwu/lidar_imu:
@@ -293,6 +318,21 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        apriltag_0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        apriltag_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        apriltag_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         fc:
           Alpha: 1
           Show Axes: false
@@ -588,6 +628,53 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        apriltag_11:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        cube_pick:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: /cube_pick/robot_description
+      TF Prefix: cube_pick
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        cube_put:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: /cube_put/robot_description
+      TF Prefix: cube_put
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -616,7 +703,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 2.0423004627227783
+      Distance: 4.954274654388428
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -624,17 +711,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.4597988426685333
-        Y: -0.3009910583496094
-        Z: -2.384185791015625e-07
+        X: 1.7509781122207642
+        Y: 0.0953894853591919
+        Z: -2.980232238769531e-07
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.36016160249710083
+      Pitch: 0.4151615500450134
       Target Frame: <Fixed Frame>
-      Yaw: 5.233572959899902
+      Yaw: 4.768567085266113
     Saved: ~
 Window Geometry:
   Displays:
