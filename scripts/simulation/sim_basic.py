@@ -44,6 +44,6 @@ class SimbasicNode:
 if __name__ == "__main__":
     rospy.init_node('attachlinks', anonymous=True)
     node = SimbasicNode()
-    time.sleep(5)
-    node.sim_robot_pose( 'xuanwu' , 0.17, 0, 0.4, 0 , 0, 1, 0)
+    time.sleep(8)
+    node.sim_robot_pose( 'xuanwu' , 0.3, 0, 0.4, 0 , 0, 1, 0)
     node.links_attachment.sim_attach_links("xuanwu", "root", "go1_gazebo", "base")
