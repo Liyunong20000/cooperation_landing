@@ -40,7 +40,7 @@
         <robotNamespace>aerial_robot_camera</robotNamespace>
         <alwaysOn>true</alwaysOn>
         <updateRate>0.0</updateRate>
-        <cameraName>aerial_robot_camera</cameraName>
+        <cameraName>usb_cam</cameraName>
         <imageTopicName>image_raw</imageTopicName>
         <cameraInfoTopicName>camera_info</cameraInfoTopicName>
         <frameName>$(arg robot_name)/aerial_robot_camera_frame</frameName>
