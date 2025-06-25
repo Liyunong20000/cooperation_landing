@@ -91,25 +91,29 @@
   <node pkg="tf" type="static_transform_publisher" name="cube_pick_broadcaster" args="$(arg cube_pick_x) $(arg cube_pick_y) $(arg cube_pick_z) 0 0 0 /world /cube_pick/cube_pick 50" />
   <node pkg="tf" type="static_transform_publisher" name="cube_put_broadcaster" args="$(arg cube_put_x) $(arg cube_put_y) $(arg cube_put_z) 0 0 0 /world /cube_put/cube_put 50" />
 
-<!--   <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" > -->
-<!--   </node> -->
+  <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" >
+  </node>
 
   <!--load aerial robot controller in Gazebo-->
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
         output="screen" ns="$(arg aerial_robot_name)" args="joint_state_controller attitude_controller" />
+
+  <!-- Apriltag detection -->
+  <group ns="$(arg ground_robot_name)">
+    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+      <arg name="camera_name" value="/ground_robot_camera/usb_cam" />
+      <arg name="image_topic" value="image_raw" />
+    </include>
+    <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
+  </group>
+
+  <group ns="$(arg aerial_robot_name)">
+    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+      <arg name="camera_name" value="/aerial_robot_camera/usb_cam" />
+      <arg name="image_topic" value="image_raw" />
+    </include>
+    <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
+  </group>
 </launch>
-
-<!--    --><!-- Apriltag detection -->
-<!--   <include file="$(find apriltag_ros)/launch/continuous_detection.launch"> -->
-<!--     <arg name="camera_name" value="/unitree_camera/upward_camera" /> -->
-<!--     <arg name="image_topic" value="image_raw" /> -->
-<!--   </include> -->
-<!--   <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/usb_cam_upward/tags.yaml" ns="/apriltag_ros_continuous_node"/> -->
-
-  <!--Give me a usb camera-->
-<!--   <include file="$(find cooperation_landing)/launch/includes/sensors.launch.xml" > -->
-<!--     <arg name="robot_ns" value="unitree_go1" /> -->
-<!--   </include > -->
-
 
 
