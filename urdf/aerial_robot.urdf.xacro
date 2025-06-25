@@ -5,6 +5,29 @@
   <!-- robot urdf -->
   <xacro:include filename="$(find xuanwu)/urdf/robot.urdf.xacro" />
 
+  <!-- camera -->
+  <xacro:extra_module name = "aerial_robot_camera_frame" parent = "main_body" visible = "0" >
+    <origin xyz="-0.058 0 -0.047" rpy="0 0 ${pi}"/>
+    <inertial>
+      <mass value = "0.00001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.0" ixy="0.0" ixz="0.0"
+          iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </xacro:extra_module>
+
+  <xacro:extra_module name = "aerial_robot_camera_optical_frame" parent = "aerial_robot_camera_frame" visible = "0" >
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${pi/2}"/>
+    <inertial>
+      <mass value = "0.00001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.0" ixy="0.0" ixz="0.0"
+          iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </xacro:extra_module>
+
   <!-- <!-\- additional model -\-> -->
   <joint name="apriltag_0_joint" type="fixed">
     <parent link="main_body"/>
