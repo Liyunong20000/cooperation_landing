@@ -26,3 +26,13 @@ scripts/cooperation experiment/.idea/workspace.xml
 .idea/misc.xml
 .idea/cooperation_landing.iml
 .catkin_tools/
+scripts/simulation/__pycache__/__init__.cpython-38.pyc
+scripts/simulation/__pycache__/sim_basic.cpython-38.pyc
+scripts/simulation/__pycache__/sim_ground_robot_tf.cpython-38.pyc
+scripts/simulation/__pycache__/sim_links_attachment.cpython-38.pyc
+scripts/basic_function/__pycache__/AprilmoveQilin.cpython-38.pyc
+scripts/basic_function/__pycache__/dog_basic_function.cpython-38.pyc
+scripts/basic_function/__pycache__/drone_basic_function.cpython-38.pyc
+scripts/basic_function/__pycache__/AprillandQilin.cpython-38.pyc
+scripts/__pycache__/inspection_state_update.cpython-38.pyc
+scripts/__pycache__/manipulation_state.cpython-38.pyc

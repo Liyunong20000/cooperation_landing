@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<robot name="simulation_environment_brick" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <link name="brick">
+    <inertial>
+      <mass value = "0.294" />
+      <origin xyz="0 0 0.01556" rpy="0 0 0"/>
+      <inertia
+          ixx="0.00008009893" ixy="0" ixz="0"
+          iyy="0.00019812289" iyz="0"
+          izz="0.000205079"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://cooperation_landing/urdf/mesh/brick_294g.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.6"/>
+      <geometry>
+        <box size="0.073 0.0345 0.031"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>
