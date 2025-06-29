@@ -22,6 +22,10 @@
   <arg name="cube_put_y" default="0.0" />
   <arg name="cube_put_z" default="0.0" />
 
+  <arg name="brick_pick_x" default="2.0" />
+  <arg name="brick_pick_y" default="2.5" />
+  <arg name="brick_pick_z" default="0.0" />
+
   <arg name="headless" default="false"/>
   <arg name="simulation" default="true"/>
 
@@ -83,6 +87,14 @@
   <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
     <arg name="cube_ns" value="cube_put"/>
     <arg name="cube_model" value="$(find cooperation_landing)/urdf/cube_spawn_put.xacro" />
+    <arg name="cube_x" value="$(arg cube_put_x)" />
+    <arg name="cube_y" value="$(arg cube_put_y)" />
+    <arg name="cube_z" value="$(arg cube_put_z)" />
+  </include>
+
+  <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
+    <arg name="cube_ns" value="brick"/>
+    <arg name="cube_model" value="$(find cooperation_landing)/urdf/brick_spawn.xacro" />
     <arg name="cube_x" value="$(arg cube_put_x)" />
     <arg name="cube_y" value="$(arg cube_put_y)" />
     <arg name="cube_z" value="$(arg cube_put_z)" />
