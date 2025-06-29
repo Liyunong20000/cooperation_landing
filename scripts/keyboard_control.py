@@ -7,6 +7,7 @@ import rospy
 from std_msgs.msg import Empty
 from geometry_msgs.msg import Twist
 import rosgraph
+from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Trigger
 
 
@@ -58,7 +59,8 @@ def service_client_sit():
 if __name__=="__main__":
         settings = termios.tcgetattr(sys.stdin)
         rospy.init_node("keyboard_control")
-
+        # rm = rospy.get_param("~keyboard_mode", "1")
+        rm = 0
         # robot_ns = rospy.get_param("~robot_ns", "");
         print(msg)
 
@@ -80,77 +82,154 @@ if __name__=="__main__":
         # start_pub = rospy.Publisher(ns + '/start', Empty, queue_size=1)
         # takeoff_pub = rospy.Publisher(ns + '/takeoff', Empty, queue_size=1)
         # force_landing_pub = rospy.Publisher(ns + '/force_landing', Empty, queue_size=1)
-        nav_pub = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=1)
 
-        xy_vel   = rospy.get_param("xy_vel", 0.2)
-        yaw_vel  = rospy.get_param("yaw_vel", 0.4)
+        if rm:
+                nav_pub = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=1)
+                xy_vel = rospy.get_param("xy_vel", 0.2)
+                yaw_vel = rospy.get_param("yaw_vel", 0.4)
+                nav_msg = Twist()
+                try:
+                        while (True):
 
+                                # nav_msg.control_frame = FlightNav.WORLD_FRAME
+                                # nav_msg.target = FlightNav.COG
+
+                                key = getKey()
+
+                                msg = ""
+
+                                if key == 'w':
+                                        nav_msg.linear.x = xy_vel
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send +x vel command"
+                                if key == 's':
+                                        nav_msg.linear.x = -xy_vel - 0.3
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send -x vel command"
+                                if key == 'a':
+                                        nav_msg.linear.y = xy_vel
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send +y vel command"
+                                if key == 'd':
+                                        nav_msg.linear.y = -xy_vel - 0.3
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send -y vel command"
+                                if key == 'q':
+                                        nav_msg.angular.z = yaw_vel
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send +yaw vel command"
+                                if key == 'e':
+                                        nav_msg.angular.z = -yaw_vel
+                                        msg = "send -yaw vel command"
+                                        nav_pub.publish(nav_msg)
+                                if key == 'j':
+                                        nav_msg.linear.x = 0
+                                        nav_msg.linear.y = 0
+                                        nav_msg.angular.z = 0
+                                        msg = "stop!"
+                                        nav_pub.publish(nav_msg)
+                                if key == 'k':
+                                        response = service_client_stand()
+                                        if response.success:
+                                                rospy.loginfo("Stand command sent successfully!")
+                                        else:
+                                                rospy.logwarn("Failed to send stand command.")
+                                        msg = "stand!"
+                                if key == 'l':
+                                        response = service_client_sit()
+                                        if response.success:
+                                                rospy.loginfo("Sit command sent successfully!")
+                                        else:
+                                                rospy.logwarn("Failed to send sit command.")
+                                        msg = "sit!"
+
+                                if key == '\x03':
+                                        break
+
+                                printMsg(msg)
+                                rospy.sleep(0.001)
+
+                except Exception as e:
+                        print(repr(e))
+
+                finally:
+                        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+        else:
+                nav_pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
+                xy_vel = rospy.get_param("xy_vel", 0.5)
+                yaw_vel = rospy.get_param("yaw_vel", 2.5)
+                nav_msg = ModelState()
+                nav_msg.model_name = 'go1_gazebo'
+                nav_msg.reference_frame = 'base'
+                print(f'11111')
+                try:
+                        while (True):
+
+                                # nav_msg.control_frame = FlightNav.WORLD_FRAME
+                                # nav_msg.target = FlightNav.COG
+
+                                key = getKey()
+
+                                msg = ""
+
+                                if key == 'w':
+                                        nav_msg.twist.linear.x = xy_vel
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send +x vel command"
+                                if key == 's':
+                                        nav_msg.twist.linear.x = -xy_vel - 0.3
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send -x vel command"
+                                if key == 'a':
+                                        nav_msg.twist.linear.y = xy_vel
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send +y vel command"
+                                if key == 'd':
+                                        nav_msg.twist.linear.y = -xy_vel - 0.3
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send -y vel command"
+                                if key == 'q':
+                                        nav_msg.twist.angular.z = yaw_vel
+                                        nav_pub.publish(nav_msg)
+                                        msg = "send +yaw vel command"
+                                if key == 'e':
+                                        nav_msg.twist.angular.z = -yaw_vel
+                                        msg = "send -yaw vel command"
+                                        nav_pub.publish(nav_msg)
+                                if key == 'j':
+                                        nav_msg.twist.linear.x = 0
+                                        nav_msg.twist.linear.y = 0
+                                        nav_msg.twist.angular.z = 0
+                                        msg = "stop!"
+                                        nav_pub.publish(nav_msg)
+                                if key == 'k':
+                                        response = service_client_stand()
+                                        if response.success:
+                                                rospy.loginfo("Stand command sent successfully!")
+                                        else:
+                                                rospy.logwarn("Failed to send stand command.")
+                                        msg = "stand!"
+                                if key == 'l':
+                                        response = service_client_sit()
+                                        if response.success:
+                                                rospy.loginfo("Sit command sent successfully!")
+                                        else:
+                                                rospy.logwarn("Failed to send sit command.")
+                                        msg = "sit!"
+
+                                if key == '\x03':
+                                        break
+
+                                printMsg(msg)
+                                rospy.sleep(0.001)
+
+                except Exception as e:
+                        print(repr(e))
+                finally:
+                        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         # motion_start_pub = rospy.Publisher('task_start', Empty, queue_size=1)
 
-        try:
-                while(True):
-                        nav_msg = Twist()
-                        # nav_msg.control_frame = FlightNav.WORLD_FRAME
-                        # nav_msg.target = FlightNav.COG
 
-                        key = getKey()
 
-                        msg = ""
-
-                        if key == 'w':
-                                nav_msg.linear.x = xy_vel
-                                nav_pub.publish(nav_msg)
-                                msg = "send +x vel command"
-                        if key == 's':
-                                nav_msg.linear.x = -xy_vel-0.3
-                                nav_pub.publish(nav_msg)
-                                msg = "send -x vel command"
-                        if key == 'a':
-                                nav_msg.linear.y = xy_vel
-                                nav_pub.publish(nav_msg)
-                                msg = "send +y vel command"
-                        if key == 'd':
-                                nav_msg.linear.y = -xy_vel-0.3
-                                nav_pub.publish(nav_msg)
-                                msg = "send -y vel command"
-                        if key == 'q':
-                                nav_msg.angular.z = yaw_vel
-                                nav_pub.publish(nav_msg)
-                                msg = "send +yaw vel command"
-                        if key == 'e':
-                                nav_msg.angular.z = -yaw_vel
-                                msg = "send -yaw vel command"
-                                nav_pub.publish(nav_msg)
-                        if key == 'j':
-                                nav_msg.linear.x = 0
-                                nav_msg.linear.y = 0
-                                nav_msg.angular.z = 0
-                                msg = "stop!"
-                                nav_pub.publish(nav_msg)
-                        if key == 'k':
-                                response = service_client_stand()
-                                if response.success:
-                                        rospy.loginfo("Stand command sent successfully!")
-                                else:
-                                        rospy.logwarn("Failed to send stand command.")
-                                msg = "stand!"
-                        if key == 'l':
-                                response = service_client_sit()
-                                if response.success:
-                                        rospy.loginfo("Sit command sent successfully!")
-                                else:
-                                        rospy.logwarn("Failed to send sit command.")
-                                msg = "sit!"
-
-                        if key == '\x03':
-                                break
-
-                        printMsg(msg)
-                        rospy.sleep(0.001)
-
-        except Exception as e:
-                print(repr(e))
-        finally:
-                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
 

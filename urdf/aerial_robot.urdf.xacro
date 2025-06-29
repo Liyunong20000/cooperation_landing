@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="xuanwu_tags" >
+
+  <!-- robot urdf -->
+  <xacro:include filename="$(find xuanwu)/urdf/robot.urdf.xacro" />
+
+  <!-- camera -->
+  <xacro:extra_module name = "aerial_robot_camera_frame" parent = "main_body" visible = "0" >
+    <origin xyz="-0.058 0 -0.047" rpy="0 0 ${pi}"/>
+    <inertial>
+      <mass value = "0.00001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.0" ixy="0.0" ixz="0.0"
+          iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </xacro:extra_module>
+
+  <xacro:extra_module name = "aerial_robot_camera_optical_frame" parent = "aerial_robot_camera_frame" visible = "0" >
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${pi/2}"/>
+    <inertial>
+      <mass value = "0.00001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.0" ixy="0.0" ixz="0.0"
+          iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </xacro:extra_module>
+
+  <!-- <!-\- additional model -\-> -->
+  <joint name="apriltag_0_joint" type="fixed">
+    <parent link="main_body"/>
+    <child link="apriltag_0"/>
+    <origin rpy="0 ${pi} ${pi/2}" xyz="0.04779 0 -0.077"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="apriltag_0">
+    <inertial>
+      <mass value = "0.001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.000001" ixy="0" ixz="0"
+          iyy="0.000001" iyz="0"
+          izz="0.000001"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://cooperation_landing/urdf/mesh/apriltag_0_0.0195.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="apriltag_2_joint" type="fixed">
+    <parent link="main_body"/>
+    <child link="apriltag_2"/>
+    <origin xyz="-0.003 -0.04184 -0.1204" rpy="${pi/2} 0 0" />
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="apriltag_2">
+    <inertial>
+      <mass value = "0.001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.000001" ixy="0" ixz="0"
+          iyy="0.000001" iyz="0"
+          izz="0.000001"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://cooperation_landing/urdf/mesh/apriltag_2_0.0395.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="apriltag_3_joint" type="fixed">
+    <parent link="main_body"/>
+    <child link="apriltag_3"/>
+    <origin xyz="-0.003 0.04184 -0.1204" rpy="${pi/2} 0 ${pi}" />
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="apriltag_3">
+    <inertial>
+      <mass value = "0.001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.000001" ixy="0" ixz="0"
+          iyy="0.000001" iyz="0"
+          izz="0.000001"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://cooperation_landing/urdf/mesh/apriltag_3_0.0395.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.001 0.001 0.001" />
+      </geometry>
+    </collision>
+  </link>
+</robot>

@@ -7,6 +7,7 @@ from aerial_robot_msgs.msg import FlightNav
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
+from gazebo_msgs.msg import ModelState, ModelStates
 
 import tf.transformations as tft
 
@@ -99,6 +100,38 @@ class DroneBasic:
         drone_target_pose.pose.orientation.x = ox
         drone_target_pose.pose.orientation.y = oy
         drone_target_pose.pose.orientation.z = oz
-        drone_target_pose.pose.orientation.w = ow
+        drone_target_pose.pose.et.publish(drone_target_pose)
 
-        self.pub_drone_target.publish(drone_target_pose)
+    def record_takeoff_position(self):
+        self.takeoff_x = self.drone_x
+        self.takeoff_y = self.drone_y
+        self.takeoff_z = self.drone_z
+        self.takeoff_yaw = self.drone_yaw
+        print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
+
+class DroneBasicSim:
+    def __init__(self):
+        rospy.Subscriber('/gazebo/model_states', ModelStates, self._callback_aerial_robot_pose)
+
+        self.sim_drone_x, self.sim_drone_y, self.sim_drone_z = 0.0, 0.0, 0.0
+        self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw = 0.0, 0.0, 0.0, 0.0
+        self.sim_drone_roll, self.sim_drone_pitch, self.sim_drone_yaw  = 0.0, 0.0, 0.0
+
+    def _callback_aerial_robot_pose(self, msg):
+
+            index = msg.name.index("xuanwu")  # Find index of the robot
+            pose = msg.pose[index]
+            self.sim_drone_x = pose.position.x
+            self.sim_drone_y = pose.position.y
+            self.sim_drone_z = pose.position.z
+            self.sim_drone_qx = pose.orientation.x
+            self.sim_drone_qy = pose.orientation.y
+            self.sim_drone_qz = pose.orientation.z
+            self.sim_drone_qw = pose.orientation.w
+
+            self.sim_drone_roll = tft.euler_from_quaternion([self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw])[0]
+            self.sim_drone_pitch = \
+        tft.euler_from_quaternion([self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw])[1]
+            self.sim_drone_yaw = \
+        tft.euler_from_quaternion([self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw])[2]
+            print(f'{self.sim_drone_x},{self.sim_drone_y}')

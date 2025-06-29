@@ -22,6 +22,9 @@
       </ode>
     </physics>
 
+    <!-- A gazebo links attacher -->
+    <plugin name="ros_link_attacher_plugin" filename="libgazebo_ros_link_attacher.so"/>
+
     <spherical_coordinates>
       <surface_model>EARTH_WGS84</surface_model>
       <latitude_deg>0</latitude_deg>
@@ -46,13 +49,6 @@
     <include>
       <uri>model://ground_plane</uri>
     </include>
-
-    <model name="Apriltag36_11_00001_small_simulation" >
-      <pose>3.0 0.2 2.0 0 0 1.57</pose>
-      <include>
-        <uri>model://Apriltag36_11_00001_small_simulation//</uri>
-      </include>
-    </model>
 
   </world>
 </sdf>

@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="ground_robot_name" default="ground_robot" />
+  <arg name="ground_robot_x" default="0.0" />
+  <arg name="ground_robot_y" default="0.0" />
+  <arg name="ground_robot_z" default="0.2" />
+
+  <arg name="aerial_robot_name" default="xuanwu" />
+  <arg name="aerial_robot_id" default="" />
+  <arg name="aerial_robot_x" default="1.0" />
+  <arg name="aerial_robot_y" default="1.0" />
+  <arg name="aerial_robot_z" default="0.0" />
+  <arg name="aerial_robot_yaw" default="1.57"/>
+  <arg name="estimate_mode"  default= "0" />
+
+  <arg name="cube_pick_x" default="2.5" />
+  <arg name="cube_pick_y" default="2.5" />
+  <arg name="cube_pick_z" default="0.0" />
+
+  <arg name="cube_put_x" default="4.0" />
+  <arg name="cube_put_y" default="0.0" />
+  <arg name="cube_put_z" default="0.0" />
+
+  <arg name="brick_pick_x" default="2.0" />
+  <arg name="brick_pick_y" default="2.5" />
+  <arg name="brick_pick_z" default="0.0" />
+
+  <arg name="headless" default="false"/>
+  <arg name="simulation" default="true"/>
+
+  <arg name="paused" default="true"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="debug" default="false"/>
+  <arg name="world_type" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
+  <!--Launch gazebo world-->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world_type)"/>
+    <arg name="debug" value="false" />
+    <arg name="gui" value="true" />
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include>
+  <rosparam file="$(find aerial_robot_simulation)/config/Gazebo.yaml" command="load" ns="$(arg aerial_robot_name)" />
+
+  <!--Call the unitree dog to attend the simulation-->
+  <include file="$(find cooperation_landing)/launch/simulation/ground_robot_gazebo.launch">
+    <arg name="robot_name" value="$(arg ground_robot_name)"/>
+    <arg name="robot_model" value="$(find cooperation_landing)/urdf/ground_robot.gazebo.xacro"/>
+    <arg name="unitree_spawn_x" value="$(arg ground_robot_x)" />
+    <arg name="unitree_spawn_y" value="$(arg ground_robot_y)" />
+    <arg name="unitree_spawn_z" value="$(arg ground_robot_z)" />
+  </include>
+
+  <!--Broadcast ground robot`s position in tf    -->
+  <node name="sim_ground_robot_tf" pkg="cooperation_landing" type="sim_ground_robot_tf.py" >
+  </node>
+
+  <!--Call the aerial robot to attend the simulation-->
+  <include file="$(find cooperation_landing)/launch/simulation/aerial_robot_gazebo.launch">
+    <arg name="rm" value="False"/>
+    <arg name="sim" value="True" />
+    <arg name="headless" value="$(arg headless)" />
+    <arg name="launch_gazebo" value="false" />
+    <arg name="estimate_mode" value="$(arg estimate_mode)" />
+    <arg name="robot_ns" value="$(arg aerial_robot_name)" />
+    <arg name="spawn_x" value="$(arg aerial_robot_x)" />
+    <arg name="spawn_y" value="$(arg aerial_robot_y)" />
+    <arg name="spawn_z" value="$(arg aerial_robot_z)" />
+    <arg name="spawn_yaw" value="$(arg aerial_robot_yaw)" />
+  </include>
+
+  <!--Spawn aerial robot in Gazebo-->
+  <node name="$(anon urdf_spawner)" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+        args="-urdf -model $(arg aerial_robot_name) -x $(arg aerial_robot_x) -y $(arg aerial_robot_y) -z $(arg aerial_robot_z) -Y $(arg aerial_robot_yaw) -param $(arg aerial_robot_name)/robot_description"/>
+
+    <!--Spawn cube in Gazebo-->
+  <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
+    <arg name="cube_ns" value="cube_pick"/>
+    <arg name="cube_model" value="$(find cooperation_landing)/urdf/cube_spawn_pick.xacro" />
+    <arg name="cube_x" value="$(arg cube_pick_x)" />
+    <arg name="cube_y" value="$(arg cube_pick_y)" />
+    <arg name="cube_z" value="$(arg cube_pick_z)" />
+  </include>
+
+  <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
+    <arg name="cube_ns" value="cube_put"/>
+    <arg name="cube_model" value="$(find cooperation_landing)/urdf/cube_spawn_put.xacro" />
+    <arg name="cube_x" value="$(arg cube_put_x)" />
+    <arg name="cube_y" value="$(arg cube_put_y)" />
+    <arg name="cube_z" value="$(arg cube_put_z)" />
+  </include>
+
+  <include file="$(find cooperation_landing)/launch/simulation/cube_spawn.launch">
+    <arg name="cube_ns" value="brick"/>
+    <arg name="cube_model" value="$(find cooperation_landing)/urdf/brick_spawn.xacro" />
+    <arg name="cube_x" value="$(arg cube_put_x)" />
+    <arg name="cube_y" value="$(arg cube_put_y)" />
+    <arg name="cube_z" value="$(arg cube_put_z)" />
+  </include>
+
+  <node pkg="tf" type="static_transform_publisher" name="cube_pick_broadcaster" args="$(arg cube_pick_x) $(arg cube_pick_y) $(arg cube_pick_z) 0 0 0 /world /cube_pick/cube_pick 50" />
+  <node pkg="tf" type="static_transform_publisher" name="cube_put_broadcaster" args="$(arg cube_put_x) $(arg cube_put_y) $(arg cube_put_z) 0 0 0 /world /cube_put/cube_put 50" />
+
+  <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" >
+  </node>
+
+  <!--load aerial robot controller in Gazebo-->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" ns="$(arg aerial_robot_name)" args="joint_state_controller attitude_controller" />
+
+  <!-- Apriltag detection -->
+  <group ns="$(arg ground_robot_name)">
+    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+      <arg name="camera_name" value="/ground_robot_camera/usb_cam" />
+      <arg name="image_topic" value="image_raw" />
+    </include>
+    <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
+  </group>
+
+  <group ns="$(arg aerial_robot_name)">
+    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+      <arg name="camera_name" value="/aerial_robot_camera/usb_cam" />
+      <arg name="image_topic" value="image_raw" />
+    </include>
+    <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
+  </group>
+</launch>
+
+

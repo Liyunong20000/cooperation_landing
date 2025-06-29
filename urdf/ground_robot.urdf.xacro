@@ -23,8 +23,8 @@
   </xacro:macro>
 
   <!-- upward camera: monocular camera-->
-  <xacro:extra_module name = "upward_camera_frame" parent = "trunk" visible = "0">
-    <origin xyz="${0.270} ${0.00} ${0.137}" rpy="0 ${-pi / 2} ${-pi / 2}"/>
+  <xacro:extra_module name = "ground_robot_camera_frame" parent = "landing_gear" visible = "0">
+    <origin xyz="0 -0.04975 ${0.122}" rpy=" ${pi/2} ${-pi/2} 0"/>
     <inertial>
       <mass value = "0.00001" />
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -34,8 +34,9 @@
           izz="0.000002"/>-->
     </inertial>
   </xacro:extra_module>
-  <xacro:extra_module name = "upward_camera_optical_frame" parent = "upward_camera_frame" visible = "0">
-    <origin xyz="0 0 0" rpy="${-pi / 2} 0 0"/>
+
+  <xacro:extra_module name = "ground_robot_camera_optical_frame" parent = "ground_robot_camera_frame" visible = "0">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${pi/2}"/>
     <inertial>
      <mass value = "0.00001" />
      <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -45,5 +46,42 @@
           izz="0.000002"/>
     </inertial>
   </xacro:extra_module>
+
+  <joint name="landing_gear_joint" type="fixed">
+    <parent link="trunk"/>
+    <child link="landing_gear"/>
+    <origin rpy="0 0 ${pi/2}" xyz="0.18 0 0.057"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="landing_gear">
+    <inertial>
+      <mass value = "0.001" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.000001" ixy="0" ixz="0"
+          iyy="0.000001" iyz="0"
+          izz="0.000001"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://cooperation_landing/urdf/mesh/landing_gear.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -0.1 0.154"/>
+      <geometry>
+        <box size="0.5 0.5 0.01"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="landing_gear">
+    <mu1>100</mu1>
+    <mu2>100</mu2>
+    <kp>100000</kp>
+    <kd>1.0</kd>
+  </gazebo>
 
 </robot>
