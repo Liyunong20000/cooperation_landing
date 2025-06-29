@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="rm" default="1" />
+
+   <node name="manipulation_motion" pkg="cooperation_landing" type="manipulation_motion.py" >
+   </node>
+
+<!--  <node name="ground_robot_keyboard_control" pkg="cooperation_landing" type="keyboard_control.py" >-->
+<!--    <param name="keyboard_mode" value="$(arg rm)" />-->
+<!--  </node>-->
+
+   <node name="smach_viewer" pkg="smach_viewer" type="smach_viewer.py" >
+  </node>
+</launch>
