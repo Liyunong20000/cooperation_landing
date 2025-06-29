@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 import time
+import sys, os
 import rospy
+
+sys.path.append("/home/lyn/ros/chimera_ros_ws/src/cooperation_landing/scripts/simulation")
 from gazebo_ros_link_attacher.srv import Attach, AttachRequest, AttachResponse
-from sim_ground_robot_tf import SimgroundrobotNode
-from sim_links_attachment import AttachlinksNode
+
+from sim_links_attachment import *
+import tf.transformations as tft
 from gazebo_msgs.msg import ModelState, ModelStates
 
 class SimbasicNode:
@@ -40,7 +44,34 @@ class SimbasicNode:
         time.sleep(0.1)
         self.pub_sim_pose.publish(sim_pose)
 
+    def _callback_apriltag(self, msg):
+        self.msg_apriltag = msg
 
+    def find_target_tag(self, data, target_id):
+        T = 0
+        # print(f'11111111')
+        # if len(data.detections) == 0:
+        #     return
+
+        for det in data.detections:
+            # print(f'{det}')
+            # print(f'{det.id}')
+            if target_id in det.id:
+                pose = det.pose.pose.pose
+                x = pose.position.x
+                y = pose.position.y
+                z = pose.position.z
+                qx = pose.orientation.x
+                qy = pose.orientation.y
+                qz = pose.orientation.z
+                qw = pose.orientation.w
+
+                q = [qx, qy, qz, qw]
+                t = [x, y, z]
+                T = tft.quaternion_matrix(q)
+                T[:3, 3] = t
+                # print(f'{T}')
+                return T
 if __name__ == "__main__":
     rospy.init_node('attachlinks', anonymous=True)
     node = SimbasicNode()
