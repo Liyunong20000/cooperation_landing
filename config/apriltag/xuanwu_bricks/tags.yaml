@@ -8,8 +8,8 @@ standalone_tags:
   {id: 5, size: 0.012, name: drone_wing_lf},
   {id: 6, size: 0.012, name: drone_wing_rb},
   {id: 7, size: 0.012, name: drone_wing_rf},
-  {id: 11, size: 0.3, name: cube_pick},
-  {id: 12, size: 0.3, name: cube_put},
+  {id: 11, size: 0.155, name: cube_pick},
+  {id: 12, size: 0.155, name: cube_put},
   ]
 # ## Tag bundle definitions
 # ### Remarks
