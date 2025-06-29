@@ -10,7 +10,7 @@
   <group ns="$(arg robot_ns)">
     <group ns="$(arg camera_ns)">
       <!-- USB camera -->
-      <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+      <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen">
         <param name="video_device" value="/dev/$(arg dev_ns)" />
         <param name="image_width" value="$(arg image_width)" />
         <param name="image_height" value="$(arg image_height)" />
