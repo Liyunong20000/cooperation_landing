@@ -1,0 +1,18 @@
+<launch>
+    <arg name="brick_ns" default="brick" />
+    <arg name="brick_model" />
+    <arg name="brick_x" default="2.5" />
+    <arg name="brick_y" default="1.5" />
+    <arg name="brick_z" default="0.0" />
+
+
+    <group ns="$(arg brick_ns)">
+          <!-- Load the URDF into the ROS Parameter Server -->
+      <param name="robot_description" command="$(find xacro)/xacro $(arg brick_model) robot_name:=$(arg brick_ns)"/>
+      <node name="$(anon robot_state_publisher)" pkg="robot_state_publisher" type="robot_state_publisher">
+        <param name="tf_prefix" value="$(arg brick_ns)" />
+      </node>
+    </group>
+    <node pkg="gazebo_ros" type="spawn_model" name="$(anon urdf_spawner)" respawn="false" output="screen" args="-urdf -model $(arg brick_ns) -x $(arg brick_x) -y $(arg brick_y) -z $(arg brick_z) -param $(arg brick_ns)/robot_description -unpause" />
+
+</launch>
