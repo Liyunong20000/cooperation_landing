@@ -2,6 +2,7 @@
 import time
 import sys, os
 import rospy
+from aerial_robot_model.srv import AddExtraModule
 
 sys.path.append("/home/lyn/ros/chimera_ros_ws/src/cooperation_landing/scripts/simulation")
 from gazebo_ros_link_attacher.srv import Attach, AttachRequest, AttachResponse
@@ -9,11 +10,11 @@ from gazebo_ros_link_attacher.srv import Attach, AttachRequest, AttachResponse
 from sim_links_attachment import *
 import tf.transformations as tft
 from gazebo_msgs.msg import ModelState, ModelStates
+from geometry_msgs.msg import Transform, Inertia
 
 class SimbasicNode:
     def __init__(self):
         self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
-
         self.loop_rate = rospy.Rate(100)
         self.ground_robot_ns = "go1_gazebo"
         self.links_attachment = AttachlinksNode()
@@ -72,6 +73,44 @@ class SimbasicNode:
                 T[:3, 3] = t
                 # print(f'{T}')
                 return T
+
+    def call_add_extra_module(self, action, module_name, parent_link_name):
+        try:
+            self.extra_module = rospy.ServiceProxy('/xuanwu/add_extra_module', AddExtraModule)
+
+            transform = Transform()
+            transform.translation.x = 0.0
+            transform.translation.y = 0.0
+            transform.translation.z = 0.1212
+            transform.rotation.x = 0.0
+            transform.rotation.y = 0.0
+            transform.rotation.z = 0.0
+            transform.rotation.w = 1.0
+
+            inertia = Inertia()
+            inertia.m = 0.294
+            inertia.com.x = 0.0
+            inertia.com.y = 0.0
+            inertia.com.z = 0.01556
+            inertia.ixx = 0.00008009893
+            inertia.ixy = 0.0
+            inertia.ixz = 0.0
+            inertia.iyy = 0.00019812289
+            inertia.iyz = 0.0
+            inertia.izz = 0.000205079
+
+            response = self.extra_module(
+                action,
+                module_name,
+                parent_link_name,
+                transform,
+                inertia
+            )
+
+            return response
+        except rospy.ServiceException as e:
+            print("Service call failed:", e)
+            return None
 if __name__ == "__main__":
     rospy.init_node('attachlinks', anonymous=True)
     node = SimbasicNode()

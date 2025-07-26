@@ -35,6 +35,8 @@ class DroneBasic:
 
         self.pub_drone_nav = rospy.Publisher(self.robot_ns + '/uav/nav', FlightNav, queue_size=10)
         self.pub_drone_target = rospy.Publisher(self.robot_ns + '/uav/target_pose', FlightNav, queue_size=10)
+        self.pub_drone_start = rospy.Publisher(self.robot_ns + '/teleop_command/start', Empty, queue_size=10)
+
         self.pub_drone_takeoff = rospy.Publisher(self.robot_ns + '/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_drone_land = rospy.Publisher(self.robot_ns + '/teleop_command/land', Empty, queue_size=10)
 
@@ -52,6 +54,12 @@ class DroneBasic:
 
     def _callback_drone_state(self, msg):
         self.drone_state = msg.data
+
+    def drone_start(self):  # Use to takeoff
+        time.sleep(0.5)
+        rospy.loginfo("Publishing start command...")
+        empty_msg = Empty()
+        self.pub_drone_start.publish(empty_msg)
 
     def drone_takeoff(self):  # Use to takeoff
         time.sleep(0.5)

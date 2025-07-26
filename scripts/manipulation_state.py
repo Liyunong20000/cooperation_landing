@@ -13,10 +13,8 @@ from lxml.html import Classes
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
-from geometry_msgs.msg import Twist
-from geometry_msgs.msg import PoseStamped
-from gazebo_msgs.msg import ModelState
-from gazebo_msgs.msg import ModelStates
+from geometry_msgs.msg import Twist, PoseStamped
+from gazebo_msgs.msg import ModelState, ModelStates
 from tf.tfwtf import rostime_delta
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -25,7 +23,7 @@ from apriltag_ros.msg import AprilTagDetectionArray
 from basic_function.dog_basic_function import *
 from basic_function.drone_basic_function import *
 from simulation.sim_basic import *
-
+from simulation.sim_links_attachment import *
 
 # The Cooperative inspection system by mini_quadrotor and Qilin
 class Start(smach.State):
@@ -135,156 +133,101 @@ class TargetSearch(smach.State):
                 time.sleep(0.5)
             while abs(self.sim_target_x) > 0.1:
                 self.sim_apriltag_position(self.msg_apriltag, 11)
-                self.sim_basic.sim_robot_twist('go1_gazebo', 0, 0.5 * self.sim_target_x, 0, 0, 0, 0.5 * abs(self.drone_basic_sim.sim_drone_yaw - self.sim_target_roll))
+                self.sim_basic.sim_robot_twist('go1_gazebo', 0, 0.5 * self.sim_target_x, 0, 0, 0, 0.85 * abs(self.drone_basic_sim.sim_drone_yaw - self.sim_target_roll))
                 time.sleep(0.5)
             return 'succeeded'
 
 class Pick(smach.State):
     def __init__(self):
-        # smach.State.__init__(self, outcomes=['succeeded'],input_keys=['takeoff_position'],io_keys=['target_position'])
-        smach.State.__init__(self, outcomes=['succeeded'])
+        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
+        self.sim_basic = SimbasicNode()
+        self.link_attachment = AttachlinksNode()
 
-        rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
-        rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
-
-        self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
-
-        self.valve2tag_x, self.valve2tag_y, self.valve2tag_z= 0.0, 2.0, 1.5
-        self.gear_offset = 0.5
-        self.valve_x, self.valve_y, self.valve_z = 0.0, 0.0, 0.0
-        self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0.0, 0.0, 0.0, 0.0
-        self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
-        self.drone_x, self.drone_y, self.drone_z, self.drone_roll, self.drone_pitch, self.drone_yaw = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w = 0.0, 0.0, 0.0, 0.0
-
-    def _callback_position(self, odom_msg):
-        self.drone_x = odom_msg.pose.pose.position.x
-        self.drone_y = odom_msg.pose.pose.position.y
-        self.drone_z = odom_msg.pose.pose.position.z
-        self.drone_ori_x = odom_msg.pose.pose.orientation.x
-        self.drone_ori_y = odom_msg.pose.pose.orientation.y
-        self.drone_ori_z = odom_msg.pose.pose.orientation.z
-        self.drone_ori_w = odom_msg.pose.pose.orientation.w
-        self.drone_roll = tft.euler_from_quaternion([self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w])[0]
-        self.drone_pitch = tft.euler_from_quaternion([self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w])[1]
-        self.drone_yaw = tft.euler_from_quaternion([self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w])[2]
-
-        # print(f'drone_yaw:{self.drone_roll}, {self.drone_pitch},{self.drone_yaw}')
-        if self.drone_z <-0.5 or self.drone_z > 3 or abs(self.drone_roll) > 45 or abs(self.drone_pitch) > 45:
-            rospy.loginfo("Wrong state! land!")
-            self.land()
-            exit()
-
-    def _callback_apriltag(self, data):
-        current_time = rospy.Time.now()
-        # print(f'apriltag:{current_time.to_sec()}')
-
-        # get the apriltag`s position information compare with camera coordination
-        if data.detections:
-            self.find_valve_tag = self.find_target_tag(data.detections,1)
-        else:
-            self.find_valve_tag = 0
-
-
-    def find_target_tag(self,data,target_id):
-        b = len(data)
-        a = 0
-
-        while a < b:
-            c = target_id in data[a].id
-            # print(f'{a}')
-            if c:
-                if target_id == 1:
-                    self.april_valve_x = -data[a].pose.pose.pose.position.y
-                    self.april_valve_y = data[a].pose.pose.pose.position.x
-                    self.april_valve_z = data[a].pose.pose.pose.position.z
-                    self.april_valve_yaw = tft.euler_from_quaternion([data[a].pose.pose.pose.orientation.x,
-                                                         data[a].pose.pose.pose.orientation.y,
-                                                         data[a].pose.pose.pose.orientation.z,
-                                                         data[a].pose.pose.pose.orientation.w])[2]
-                return 1
-            else:
-                return 0
-
-    def land(self):
-        time.sleep(0.5)
-        rospy.loginfo("Publishing land command...")
-        empty_msg = Empty()
-        self.pub_land.publish(empty_msg)
 
 
     def execute(self, userdata):
-        # self.record_takeoff_position()
-        self.takeoff_x = userdata.takeoff_position[0]
-        self.takeoff_y = userdata.takeoff_position[1]
-        self.takeoff_z = userdata.takeoff_position[2]
-        self.takeoff_yaw = userdata.takeoff_position[3]
-        print(f'{self.april_valve_x,self.april_valve_y,self.april_valve_z}')
-        self.valve_x= self.takeoff_x - self.april_valve_x - self.valve2tag_x
-        self.valve_y= self.takeoff_y - self.april_valve_y - self.valve2tag_y
-        self.valve_z= self.april_valve_z + self.gear_offset - self.valve2tag_z
-        # userdata.takeoff_position = np.array([self.takeoff_x,self.takeoff_y,self.takeoff_z,self.takeoff_yaw])
-        userdata.target_position = np.array([self.valve_x,self.valve_y,self.valve_z])
+        self.rm = userdata.rm
+        if self.rm == 0:
+            self.link_attachment.sim_attach_links("xuanwu", "root", "brick", "brick")
+            self.sim_basic.call_add_extra_module(1, "brick", "main_body")
 
-        print(f'This is the target_position:{userdata.target_position}')
-        print(type(userdata.target_position))
-        time.sleep(1)
         return 'succeeded'
 
-class UavTakeoff(smach.State):
+class MoveDestination(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'], input_keys=['rm'], output_keys=['put_position'])
+        self.TargetSearch = TargetSearch()
 
-        rospy.Subscriber('/quadrotor/flight_state', UInt8, self._callback_state)
-
-        self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
-        self.pub_arm = rospy.Publisher("/quadrotor/teleop_command/start", Empty, queue_size=1)
-        self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
-
-        self.drone_x, self.drone_y, self.drone_z, self.drone_roll, self.drone_pitch, self.drone_yaw = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w = 0.0, 0.0, 0.0, 0.0
-        self.state= 0
-        self.user_input = None
-
-    def takeoff(self):
-        time.sleep(0.5)
-        if (-10 < self.drone_x <10) and (-10 < self.drone_y <10) and (-0.5 < self.drone_z <3):
-            rospy.loginfo("Publishing takeoff command...")
-            empty_msg = Empty()
-            self.pub_arm.publish(empty_msg)
-            time.sleep(0.1)
-            self.pub_takeoff.publish(empty_msg)
-        else:
-            rospy.loginfo("Don`t takeoff, state is wrong!!!")
-    def _callback_state(self, msg):
-        self.state = msg.data
-
-
-
-        # print(f'drone_yaw:{self.drone_roll}, {self.drone_pitch},{self.drone_yaw}')
-        # if self.drone_z <-0.5 or self.drone_z > 3 or abs(self.drone_roll) > 45 or abs(self.drone_pitch) > 45:
-        #     rospy.loginfo("Wrong state! land!")
-        #     self.land()
-        #     exit()
-    def land(self):
-        time.sleep(0.5)
-        rospy.loginfo("Publishing land command...")
-        empty_msg = Empty()
-        self.pub_land.publish(empty_msg)
 
     def execute(self, userdata):
-        print(f'takeoff?')
-        self.user_input = input()
-        if self.user_input == 'y':
-            print(f'yes')
-            self.takeoff()
-            while not rospy.is_shutdown():
-                if self.state == 5:
-                    break
+        self.rm = userdata.rm
+
+        if self.rm == 1:
+            while self.TargetSearch.drone_basic.drone_x < 0:
+                self.TargetSearch.dog_basic.qilin_cmd_vel(0.5, 0, 0, 0, 0)
                 time.sleep(0.1)
-            return 'succeeded'
+            while abs(self.TargetSearch.drone_basic.drone_yaw - 1.57) > (3.14/12):
+                self.TargetSearch.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.5)
+                time.sleep(0.1)
+            while self.TargetSearch.drone_basic.drone_y < 1.3:
+                self.TargetSearch.dog_basic.qilin_cmd_vel(0.5, 0, 0, 0, 0)
+                time.sleep(0.1)
+                self.TargetSearch.sim_apriltag_position(self.TargetSearch.msg_apriltag, 11)
+                if 1.0 < self.TargetSearch.drone_basic.drone_y < 1.5:
+                    if self.TargetSearch.sim_target_x != 0:
+                        print(f'I got it!')
+                        break
+            self.TargetSearch.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+
         else:
-            return 'failed'
+            while abs(self.TargetSearch.drone_basic.drone_yaw - 1.57) > (3.14/12):
+                self.TargetSearch.sim_dog_yaw = -10
+                self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', 0, 0, 0, 0, 0, self.TargetSearch.sim_dog_yaw)
+                time.sleep(0.5)
+                # if self.TargetSearch.sim_target_x != 0:
+                #     print(f'I got 12!')
+                #     break
+            while self.TargetSearch.drone_basic.drone_y > 0:
+                self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', 0.5, 0, 0, 0, 0, 0)
+                time.sleep(0.1)
+
+            # while abs(self.TargetSearch.drone_basic.drone_yaw + 3.14) > (3.14/24):
+            while True:
+                self.TargetSearch.sim_dog_yaw = 10
+                self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', 0, 0, 0, 0, 0, self.TargetSearch.sim_dog_yaw)
+                self.TargetSearch.sim_apriltag_position(self.TargetSearch.msg_apriltag, 12)
+                if self.TargetSearch.sim_target_x != 0:
+                    break
+                time.sleep(0.5)
+
+            while abs(self.TargetSearch.sim_target_z) > 1.0:
+                self.TargetSearch.sim_apriltag_position(self.TargetSearch.msg_apriltag, 12)
+                self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', self.TargetSearch.sim_target_z, 0, 0, 0, 0, 0)
+                time.sleep(0.5)
+            while abs(self.TargetSearch.drone_basic_sim.sim_drone_yaw - self.TargetSearch.sim_target_roll) > (3.14/12):
+                self.TargetSearch.sim_apriltag_position(self.TargetSearch.msg_apriltag, 12)
+                self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', 0, 0, 0, 0, 0, abs(self.TargetSearch.drone_basic_sim.sim_drone_yaw - self.TargetSearch.sim_target_roll))
+                time.sleep(0.5)
+        return 'succeeded'
+
+class Takeoff(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'], input_keys=['rm'])
+
+        self.drone_basic = DroneBasic()
+        self.sim_links_attachment = AttachlinksNode()
+
+    def execute(self, userdata):
+        self.rm = userdata.rm
+        if self.rm ==0:
+            time.sleep(0.1)
+            self.drone_basic.drone_start()
+            time.sleep(0.1)
+            self.drone_basic.drone_takeoff()
+            self.sim_links_attachment.sim_detach_links("xuanwu", "root", "go1_gazebo", "base")
+
+        return 'succeeded'
 
 class FlyTarget(smach.State):
     def __init__(self):
