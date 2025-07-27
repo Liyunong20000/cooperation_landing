@@ -73,13 +73,13 @@
     <collision>
       <origin xyz="0.2 -0.1 0.154"/>
       <geometry>
-        <box size="0.1 0.5 0.01"/>
+        <box size="0.2 0.5 0.01"/>
       </geometry>
     </collision>
     <collision>
       <origin xyz="-0.2 -0.1 0.154"/>
       <geometry>
-        <box size="0.1 0.5 0.01"/>
+        <box size="0.2 0.5 0.01"/>
       </geometry>
     </collision>
   </link>
