@@ -88,7 +88,7 @@ class SimbasicNode:
             transform.rotation.w = 1.0
 
             inertia = Inertia()
-            inertia.m = 0.294
+            inertia.m = 0.0001
             inertia.com.x = 0.0
             inertia.com.y = 0.0
             inertia.com.z = 0.01556

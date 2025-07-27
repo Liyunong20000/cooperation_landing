@@ -23,7 +23,7 @@ class DroneBasic:
         self.drone_x, self.drone_y, self.drone_z = 0.0, 0.0, 0.0
         self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw = 0.0, 0.0, 0.0, 0.0
         self.drone_roll, self.drone_pitch, self.drone_yaw  = 0.0, 0.0, 0.0
-
+        self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
         self.drone_state = 0
 
         self.robot_ns = rospy.get_param("~robot_ns", "xuanwu")
@@ -34,7 +34,7 @@ class DroneBasic:
         rospy.Subscriber(self.robot_ns + '/flight_state', UInt8, self._callback_drone_state)
 
         self.pub_drone_nav = rospy.Publisher(self.robot_ns + '/uav/nav', FlightNav, queue_size=10)
-        self.pub_drone_target = rospy.Publisher(self.robot_ns + '/uav/target_pose', FlightNav, queue_size=10)
+        self.pub_drone_target = rospy.Publisher(self.robot_ns + '/target_pose', PoseStamped, queue_size=10)
         self.pub_drone_start = rospy.Publisher(self.robot_ns + '/teleop_command/start', Empty, queue_size=10)
 
         self.pub_drone_takeoff = rospy.Publisher(self.robot_ns + '/teleop_command/takeoff', Empty, queue_size=10)
@@ -108,13 +108,15 @@ class DroneBasic:
         drone_target_pose.pose.orientation.x = ox
         drone_target_pose.pose.orientation.y = oy
         drone_target_pose.pose.orientation.z = oz
-        drone_target_pose.pose.et.publish(drone_target_pose)
+        drone_target_pose.pose.orientation.w = ow
+        time.sleep(0.5)
+        self.pub_drone_target.publish(drone_target_pose)
 
-    def record_takeoff_position(self):
-        self.takeoff_x = self.drone_x
-        self.takeoff_y = self.drone_y
-        self.takeoff_z = self.drone_z
-        self.takeoff_yaw = self.drone_yaw
+    def record_takeoff_position(self, x, y, z, yaw):
+        self.takeoff_x = x
+        self.takeoff_y = y
+        self.takeoff_z = z
+        self.takeoff_yaw = yaw
         print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
 
 class DroneBasicSim:
