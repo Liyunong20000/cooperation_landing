@@ -18,7 +18,7 @@
   <arg name="cube_pick_y" default="2.5" />
   <arg name="cube_pick_z" default="0.0" />
 
-  <arg name="cube_put_x" default="4.0" />
+  <arg name="cube_put_x" default="4.3" />
   <arg name="cube_put_y" default="0.0" />
   <arg name="cube_put_z" default="0.0" />
 
