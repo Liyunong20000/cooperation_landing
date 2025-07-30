@@ -99,9 +99,9 @@ class DroneBasic:
 
         self.pub_drone_nav.publish(flight_nav_msg)
 
-    def drone_target(self,x,y,z,ox,oy,oz,ow):
+    def drone_target(self, frame, x,y,z,ox,oy,oz,ow):
         drone_target_pose = PoseStamped()
-        drone_target_pose.header.frame_id = 'world'
+        drone_target_pose.header.frame_id = frame
         drone_target_pose.pose.position.x = x
         drone_target_pose.pose.position.y = y
         drone_target_pose.pose.position.z = z
@@ -117,7 +117,7 @@ class DroneBasic:
         self.takeoff_y = y
         self.takeoff_z = z
         self.takeoff_yaw = yaw
-        print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
+        # print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
 
 class DroneBasicSim:
     def __init__(self):
@@ -144,4 +144,4 @@ class DroneBasicSim:
         tft.euler_from_quaternion([self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw])[1]
             self.sim_drone_yaw = \
         tft.euler_from_quaternion([self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw])[2]
-            print(f'{self.sim_drone_x},{self.sim_drone_y}')
+            # print(f'{self.sim_drone_x},{self.sim_drone_y}')

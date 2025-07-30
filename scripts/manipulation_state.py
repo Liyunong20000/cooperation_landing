@@ -204,7 +204,7 @@ class MoveDestination(smach.State):
                     break
                 time.sleep(0.5)
 
-            while abs(self.TargetSearch.sim_target_z) > 1.0:
+            while abs(self.TargetSearch.sim_target_z) > 0.8:
                 self.TargetSearch.sim_apriltag_position(self.TargetSearch.msg_apriltag, 12)
                 self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', self.TargetSearch.sim_target_z, 0, 0, 0, 0, 0)
                 time.sleep(0.5)
@@ -213,7 +213,7 @@ class MoveDestination(smach.State):
                 self.TargetSearch.sim_basic.sim_robot_twist('go1_gazebo', 0, 0, 0, 0, 0, abs(self.TargetSearch.drone_basic_sim.sim_drone_yaw - self.TargetSearch.sim_target_roll))
                 time.sleep(0.5)
             self.TargetSearch.sim_apriltag_position(self.TargetSearch.msg_apriltag, 12)
-            self.put_position = [self.drone_basic.drone_x+self.TargetSearch.sim_target_z+ 0.5, self.drone_basic.drone_y - self.TargetSearch.sim_target_x, self.drone_basic.drone_z + 1.5]
+            self.put_position = [self.drone_basic.drone_x+self.TargetSearch.sim_target_z+ 0.45, self.drone_basic.drone_y - self.TargetSearch.sim_target_x, self.drone_basic.drone_z + 0.6]
             userdata.put_position = self.put_position
         return 'succeeded'
 
@@ -257,211 +257,76 @@ class FlyTarget(smach.State):
         else:
             while self.drone_basic.drone_state != 5:
                 time.sleep(0.1)
-            self.drone_basic.drone_target(self.put_position[0], self.put_position[1], self.put_position[2], 0.7071, 0, 0, -0.7071)
-
+            self.drone_basic.drone_target('world',self.put_position[0], self.put_position[1], self.put_position[2], 0, 0, 0.707107, -0.707107)
 
         return 'succeeded'
-class Inspection(smach.State):
+class Correction(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['target_position', 'rm'])
-        rospy.Subscriber('/quadrotor/uav/cog/odom', Odometry, self._callback_position)
-        # self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
-        #
-        # self.pub_drone_nav_info = rospy.Publisher('/quadrotor/uav/nav/info', FlightNav, queue_size=10)
-        # self.pub_drone_nav_trigger = rospy.Publisher('/quadrotor/uav/nav/trigger', Empty, queue_size=10)
+        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['put_position', 'rm'])
+        rospy.Subscriber('/ground_robot/tag_detections', AprilTagDetectionArray, self._callback_simulation_apriltag)
+        self.drone_basic = DroneBasic()
 
-        self.pub_drone_target_info = rospy.Publisher('/quadrotor/target_pose/info', PoseStamped, queue_size=10)
-        self.pub_drone_target_trigger = rospy.Publisher('/quadrotor/target_pose/trigger', Empty, queue_size=10)
-        self.pub_drone_target_sim = rospy.Publisher('/quadrotor/target_pose', PoseStamped, queue_size=10)
+        self.sim_basic = SimbasicNode()
 
-        self.drone_x, self.drone_y, self.drone_z, self.drone_roll, self.drone_pitch, self.drone_yaw = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w = 0.0, 0.0, 0.0, 0.0
-        self.valve_x, self.valve_y, self.valve_z = 0.0, 0.0, 0.0
-        self.tolerance_yaw = 0.1
-        self.rm= 0
-    # def drone_nav_trigger(self):
-    #     time.sleep(0.5)
-    #     rospy.loginfo("Publishing nav trigger command...")
-    #     empty_msg = Empty()
-    #     self.pub_drone_nav_trigger.publish(empty_msg)
-    #
-    # def drone_nav_info(self, x_y_mode, x, y, z_mode, z, yaw_mode, omega_z, yaw):
-    #     flight_nav_msg = FlightNav()
-    #     flight_nav_msg.header.seq = self._seq
-    #     self._seq += 1
-    #     flight_nav_msg.header.stamp = rospy.Time.now()
-    #     flight_nav_msg.header.frame_id = 'world'
-    #
-    #     flight_nav_msg.control_frame = 0
-    #     flight_nav_msg.target = 0
-    #     flight_nav_msg.pos_xy_nav_mode = x_y_mode
-    #     flight_nav_msg.target_pos_x = x
-    #     flight_nav_msg.target_vel_x = 0.0
-    #     flight_nav_msg.target_acc_x = 0.0
-    #     flight_nav_msg.target_pos_y = y
-    #     flight_nav_msg.target_vel_y = 0.0
-    #     flight_nav_msg.target_acc_y = 0.0
-    #     flight_nav_msg.yaw_nav_mode = yaw_mode
-    #     flight_nav_msg.target_omega_z = omega_z
-    #     flight_nav_msg.target_yaw = yaw
-    #     flight_nav_msg.pos_z_nav_mode = z_mode
-    #     flight_nav_msg.target_pos_z = z
-    #     flight_nav_msg.target_vel_z = 0.0
-    #     flight_nav_msg.target_pos_diff_z = 0.0
-    #
-    #     self.pub_drone_nav_info.publish(flight_nav_msg)
-    #     rospy.sleep(0.5)
-    #     self.drone_nav_trigger()
-    #
-    # def drone_nav_info_sim(self, x_y_mode, x, y, z_mode, z, yaw_mode, omega_z, yaw):
-    #     flight_nav_msg = FlightNav()
-    #     flight_nav_msg.header.seq = self._seq
-    #     self._seq += 1
-    #     flight_nav_msg.header.stamp = rospy.Time.now()
-    #     flight_nav_msg.header.frame_id = 'world'
-    #
-    #     flight_nav_msg.control_frame = 0
-    #     flight_nav_msg.target = 0
-    #     flight_nav_msg.pos_xy_nav_mode = x_y_mode
-    #     flight_nav_msg.target_pos_x = x
-    #     flight_nav_msg.target_vel_x = 0.0
-    #     flight_nav_msg.target_acc_x = 0.0
-    #     flight_nav_msg.target_pos_y = y
-    #     flight_nav_msg.target_vel_y = 0.0
-    #     flight_nav_msg.target_acc_y = 0.0
-    #     flight_nav_msg.yaw_nav_mode = yaw_mode
-    #     flight_nav_msg.target_omega_z = omega_z
-    #     flight_nav_msg.target_yaw = yaw
-    #     flight_nav_msg.pos_z_nav_mode = z_mode
-    #     flight_nav_msg.target_pos_z = z
-    #     flight_nav_msg.target_vel_z = 0.0
-    #     flight_nav_msg.target_pos_diff_z = 0.0
-    #
-    #     self.pub_drone_nav.publish(flight_nav_msg)
+        self.rm = 0
+        self.sim_desk_x, self.sim_desk_y, self.sim_desk_z = 0.0, 0.0, 0.0
+        self.sim_desk_roll, self.sim_desk_pitch, self.sim_desk_yaw= 0.0, 0.0, 0.0
+        self.sim_target_x, self.sim_target_y, self.sim_target_z = 0.0, 0.0, 0.0
+        self.sim_target_roll, self.sim_target_pitch, self.sim_target_yaw= 0.0, 0.0, 0.0
+        self.tag_drone_x, self.tag_drone_y, self.tag_drone_z = 0.0, 0.0, 0.0
+        self.tag_drone_roll, self.tag_drone_pitch, self.tag_drone_yaw = 0.0, 0.0, 0.0
+        self.msg_apriltag = None
+        self.user_input = None
 
+    def _callback_simulation_apriltag(self, msg):
+        self.msg_apriltag = msg
 
-    def _callback_position(self, odom_msg):
-        self.drone_x = odom_msg.pose.pose.position.x
-        self.drone_y = odom_msg.pose.pose.position.y
-        self.drone_z = odom_msg.pose.pose.position.z
-        self.drone_ori_x = odom_msg.pose.pose.orientation.x
-        self.drone_ori_y = odom_msg.pose.pose.orientation.y
-        self.drone_ori_z = odom_msg.pose.pose.orientation.z
-        self.drone_ori_w = odom_msg.pose.pose.orientation.w
-        self.drone_roll = tft.euler_from_quaternion([self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w])[0]
-        self.drone_pitch = tft.euler_from_quaternion([self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w])[1]
-        self.drone_yaw = tft.euler_from_quaternion([self.drone_ori_x, self.drone_ori_y, self.drone_ori_z, self.drone_ori_w])[2]
+    def sim_apriltag_position(self,data,target_id):
+        for det in data.detections:
+            # print(f'{det}')
+            # print(f'{det.id}')
+            if target_id in det.id:
+                pose = det.pose.pose.pose
+                self.sim_target_x = pose.position.x
+                self.sim_target_y = pose.position.y
+                self.sim_target_z = pose.position.z
+                qx = pose.orientation.x
+                qy = pose.orientation.y
+                qz = pose.orientation.z
+                qw = pose.orientation.w
+                self.sim_target_roll = \
+                tft.euler_from_quaternion([qx, qy, qz, qw])[0]
+                self.sim_target_pitch = \
+                tft.euler_from_quaternion([qx, qy, qz, qw])[1]
+                self.sim_target_yaw = \
+                tft.euler_from_quaternion([qx, qy, qz, qw])[2]
 
-    def drone_target_pose(self, x, y, z, ox, oy, oz, ow):
-        drone_target_pose = PoseStamped()
-        drone_target_pose.header.frame_id = 'world'
-        drone_target_pose.pose.position.x = x
-        drone_target_pose.pose.position.y = y
-        drone_target_pose.pose.position.z = z
-        drone_target_pose.pose.orientation.x = ox
-        drone_target_pose.pose.orientation.y = oy
-        drone_target_pose.pose.orientation.z = oz
-        drone_target_pose.pose.orientation.w = ow
-
-        self.pub_drone_target_info.publish(drone_target_pose)
-        rospy.sleep(1.5)
-        self.drone_target_pose_trigger()
-
-    def drone_target_pose_trigger(self):
-        time.sleep(0.5)
-        rospy.loginfo("Publishing nav trigger command...")
-        empty_msg = Empty()
-        self.pub_drone_target_trigger.publish(empty_msg)
-
-    def drone_target_pose_sim(self, x, y, z, ox, oy, oz, ow):
-        drone_target_pose = PoseStamped()
-        drone_target_pose.header.frame_id = 'world'
-        drone_target_pose.pose.position.x = x
-        drone_target_pose.pose.position.y = y
-        drone_target_pose.pose.position.z = z
-        drone_target_pose.pose.orientation.x = ox
-        drone_target_pose.pose.orientation.y = oy
-        drone_target_pose.pose.orientation.z = oz
-        drone_target_pose.pose.orientation.w = ow
-
-        self.pub_drone_target_sim.publish(drone_target_pose)
+        print(f'{self.sim_target_x}, {self.sim_target_y}, {self.sim_target_z}')
 
     def execute(self, userdata):
 
         self.rm= userdata.rm
-        self.valve_x, self.valve_y, self.valve_z = userdata.target_position[0], userdata.target_position[1], \
-        userdata.target_position[2]
-        if self.rm == 1:
-            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw-1.57)< self.tolerance_yaw:
-            #         break
-            #     time.sleep(0.5)
-            time.sleep(5)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707107, 0.707107)
-            time.sleep(5)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            time.sleep(8)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707107, 0.707107)
-            time.sleep(5)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            time.sleep(5)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707107, 0.707107)
-            time.sleep(5)
-            self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            time.sleep(5)
-            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            # time.sleep(10)
-            # self.drone_target_pose(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            # time.sleep(10)
 
-        else:
-            # self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_x- self.valve_x) < 0.05 and abs(self.drone_y - self.valve_y) < 0.05:
-            #         break
-            time.sleep(10)
+        if self.rm != 1:
+            self.put_position = userdata.put_position
 
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw - 1.57) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw - 3.14) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw + 1.57) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0.707, 0.707)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw - 1.57) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 1, 0)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw - 3.14) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, -0.707, 0.707)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw + 1.57) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
-            self.drone_target_pose_sim(self.valve_x, self.valve_y, self.valve_z, 0, 0, 0, 1)
-            # while not rospy.is_shutdown():
-            #     if abs(self.drone_yaw) < self.tolerance_yaw:
-            #         break
-            time.sleep(5)
+            print(f'rosrun unitree_controller unitree_servo')
+            print(f'input y')
+            self.user_input = input()
+            if self.user_input == 'y':
+                pass
+            while self.sim_desk_x == 0:
+                self.sim_apriltag_position(self.msg_apriltag, 12)
+                self.sim_desk_x, self.sim_desk_y, self.sim_desk_z = self.sim_target_x, self.sim_target_y, self.sim_target_z
+                self.sim_desk_roll, self.sim_desk_pitch, self.sim_desk_yaw = self.sim_target_roll, self.sim_target_pitch, self.sim_target_yaw
+
+
+            while (self.sim_desk_z+ 0.15 - self.tag_drone_z) > 0.03 or (self.sim_desk_x - self.tag_drone_x)> 0.03:
+                self.sim_apriltag_position(self.msg_apriltag, 2)
+                self.tag_drone_x, self.tag_drone_y, self.tag_drone_z = self.sim_target_x, self.sim_target_y, self.sim_target_z
+                self.tag_drone_roll, self.tag_drone_pitch, self.tag_drone_yaw = self.sim_target_roll, self.sim_target_pitch, self.sim_target_yaw
+                self.drone_basic.drone_target(self.sim_desk_z+0.15 - self.tag_drone_z, self.sim_desk_x - self.tag_drone_x, self.sim_desk_y + 0.3,
+                                              self.put_position[2], 0, 0, 0.707107, -0.707107)
         return 'succeeded'
 class FlyBack(smach.State):
     def __init__(self):
