@@ -58,7 +58,7 @@ class GripperMoveNode:
             rospy.loginfo(f'servo:{servo_index} error!')
             pass
         try:
-            while self.servo_load > - (self.servo_max_load - 20 ):
+            while self.servo_load > - (self.servo_max_load - 50):
                 self.servo_target_index = servo_index
                 self.servo_target_angles = self.servo_angle - angle_feed
                 self.servo_target_cmd(self.servo_target_index, self.servo_target_angles)

@@ -60,7 +60,7 @@ if __name__=="__main__":
         settings = termios.tcgetattr(sys.stdin)
         rospy.init_node("keyboard_control")
         # rm = rospy.get_param("~keyboard_mode", "1")
-        rm = 0
+        rm = 1
         # robot_ns = rospy.get_param("~robot_ns", "");
         print(msg)
 
@@ -99,27 +99,27 @@ if __name__=="__main__":
                                 msg = ""
 
                                 if key == 'w':
-                                        nav_msg.linear.x = xy_vel
+                                        nav_msg.linear.x += xy_vel
                                         nav_pub.publish(nav_msg)
                                         msg = "send +x vel command"
                                 if key == 's':
-                                        nav_msg.linear.x = -xy_vel - 0.3
+                                        nav_msg.linear.x += -xy_vel - 0.3
                                         nav_pub.publish(nav_msg)
                                         msg = "send -x vel command"
                                 if key == 'a':
-                                        nav_msg.linear.y = xy_vel
+                                        nav_msg.linear.y += xy_vel
                                         nav_pub.publish(nav_msg)
                                         msg = "send +y vel command"
                                 if key == 'd':
-                                        nav_msg.linear.y = -xy_vel - 0.3
+                                        nav_msg.linear.y += -xy_vel - 0.3
                                         nav_pub.publish(nav_msg)
                                         msg = "send -y vel command"
                                 if key == 'q':
-                                        nav_msg.angular.z = yaw_vel
+                                        nav_msg.angular.z += yaw_vel
                                         nav_pub.publish(nav_msg)
                                         msg = "send +yaw vel command"
                                 if key == 'e':
-                                        nav_msg.angular.z = -yaw_vel
+                                        nav_msg.angular.z += -yaw_vel
                                         msg = "send -yaw vel command"
                                         nav_pub.publish(nav_msg)
                                 if key == 'j':
