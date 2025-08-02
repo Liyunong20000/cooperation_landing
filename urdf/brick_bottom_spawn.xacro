@@ -7,9 +7,9 @@
       <mass value = "0.001" />
       <origin xyz="0 0 0.01556" rpy="0 0 0"/>
       <inertia
-          ixx="0.000001" ixy="0" ixz="0"
-          iyy="0.000001" iyz="0"
-          izz="0.00001"/>
+          ixx="0.00001" ixy="0" ixz="0"
+          iyy="0.0001" iyz="0"
+          izz="0.0001"/>
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -17,5 +17,11 @@
         <mesh filename="package://cooperation_landing/urdf/mesh/brick_294g.dae" />
       </geometry>
     </visual>
+    <collision>
+      <origin xyz="0 0 0.10"/>
+      <geometry>
+        <box size="0.15 0.15 0.2"/>
+      </geometry>
+    </collision>
   </link>
 </robot>

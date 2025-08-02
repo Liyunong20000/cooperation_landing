@@ -47,6 +47,7 @@
     </inertial>
   </xacro:extra_module>
 
+
   <joint name="landing_gear_joint" type="fixed">
     <parent link="trunk"/>
     <child link="landing_gear"/>
@@ -70,9 +71,15 @@
       </geometry>
     </visual>
     <collision>
-      <origin xyz="0 -0.1 0.154"/>
+      <origin xyz="0.2 -0.1 0.154"/>
       <geometry>
-        <box size="0.5 0.5 0.01"/>
+        <box size="0.2 0.5 0.01"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.2 -0.1 0.154"/>
+      <geometry>
+        <box size="0.2 0.5 0.01"/>
       </geometry>
     </collision>
   </link>
