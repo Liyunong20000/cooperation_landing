@@ -8,7 +8,7 @@ from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.msg import ModelState, ModelStates
-
+from apriltag_ros.msg import AprilTagDetectionArray
 import tf.transformations as tft
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
@@ -24,6 +24,11 @@ class DroneBasic:
         self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw = 0.0, 0.0, 0.0, 0.0
         self.drone_roll, self.drone_pitch, self.drone_yaw  = 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
+        self.tag_target_x, self.tag_target_y, self.tag_target_z = 0.0, 0.0, 0.0
+        self.tag_target_qx, self.tag_target_qy, self.tag_target_qz, self.drone_qw = 0.0, 0.0, 0.0, 0.0
+        self.tag_target_roll, self.tag_target_pitch, self.tag_target_yaw = 0.0, 0.0, 0.0
+
+        self.tag_info = 0
         self.drone_state = 0
 
         self.robot_ns = rospy.get_param("~robot_ns", "xuanwu")
@@ -32,6 +37,7 @@ class DroneBasic:
 
         rospy.Subscriber(self.robot_ns + '/uav/cog/odom', Odometry, self._callback_drone_position)
         rospy.Subscriber(self.robot_ns + '/flight_state', UInt8, self._callback_drone_state)
+        rospy.Subscriber('/xuanwu/tag_detections', AprilTagDetectionArray, self._callback_tag_info)
 
         self.pub_drone_nav = rospy.Publisher(self.robot_ns + '/uav/nav', FlightNav, queue_size=10)
         self.pub_drone_target = rospy.Publisher(self.robot_ns + '/target_pose', PoseStamped, queue_size=10)
@@ -54,6 +60,32 @@ class DroneBasic:
 
     def _callback_drone_state(self, msg):
         self.drone_state = msg.data
+
+    def _callback_tag_info(self, msg):
+        self.tag_info = msg
+        # print(f'self.tag_info: {self.tag_info}')
+    def tag_position(self,data,target_id):
+        for det in data.detections:
+            # print(f'{det}')
+            # print(f'{det.id}')
+            if target_id in det.id:
+                pose = det.pose.pose.pose
+                self.tag_target_x = pose.position.x
+                self.tag_target_y = pose.position.y
+                self.tag_target_z = pose.position.z
+                qx = pose.orientation.x
+                qy = pose.orientation.y
+                qz = pose.orientation.z
+                qw = pose.orientation.w
+                self.tag_target_roll = \
+                tft.euler_from_quaternion([qx, qy, qz, qw])[0]
+                self.tag_target_pitch = \
+                tft.euler_from_quaternion([qx, qy, qz, qw])[1]
+                self.tag_target_yaw = \
+                tft.euler_from_quaternion([qx, qy, qz, qw])[2]
+
+        # print(f'x:{self.tag_target_x},y: {self.tag_target_y},z: {self.tag_target_z}')
+        print(f'x:{self.tag_target_roll},y: {self.tag_target_pitch},z: {self.tag_target_yaw}')
 
     def drone_start(self):  # Use to takeoff
         time.sleep(0.5)
@@ -145,3 +177,10 @@ class DroneBasicSim:
             self.sim_drone_yaw = \
         tft.euler_from_quaternion([self.sim_drone_qx, self.sim_drone_qy, self.sim_drone_qz, self.sim_drone_qw])[2]
             # print(f'{self.sim_drone_x},{self.sim_drone_y}')
+if __name__ == '__main__':
+    rospy.init_node('drone_basic', anonymous=True)
+    node = DroneBasic()
+    time.sleep(0.5)
+    while not rospy.is_shutdown():
+        node.tag_position(node.tag_info, 11)
+        time.sleep(1)
