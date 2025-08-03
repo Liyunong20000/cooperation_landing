@@ -84,6 +84,7 @@ add_message_files(
    geometry_msgs
    apriltag_ros
    aerial_robot_msgs
+   apriltag_ros
  )
 
 ################################################
