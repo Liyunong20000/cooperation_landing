@@ -22,8 +22,8 @@ from apriltag_ros.msg import AprilTagDetectionArray
 
 from basic_function.dog_basic_function import *
 from basic_function.drone_basic_function import *
-from simulation.sim_basic import *
-from simulation.sim_links_attachment import *
+# from simulation.sim_basic import *
+# from simulation.sim_links_attachment import *
 
 # The Cooperative inspection system by mini_quadrotor and Qilin
 class Start(smach.State):
@@ -94,18 +94,27 @@ class TargetSearch(smach.State):
             while self.drone_basic.drone_x < 0:
                 self.dog_basic.qilin_cmd_vel(0.5, 0, 0, 0, 0)
                 time.sleep(0.1)
-            while abs(self.drone_basic.drone_yaw - 1.57) > (3.14/12):
-                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.5)
+            while abs(self.drone_basic.drone_yaw - 1.57) > (3.14 /12):
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.2)
                 time.sleep(0.1)
-            while self.drone_basic.drone_y < 1.3:
+            while self.drone_basic.drone_y < 1.5:
                 self.dog_basic.qilin_cmd_vel(0.5, 0, 0, 0, 0)
                 time.sleep(0.1)
-                self.sim_apriltag_position(self.msg_apriltag, 11)
-                if 1.0 < self.drone_basic.drone_y < 1.5:
-                    if self.sim_target_x != 0:
-                        print(f'I got it!')
-                        break
+                self.drone_basic.tag_position(self.tag_info, 11)
+                if self.drone_basic.tag_target_z != 0:
+                    while abs(self.drone_basic.tag_target_z) > 0.5:
+                        self.dog_basic.qilin_cmd_vel(5 * self.drone_basic.tag_target_x, 0, 0, 0, 0)
+
+                    while abs(self.drone_basic.tag_target_x) >0.03:
+                        self.dog_basic.qilin_cmd_vel(0, 5* self.drone_basic.tag_target_x, 0, 0, 0)
+                    print(f'I got it!')
+
+                    while abs(self.drone_basic.tag_target_pitch) >(0.1):
+                        self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.2)
+                    print(f'I got it!')
+                    break
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
             return 'succeeded'
 
         else:
