@@ -9,6 +9,6 @@
 <!--    <param name="keyboard_mode" value="$(arg rm)" />-->
 <!--  </node>-->
 
-   <node name="smach_viewer" pkg="smach_viewer" type="smach_viewer.py" >
-  </node>
+<!--    <node name="smach_viewer" pkg="smach_viewer" type="smach_viewer.py" > -->
+<!--   </node> -->
 </launch>
