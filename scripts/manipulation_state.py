@@ -22,6 +22,7 @@ from apriltag_ros.msg import AprilTagDetectionArray
 
 from basic_function.dog_basic_function import *
 from basic_function.drone_basic_function import *
+from gripper.gripper_move import *
 # from simulation.sim_basic import *
 # from simulation.sim_links_attachment import *
 
@@ -47,8 +48,8 @@ class TargetSearch(smach.State):
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
-        self.drone_basic_sim = DroneBasicSim()
-        self.sim_basic = SimbasicNode()
+        # self.drone_basic_sim = DroneBasicSim()
+        # self.sim_basic = SimbasicNode()
 
         self.pick_position = []
         self.rm = 0
@@ -92,27 +93,53 @@ class TargetSearch(smach.State):
 
         if self.rm == 1:
             while self.drone_basic.drone_x < 0:
-                self.dog_basic.qilin_cmd_vel(0.5, 0, 0, 0, 0)
+                self.dog_basic.qilin_cmd_vel(0.3, 0, 0, 0, 0)
                 time.sleep(0.1)
-            while abs(self.drone_basic.drone_yaw - 1.57) > (3.14 /12):
-                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.2)
-                time.sleep(0.1)
-            while self.drone_basic.drone_y < 1.5:
-                self.dog_basic.qilin_cmd_vel(0.5, 0, 0, 0, 0)
-                time.sleep(0.1)
-                self.drone_basic.tag_position(self.tag_info, 11)
-                if self.drone_basic.tag_target_z != 0:
-                    while abs(self.drone_basic.tag_target_z) > 0.5:
-                        self.dog_basic.qilin_cmd_vel(5 * self.drone_basic.tag_target_x, 0, 0, 0, 0)
+                print(f'{self.drone_basic.drone_x}')
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
-                    while abs(self.drone_basic.tag_target_x) >0.03:
-                        self.dog_basic.qilin_cmd_vel(0, 5* self.drone_basic.tag_target_x, 0, 0, 0)
-                    print(f'I got it!')
+            while abs(self.drone_basic.drone_yaw - 1.57) > 0.01:
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -(self.drone_basic.drone_yaw - 1.57))
+                time.sleep(0.1)
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
-                    while abs(self.drone_basic.tag_target_pitch) >(0.1):
-                        self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.2)
-                    print(f'I got it!')
-                    break
+            while abs(self.drone_basic.drone_y-1.5) > 0.1 or abs(self.drone_basic.drone_x) > 0.05:
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
+                self.dog_basic.qilin_cmd_vel( -(self.drone_basic.drone_y - 1.5), 2* self.drone_basic.drone_x, 0, 0, 0)
+                time.sleep(0.1)
+
+
+
+            while abs(self.drone_basic.tag_target_x + 0.15) > 0.01:
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
+
+                if self.drone_basic.tag_info == 0:
+                    rospy.logwarn("No tag detections.")
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    return
+                self.dog_basic.qilin_cmd_vel(0, 1 * -(self.drone_basic.tag_target_x + 0.15), 0, 0, 0)
+                print(f'I got it!')
+                time.sleep(0.1)
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+            while abs(self.drone_basic.tag_target_pitch) > 0.1:
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
+                if self.drone_basic.tag_info == 0:
+                    rospy.logwarn("No tag detections.")
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    return
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, - self.drone_basic.tag_target_pitch)
+                time.sleep(0.1)
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+            while abs(self.drone_basic.tag_target_z - 1.25) > 0.01:
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
+                if self.drone_basic.tag_info == 0:
+                    rospy.logwarn("No tag detections.")
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    return
+                self.dog_basic.qilin_cmd_vel(0.3 * (self.drone_basic.tag_target_z - 1.27), 0, 0, 0, 0)
+                time.sleep(0.1)
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
             return 'succeeded'
@@ -149,16 +176,24 @@ class TargetSearch(smach.State):
 class Pick(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
-        self.sim_basic = SimbasicNode()
-        self.link_attachment = AttachlinksNode()
+        # self.sim_basic = SimbasicNode()
+        # self.link_attachment = AttachlinksNode()
+        self.user_input = 0
 
-
-
+        self.gripper_move = GripperMoveNode()
+        self.dog_basic = DogBasic()
     def execute(self, userdata):
         self.rm = userdata.rm
         if self.rm == 0:
             self.link_attachment.sim_attach_links("xuanwu", "root", "brick", "brick")
             self.sim_basic.call_add_extra_module(1, "brick", "main_body")
+
+        if self.rm == 1:
+            self.dog_basic.sit()
+            self.user_input = input()
+            if self.user_input == 'y':
+                print(f'yes')
+                self.gripper_move.grasp(0,50)
 
         return 'succeeded'
 
