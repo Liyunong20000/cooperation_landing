@@ -6,7 +6,7 @@
   <arg name="LOW_PORT_1" default="1024" />
   <arg name="LOW_PORT_2" default="1025" />
   <arg name="LOW_PORT_3" default="1026" />
-  <arg name="LOW_PORT_4" default="1027" />
+  <arg name="LOW_PORT_4" default="1061" />
   <arg name="drone_ns" default="xuanwu" />
 
   ### GR receiver from UAV
@@ -16,7 +16,7 @@
     <param name="receive_port" value="$(arg HIGH_PORT1)" />
     <param name="topic_prefix" value="" />
   </node>
-  
+
   ### GR streamer to UAV
   <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer" output="screen">
     <param name="message" value="cooperation_landing/GR2UAV" />
@@ -58,9 +58,9 @@
   </node>
 
 <!--     ### GR low speed streamer4 to UAV -->
-<!--   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_target_pose" output="screen"> -->
-<!--     <remap from="~input" to="/$(arg drone_ns)/target_pose" /> -->
-<!--     <param name="message" value="geometry_msgs/PoseStamped" /> -->
+<!--   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_gripper_move" output="screen"> -->
+<!--     <remap from="~input" to="/$(arg drone_ns)/servo/target_states" /> -->
+<!--     <param name="message" value="spinal/ServoControlCmd" /> -->
 <!--     <param name="to_ip" value="$(arg UAV_IP)" /> -->
 <!--     <param name="to_port" value="$(arg LOW_PORT_4)" /> -->
 <!--     <param name="send_rate" value="1" /> -->
