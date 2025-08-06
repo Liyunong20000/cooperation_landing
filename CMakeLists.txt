@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   apriltag_ros
   aerial_robot_msgs
+  spinal
 )
 
 ## System dependencies are found with CMake's conventions
@@ -85,7 +86,8 @@ add_message_files(
    apriltag_ros
    aerial_robot_msgs
    apriltag_ros
- )
+   spinal
+   )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
