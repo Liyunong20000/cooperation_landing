@@ -2,12 +2,8 @@ standalone_tags:
   [
   {id: 0, size: 0.0195, name: drone_board_back},
   {id: 1, size: 0.0195, name: drone_board_front},
-  {id: 2, size: 0.0395, name: drone_gripper_left},
-  {id: 3, size: 0.0395, name: drone_gripper_right},
-  {id: 4, size: 0.012, name: drone_wing_lb},
-  {id: 5, size: 0.012, name: drone_wing_lf},
-  {id: 6, size: 0.012, name: drone_wing_rb},
-  {id: 7, size: 0.012, name: drone_wing_rf},
+  {id: 2, size: 0.0395, name: drone_gripper_right},
+  {id: 3, size: 0.0395, name: drone_gripper_left},
   {id: 11, size: 0.155, name: cube_pick},
   {id: 12, size: 0.155, name: cube_put},
   ]
