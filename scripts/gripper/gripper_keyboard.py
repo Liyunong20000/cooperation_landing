@@ -13,7 +13,6 @@ class GripperKeyboardNode:
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
-        # rospy.init_node('gripper_keyboard', anonymous=True)
         self.gripper_move = GripperMoveNode()
         time.sleep(1.0)
         self.msg = """
@@ -83,6 +82,7 @@ class GripperKeyboardNode:
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
 if __name__ == '__main__':
+    rospy.init_node('gripper_keyboard', anonymous=True)
     node = GripperKeyboardNode()
     print(node.msg)
     settings = termios.tcgetattr(sys.stdin)

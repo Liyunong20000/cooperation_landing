@@ -12,6 +12,7 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
+from spinal.msg import ServoStates, ServoControlCmd
 
 # It is for  the Coopration for Mini_Quadrotor and Qilin
 
@@ -28,10 +29,13 @@ class EventtriggerNode:
         rospy.Subscriber('/xuanwu/target_pose/info', PoseStamped, self._callback_target_pose_info)
         rospy.Subscriber('/xuanwu/target_pose/trigger', Empty, self._callback_target_pose_trigger)
         # rospy.Subscriber('/quadrotor/uav/nav/info', FlightNav, self._callback_nav_info)
-
+        rospy.Subscriber('/xuanwu/servo/target_states/info', ServoControlCmd, self._callback_servo_target_states_info)
+        rospy.Subscriber('/xuanwu/servo/target_states/trigger', Empty, self._callback_servo_target_states_trigger)
 
         # self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
         self.pub_drone_target = rospy.Publisher('/xuanwu/target_pose', PoseStamped, queue_size=10)
+        self.pub_servo_target = rospy.Publisher('/xuanwu/servo/target_states', ServoControlCmd, queue_size=10)
+
         # self.pub_drone_nav = rospy.Publisher('/quadrotor/uav/nav', FlightNav, queue_size=10)
         # self.pub_takeoff = rospy.Publisher('/quadrotor/teleop_command/takeoff', Empty, queue_size=10)
         # self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
@@ -40,6 +44,8 @@ class EventtriggerNode:
         self.target_x, self.target_y, self.target_z= 0.0, 0.0, 0.0
         self.target_ox, self.target_oy, self.target_oz, self.target_ow = 0.0, 0.0, 0.0, 0.0
         self.yaw_nav_mode, self.target_omega_z, self.target_yaw = 0, 0.0, 0.0
+        self.servo_index = []
+        self.servo_angle = []
     # def _callback_nav_info(self, msg):
     #     self.x_y_mode= msg.pos_xy_nav_mode
     #     self.target_x= msg.target_pos_x
@@ -66,6 +72,23 @@ class EventtriggerNode:
     def _callback_nav_trigger(self, msg):
         self.drone_nav_info(self.x_y_mode, self.target_x, self.target_y, self.z_mode, self.target_z,self.yaw_nav_mode, self.target_omega_z, self.target_yaw)
         print(f"pub")
+
+    def _callback_servo_target_states_info(self, msg):
+        self.servo_index = msg.index
+        self.servo_angle = msg.angles
+        # print(f'{self.servo_index} {self.servo_angle}')
+
+    def _callback_servo_target_states_trigger(self, msg):
+        rospy.sleep(0.1)
+        self.gripper_move_event(self.servo_index, self.servo_angle)
+
+    def gripper_move_event(self, servo_index, servo_angle):
+        servo_target_cmd = ServoControlCmd()
+        servo_target_cmd.index = self.servo_index
+        servo_target_cmd.angles = self.servo_angle
+        time.sleep(0.1)
+        self.pub_servo_target.publish(servo_target_cmd)
+        print(f'servo_target_cmd:{servo_target_cmd}')
 
     def takeoff(self):
         time.sleep(0.5)
