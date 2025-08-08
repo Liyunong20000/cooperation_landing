@@ -6,7 +6,7 @@
   <arg name="image_height" default="720" />
   <arg name="robot_ns" default="qilin" />
   <arg name="robot_type" default="ground_robot" />
-
+  
   <group ns="$(arg robot_ns)">
     <group ns="$(arg camera_ns)">
       <!-- USB camera -->
@@ -34,6 +34,7 @@
         <arg name="robot_id" value="2"/>
     </include>
   </group>
+
   <!--         Apriltag detection -->
   <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
     <arg name="camera_name" value="/$(arg robot_ns)/$(arg camera_ns)/usb_cam" />
@@ -41,11 +42,8 @@
     <arg name="node_namespace" default="$(arg robot_ns)_apriltag_ros_continuous_node" />
   </include>
   <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="$(arg robot_ns)_apriltag_ros_continuous_node"/>
-
-
 <!--   <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen"> -->
 <!--     <remap from="image" to="$(arg camera_ns)/image_rect_color"/> -->
 <!--     <param name="autosize" value="true" /> -->
 <!--   </node> -->
-
 </launch>
