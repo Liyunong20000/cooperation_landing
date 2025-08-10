@@ -7,6 +7,9 @@
   <arg name="LOW_PORT_2" default="1025" />
   <arg name="LOW_PORT_3" default="1026" />
   <arg name="LOW_PORT_4" default="1061" />
+  <arg name="LOW_PORT_5" default="1062" />
+  <arg name="LOW_PORT_6" default="1063" />
+  <arg name="LOW_PORT_7" default="1064" />
   <arg name="drone_ns" default="xuanwu" />
 
   ### GR receiver from UAV
@@ -63,6 +66,36 @@
     <param name="message" value="std_msgs/Empty" />
     <param name="to_ip" value="$(arg UAV_IP)" />
     <param name="to_port" value="$(arg LOW_PORT_4)" />
+    <param name="send_rate" value="1" />
+    <param name="event_driven" value="True" />
+  </node>
+
+    ### GR low speed streamer5 to UAV
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_gripper_return" output="screen">
+    <remap from="~input" to="/$(arg drone_ns)/servo/return/trigger" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg LOW_PORT_5)" />
+    <param name="send_rate" value="1" />
+    <param name="event_driven" value="True" />
+  </node>
+
+      ### GR low speed streamer6 to UAV
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_add_module" output="screen">
+    <remap from="~input" to="/$(arg drone_ns)/add_extra_module/trigger" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg LOW_PORT_6)" />
+    <param name="send_rate" value="1" />
+    <param name="event_driven" value="True" />
+  </node>
+
+      ### GR low speed streamer7 to UAV
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_remove_module" output="screen">
+    <remap from="~input" to="/$(arg drone_ns)/remove_extra_module/trigger" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg LOW_PORT_7)" />
     <param name="send_rate" value="1" />
     <param name="event_driven" value="True" />
   </node>
