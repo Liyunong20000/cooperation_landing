@@ -30,6 +30,7 @@ class GripperMoveNode:
         self.pub_servo_target = rospy.Publisher(self.robot_ns + '/servo/target_states', ServoControlCmd, queue_size=10)
         self.pub_servo_target_qilin = rospy.Publisher(self.robot_ns + '/servo/target_states/info', ServoControlCmd, queue_size=10)
         self.pub_servo_target_qilin_trigger = rospy.Publisher(self.robot_ns + '/servo/target_states/trigger', Empty, queue_size=10)
+        self.pub_servo_return_qilin_trigger = rospy.Publisher(self.robot_ns + '/servo/return/trigger', Empty, queue_size=10)
 
         time.sleep(1.0)
 
@@ -78,7 +79,7 @@ class GripperMoveNode:
             while self.servo_load > - (self.servo_max_load-50):
                 self.servo_target_index = servo_index
                 self.servo_target_angles = self.servo_angle - angle_feed
-                self.servo_target_cmd_qilin(self.servo_target_index, self.servo_target_angles)
+                self.servo_target_cmd(self.servo_target_index, self.servo_target_angles)
                 print(f'---------')
                 r.sleep()
         except KeyboardInterrupt:
@@ -105,6 +106,11 @@ class GripperMoveNode:
         time.sleep(0.1)
         empty_msg = Empty()
         self.pub_servo_target_qilin_trigger.publish(empty_msg)
+
+    def return_qilin_trigger(self):
+        time.sleep(0.1)
+        empty_msg = Empty()
+        self.pub_servo_return_qilin_trigger.publish(empty_msg)
 
 if __name__ == '__main__':
     rospy.init_node('gripper_move', anonymous=True)
