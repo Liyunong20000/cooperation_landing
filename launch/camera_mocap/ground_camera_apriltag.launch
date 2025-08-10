@@ -6,7 +6,7 @@
   <arg name="image_height" default="720" />
   <arg name="robot_ns" default="qilin" />
   <arg name="robot_type" default="ground_robot" />
-  
+
   <group ns="$(arg robot_ns)">
     <group ns="$(arg camera_ns)">
       <!-- USB camera -->

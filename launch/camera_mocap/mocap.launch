@@ -26,8 +26,13 @@
                child_frame_id: baselink
                parent_frame_id: world
          '5':
-               pose: box_13/mocap/pose
-               pose2d: box_13/mocap/ground_pose
+               pose: tag12/mocap/pose
+               pose2d: tag12/mocap/ground_pose
+               child_frame_id: baselink
+               parent_frame_id: world
+         '6':
+               pose: tag13/mocap/pose
+               pose2d: tag13/mocap/ground_pose
                child_frame_id: baselink
                parent_frame_id: world
       optitrack_config:
