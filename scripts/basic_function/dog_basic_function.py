@@ -58,5 +58,8 @@ class DogBasic:
         qilin_body_pose.orientation.y = qy
         qilin_body_pose.orientation.z = qz
         qilin_body_pose.orientation.w = qw
-
+        rospy.sleep(0.1)
         self.pub_qilin_pose.publish(qilin_body_pose)
+
+    def _callback_tag_info(self, msg):
+        self.tag_info = msg
