@@ -4,9 +4,10 @@ import rospy, sys
 import numpy as np
 import time
 from aerial_robot_msgs.msg import FlightNav
+from aerial_robot_model.srv import AddExtraModule
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Transform, Inertia
 from gazebo_msgs.msg import ModelState, ModelStates
 from apriltag_ros.msg import AprilTagDetectionArray
 import tf.transformations as tft
@@ -42,9 +43,12 @@ class DroneBasic:
         self.pub_drone_nav = rospy.Publisher(self.robot_ns + '/uav/nav', FlightNav, queue_size=10)
         self.pub_drone_target = rospy.Publisher(self.robot_ns + '/target_pose', PoseStamped, queue_size=10)
         self.pub_drone_start = rospy.Publisher(self.robot_ns + '/teleop_command/start', Empty, queue_size=10)
-
+        self.pub_drone_add_module_trigger = rospy.Publisher(self.robot_ns + '/add_extra_module/trigger', Empty, queue_size=10)
+        self.pub_drone_remove_module_trigger = rospy.Publisher(self.robot_ns + '/remove_extra_module/trigger', Empty, queue_size=10)
         self.pub_drone_takeoff = rospy.Publisher(self.robot_ns + '/teleop_command/takeoff', Empty, queue_size=10)
         self.pub_drone_land = rospy.Publisher(self.robot_ns + '/teleop_command/land', Empty, queue_size=10)
+
+        self.extra_module = rospy.ServiceProxy('/xuanwu/add_extra_module', AddExtraModule)
 
     def _callback_drone_position(self, msg):
         self.drone_x = msg.pose.pose.position.x
@@ -85,7 +89,7 @@ class DroneBasic:
                 tft.euler_from_quaternion([qx, qy, qz, qw])[2]
 
         # print(f'x:{self.tag_target_x},y: {self.tag_target_y},z: {self.tag_target_z}')
-        print(f'x:{self.tag_target_roll},y: {self.tag_target_pitch},z: {self.tag_target_yaw}')
+        # print(f'x:{self.tag_target_roll},y: {self.tag_target_pitch},z: {self.tag_target_yaw}')
 
     def drone_start(self):  # Use to takeoff
         time.sleep(0.5)
@@ -151,6 +155,51 @@ class DroneBasic:
         self.takeoff_yaw = yaw
         # print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
 
+    def call_add_extra_module(self, action, module_name, parent_link_name):
+        try:
+            transform = Transform()
+            transform.translation.x = 0.0
+            transform.translation.y = 0.0
+            transform.translation.z = -0.105
+            transform.rotation.x = 0.0
+            transform.rotation.y = 0.0
+            transform.rotation.z = 0.0
+            transform.rotation.w = 1.0
+
+            inertia = Inertia()
+            inertia.m = 0.1342
+            inertia.com.x = 0.0
+            inertia.com.y = 0.0
+            inertia.com.z = 0.0
+            inertia.ixx = 0.00006174049
+            inertia.ixy = 0.0
+            inertia.ixz = 0.0
+            inertia.iyy = 0.00009220405
+            inertia.iyz = 0.0
+            inertia.izz = 0.00013076914
+
+            response = self.extra_module(
+                action,
+                module_name,
+                parent_link_name,
+                transform,
+                inertia
+            )
+
+            return response
+        except rospy.ServiceException as e:
+            print("Service call failed:", e)
+            return None
+
+    def add_module_trigger(self):
+        time.sleep(0.1)
+        empty_msg = Empty()
+        self.pub_drone_add_module_trigger.publish(empty_msg)
+
+    def remove_module_trigger(self):
+        time.sleep(0.1)
+        empty_msg = Empty()
+        self.pub_drone_remove_module_trigger.publish(empty_msg)
 class DroneBasicSim:
     def __init__(self):
         rospy.Subscriber('/gazebo/model_states', ModelStates, self._callback_aerial_robot_pose)

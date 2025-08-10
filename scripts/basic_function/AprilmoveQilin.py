@@ -37,7 +37,7 @@ class AprilmoveqilinNode:
         # self.landing_distance_threshold = rospy.get_param("/landing_info/landing_distance_threshold")
         # self.landing_angle_threshold = rospy.get_param("/landing_info/landing_angle_threshold") 
         # self.above_z = rospy.get_param("/above_z")
-        self.move_param = rospy.get_param("/move_parameter",1)
+        self.move_param = rospy.get_param("/move_parameter",1.5)
         self.rotate_param = rospy.get_param("/rotate_parameter",0.5)
         # self.pose_parameter = rospy.get_param("/pose_parameter")
 
