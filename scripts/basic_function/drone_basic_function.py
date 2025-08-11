@@ -41,7 +41,9 @@ class DroneBasic:
         rospy.Subscriber('/xuanwu/tag_detections', AprilTagDetectionArray, self._callback_tag_info)
 
         self.pub_drone_nav = rospy.Publisher(self.robot_ns + '/uav/nav', FlightNav, queue_size=10)
-        self.pub_drone_target = rospy.Publisher(self.robot_ns + '/target_pose', PoseStamped, queue_size=10)
+        self.pub_drone_target = rospy.Publisher(self.robot_ns + '/target_pose/info', PoseStamped, queue_size=10)
+        self.pub_drone_target_trigger = rospy.Publisher(self.robot_ns + '/target_pose/trigger', Empty, queue_size=10)
+
         self.pub_drone_start = rospy.Publisher(self.robot_ns + '/teleop_command/start', Empty, queue_size=10)
         self.pub_drone_add_module_trigger = rospy.Publisher(self.robot_ns + '/add_extra_module/trigger', Empty, queue_size=10)
         self.pub_drone_remove_module_trigger = rospy.Publisher(self.robot_ns + '/remove_extra_module/trigger', Empty, queue_size=10)
@@ -145,8 +147,15 @@ class DroneBasic:
         drone_target_pose.pose.orientation.y = oy
         drone_target_pose.pose.orientation.z = oz
         drone_target_pose.pose.orientation.w = ow
-        time.sleep(0.5)
+        time.sleep(0.1)
         self.pub_drone_target.publish(drone_target_pose)
+        time.sleep(0.3)
+        self.drone_target_trigger()
+
+    def drone_target_trigger(self):
+        time.sleep(0.1)
+        empty_msg = Empty()
+        self.pub_drone_target_trigger.publish(empty_msg)
 
     def record_takeoff_position(self, x, y, z, yaw):
         self.takeoff_x = x
