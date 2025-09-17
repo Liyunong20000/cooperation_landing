@@ -4,6 +4,10 @@ from AprilmoveQilin import *
 from drone_basic_function import DroneBasic
 from dog_basic_function import DogBasic
 from std_msgs.msg import Empty, UInt8
+import rospy, time
+import numpy as np
+import tf.transformations as tft
+
 # It is for  the Coopration for xuanwu and Qilin
 
 class AprillandqilinNode:
@@ -15,7 +19,6 @@ class AprillandqilinNode:
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
         self.alignment_counter = 0
         self.required_frames = 10
-        self.last_tag_time = rospy.Time.now(), rospy.Time.now()
         self.aligned = False
         self.pause_when_lost = rospy.Duration(1)
         self.drone_pose_matrix = []
@@ -26,8 +29,6 @@ class AprillandqilinNode:
         self.aqm = AprilmoveqilinNode()
         # Subscribe and publish.
         # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
-
-        self.pub_event = rospy.Publisher('/uavandgr/event', UInt8, queue_size=10)
 
 
     def is_alignment_success(self, T):
@@ -44,7 +45,7 @@ class AprillandqilinNode:
 
         # q = tft.quaternion_from_matrix(T)
         # _, _, yaw = tft.euler_from_quaternion(q)
-        return (dist < 0.03) and (abs(yaw) < 0.15)
+        return (dist < 0.03) and (abs(yaw) < 0.05)
 
     def check_and_land(self):
         self.aqm.align_dog_with_drone()
@@ -75,7 +76,12 @@ if __name__ == '__main__':
     try:
         node = AprillandqilinNode()
         node.dog_basic.stand()
-        time.sleep(3)
+        rospy.sleep(0.5)
+        # node.drone_basic.record_takeoff_position(node.drone_basic.drone_x, node.drone_basic.drone_y, node.drone_basic.drone_z, node.drone_basic.drone_yaw)
+        # time.sleep(3)
+        # node.drone_basic.drone_start()
+        # node.drone_basic.drone_takeoff()
+        # node.drone_basic.drone_target()
         node.run()
     except rospy.ROSInterruptException:
         pass

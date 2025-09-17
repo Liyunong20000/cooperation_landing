@@ -124,7 +124,7 @@ class AprilmoveqilinNode:
 
         return T_avg
 
-    def filter_and_average_tags(self, T_list, sigma=1.0):
+    def filter_and_average_tags(self, T_list, sigma=1.5):
         if not T_list:
             return None
 
@@ -144,37 +144,79 @@ class AprilmoveqilinNode:
         filtered_T = [T_list[i] for i in keep_indices]
         return self.average_with_svd(filtered_T)
 
-    def find_drone_center(self, data):
-        drone_world_matrices = []
+    # def find_drone_center(self, data):
+    #     drone_world_matrices = []
+    #
+    #     for tag_id in range(1):  # IDs 0 to 7
+    #         T_camera_2_tag = self.find_target_tag(data, tag_id)
+    #         # Check if tag detected
+    #         if not isinstance(T_camera_2_tag, np.ndarray) or T_camera_2_tag.shape != (4, 4):
+    #             continue
+    #
+    #         # Get static transform from tag to drone center
+    #         attr_name = f"tags_{tag_id}_matrix"
+    #         T_tag_2_drone = getattr(self, attr_name, None)
+    #
+    #         if not isinstance(T_tag_2_drone, np.ndarray) or T_tag_2_drone.shape != (4, 4):
+    #             print(f"No static transform for tag {tag_id}")
+    #             continue
+    #
+    #         # Compute drone pose in world frame
+    #         T_camera_2_drone = T_camera_2_tag @ T_tag_2_drone
+    #         drone_world_matrices.append(T_camera_2_drone)
+    #         # print(f'{drone_world_matrices}')
+    #     if not drone_world_matrices:
+    #         print("No valid drone tag detections")
+    #         return None
+    #     # print(f'{self.average_with_svd(drone_world_matrices)}')
+    #     # return self.average_with_svd(drone_world_matrices)
+    #     # T = self.filter_and_average_tags(drone_world_matrices, sigma = 1.5)
+    #     # print(f'{T}')
+    #     # return self.filter_and_average_tags(drone_world_matrices, sigma=1.5)
+    #     return T_camera_2_drone
+    def find_drone_center(self, data, yaw_source_id=0, max_pair_gap=0.25):
 
-        for tag_id in range(1):  # IDs 0 to 7
-            T_camera_2_tag = self.find_target_tag(data, tag_id)
-            # Check if tag detected
-            if not isinstance(T_camera_2_tag, np.ndarray) or T_camera_2_tag.shape != (4, 4):
-                continue
 
-            # Get static transform from tag to drone center
-            attr_name = f"tags_{tag_id}_matrix"
-            T_tag_2_drone = getattr(self, attr_name, None)
+        def cam_to_drone(tag_id):
+            T_cam_tag = self.find_target_tag(data, tag_id)
+            if not (isinstance(T_cam_tag, np.ndarray) and T_cam_tag.shape == (4, 4)):
+                return None
+            T_tag_drone = getattr(self, f"tags_{tag_id}_matrix", None)
+            if not (isinstance(T_tag_drone, np.ndarray) and T_tag_drone.shape == (4, 4)):
+                return None
+            return T_cam_tag @ T_tag_drone
 
-            if not isinstance(T_tag_2_drone, np.ndarray) or T_tag_2_drone.shape != (4, 4):
-                print(f"No static transform for tag {tag_id}")
-                continue
+        T0 = cam_to_drone(0)
+        T1 = cam_to_drone(1)
 
-            # Compute drone pose in world frame
-            T_camera_2_drone = T_camera_2_tag @ T_tag_2_drone  
-            drone_world_matrices.append(T_camera_2_drone)
-            # print(f'{drone_world_matrices}')
-        if not drone_world_matrices:
-            print("No valid drone tag detections")
+        if T0 is None and T1 is None:
             return None
-        # print(f'{self.average_with_svd(drone_world_matrices)}')
-        # return self.average_with_svd(drone_world_matrices)
-        # T = self.filter_and_average_tags(drone_world_matrices, sigma = 1.0)
-        # print(f'{T}')
-        # return self.filter_and_average_tags(drone_world_matrices, sigma=1.0)
+
+        if T0 is None:
+            return T1
+        if T1 is None:
+            return T0
+
+        p0 = T0[:3, 3]
+        p1 = T1[:3, 3]
+
+        if np.linalg.norm(p0 - p1) > max_pair_gap:
+            choose_T = T0 if np.linalg.norm(p0) < np.linalg.norm(p1) else T1
+            return choose_T
+
+        p_avg = 0.5 * (p0 + p1)
+
+        if yaw_source_id == 0 and T0 is not None:
+            R = T0[:3, :3]
+        elif yaw_source_id == 1 and T1 is not None:
+            R = T1[:3, :3]
+        else:
+            R = T0[:3, :3]
+
+        T_camera_2_drone = np.eye(4)
+        T_camera_2_drone[:3, :3] = R
+        T_camera_2_drone[:3, 3] = p_avg
         return T_camera_2_drone
-    
     def align_dog_with_drone(self):
         if self.msg_apriltag is None:
             rospy.logwarn("No AprilTag message yet.")
@@ -184,7 +226,7 @@ class AprilmoveqilinNode:
         
         if T_drone_center is None:
         # Check if it's been too long since last detection
-            if (rospy.Time.now() - self.last_tag_time) > rospy.Duration(0.5):
+            if (rospy.Time.now() - self.last_tag_time) > rospy.Duration(1):
                 rospy.logwarn("Tag lost for >0.5s. Stopping dog.")
                 self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
             return
@@ -199,7 +241,7 @@ class AprilmoveqilinNode:
         # self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ self.find_target_tag(self.msg_apriltag, 0)
         # print(f'{self.dog_align_drone_matrix}')
         if (self.dog_align_drone_matrix[0, 3] < 0.5) or (self.dog_align_drone_matrix[1, 3] < 0.5):
-            self.move_param = 1.15
+            self.move_param = 1.2
         else:
             self.move_param = 1
         lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -1, 1)
@@ -217,9 +259,8 @@ class AprilmoveqilinNode:
         self.smoothed_lx = (1- self.smooth_alpha) * self.smoothed_lx + self.smooth_alpha * lx
         self.smoothed_ly = (1- self.smooth_alpha) * self.smoothed_ly + self.smooth_alpha * ly
         self.smoothed_ryaw = (1- self.smooth_alpha) * self.smoothed_ryaw + self.smooth_alpha * ryaw
-        # print(f'{self.smoothed_lx},{self.smoothed_ly},{self.smoothed_ryaw}')
-        # self.dog_basic_function.qilin_cmd_vel(self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw)
         self.dog_basic_function.qilin_cmd_vel(self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw)
+        self.dog_basic_function.qilin_cmd_vel(lx, ly, 0, 0, ryaw)
 
 if __name__ == '__main__':
     rospy.init_node('Aprilmoveqilin', anonymous=True)
