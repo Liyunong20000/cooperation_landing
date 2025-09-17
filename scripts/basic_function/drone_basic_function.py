@@ -149,7 +149,7 @@ class DroneBasic:
         drone_target_pose.pose.orientation.w = ow
         time.sleep(0.1)
         self.pub_drone_target.publish(drone_target_pose)
-        time.sleep(0.3)
+        time.sleep(0.2)
         self.drone_target_trigger()
 
     def drone_target_trigger(self):
