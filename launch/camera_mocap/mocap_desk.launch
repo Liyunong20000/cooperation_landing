@@ -1,0 +1,11 @@
+<launch>
+
+  <arg name="robot_id" default="4"/>
+  <arg name="mocap_1" default="desk"/>
+    <!--   mocap brick-->
+  <group ns="$(arg mocap_1)">
+    <include file="$(find cooperation_landing)/launch/camera_mocap/mocap.launch">
+        <arg name="robot_id" value="4"/>
+    </include>
+  </group>
+</launch>
