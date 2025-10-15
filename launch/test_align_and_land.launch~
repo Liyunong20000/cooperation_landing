@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <!-- Load parameters -->
+  <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
+  <rosparam file="$(find cooperation_landing)/config/DroneTagsMatrix.yaml" command="load" />
+  <rosparam file="$(find cooperation_landing)/config/LandingInfo.yaml" command="load" />
+
+  <!-- Launch your node -->
+  <node pkg="cooperation_landing" type="AprillandQilin.py" name="align_dog_drone" output="screen" respawn="false" />
+</launch>
