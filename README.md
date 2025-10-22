@@ -8,6 +8,8 @@ rosdep update
 wstool init src
 cd src/
 git clone git@github.com:Liyunong20000/cooperation_landing.git
+cd cooperation_landing/
+git switch -t origin/develop/xuanwu_bricks
 wstool merge -t src src/cooperation_landing/${ROS_DISTRO}.rosinstall
 wstool update -t src
 rosdep install -y -r --from-paths src --ignore-src --rosdistro $ROS_DISTRO
