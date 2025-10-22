@@ -23,3 +23,4 @@ wstool update -t src
 rosdep install -y -r --from-paths src --ignore-src --rosdistro $ROS_DISTRO
 catkin build
 ```
+ **Full documentation is available in the [Wiki](https://github.com/Liyunong20000/cooperation_landing/wiki).**
