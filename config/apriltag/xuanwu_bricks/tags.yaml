@@ -5,10 +5,10 @@ standalone_tags:
   {id: 2, size: 0.0395, name: drone_gripper_left},
   {id: 3, size: 0.0395, name: drone_gripper_right},
 
-  {id: 11, size: 0.155, name: cube_pick},
-  {id: 12, size: 0.155, name: cube_put_floor},
-  {id: 13, size: 0.155, name: cube_pick_desk_1},
-  {id: 14, size: 0.155, name: cube_pick_desk_2},
+  {id: 11, size: 0.160, name: cube_pick},
+  {id: 12, size: 0.160, name: cube_put_floor},
+  {id: 13, size: 0.160, name: cube_pick_desk_1},
+  {id: 14, size: 0.160, name: cube_pick_desk_2},
   ]
 # ## Tag bundle definitions
 # ### Remarks
