@@ -19,9 +19,9 @@ from tf.tfwtf import rostime_delta
 from aerial_robot_msgs.msg import FlightNav
 from apriltag_ros.msg import AprilTagDetectionArray
 
-from basic_function.basic_function import *
-from basic_function.dog_basic_function import *
-from basic_function.drone_basic_function import *
+from basic_function import *
+from dog_basic_function import *
+from drone_basic_function import *
 from gripper.gripper_move import *
 # from simulation.sim_basic import *
 # from simulation.sim_links_attachment import *
@@ -118,15 +118,15 @@ class TargetSearch(smach.State):
             self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
             rospy.loginfo(f'find tag')
 
-            while abs(self.drone_basic.tag_target_z - 1.18) > 0.01 or abs(self.drone_basic.tag_target_x + 0.02) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
+            while abs(self.drone_basic.tag_target_z - 0.93) > 0.01 or abs(self.drone_basic.tag_target_x - 0.01) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
                 # if self.drone_basic.tag_info == 0:
                 #     rospy.logwarn("No tag detections.")
                 #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 #     return
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 1.18), - 0.8 * (self.drone_basic.tag_target_x+ 0.02), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
+                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.93), - 0.8 * (self.drone_basic.tag_target_x - 0.01), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
                 time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - 1.18) < 0.05) and (abs(-0.8 * (self.drone_basic.tag_target_x+ 0.02)) < 0.05) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+                if (0.2 * (self.drone_basic.tag_target_z - 0.93) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x - 0.01)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
             # while abs(self.drone_basic.tag_target_x + 0.15) > 0.01:
             #     self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
