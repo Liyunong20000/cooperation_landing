@@ -118,15 +118,15 @@ class TargetSearch(smach.State):
             self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
             rospy.loginfo(f'find tag')
 
-            while abs(self.drone_basic.tag_target_z - 0.84) > 0.01 or abs(self.drone_basic.tag_target_x + 0.05) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
+            while abs(self.drone_basic.tag_target_z - 0.87) > 0.01 or abs(self.drone_basic.tag_target_x + 0.03) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
                 # if self.drone_basic.tag_info == 0:
                 #     rospy.logwarn("No tag detections.")
                 #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 #     return
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.84), - 0.8 * (self.drone_basic.tag_target_x + 0.05), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
+                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.87), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
                 time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - 0.84) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.05)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+                if (0.2 * (self.drone_basic.tag_target_z - 0.87) < 0.02) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
             # while abs(self.drone_basic.tag_target_x + 0.15) > 0.01:
             #     self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
@@ -209,8 +209,7 @@ class Pick(smach.State):
             self.sim_basic.call_add_extra_module(1, "brick", "main_body")
 
         if self.rm == 1:
-            a = 1
-            # self.gripper_move.servo_target_cmd_qilin(0, 1600)
+            self.gripper_move.servo_target_cmd_qilin(0, -10)
             #
             # self.user_input = input()
             # if self.user_input == 'y':
@@ -218,7 +217,7 @@ class Pick(smach.State):
             #     self.gripper_move.servo_target_cmd_qilin(0,1150)
             #     rospy.sleep(5)
             #     # self.drone_basic.call_add_extra_module(1,"brick", "main_body")
-            #     self.dog_basic.stand()
+            self.dog_basic.stand()
 
         return 'succeeded'
 
