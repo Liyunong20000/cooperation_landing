@@ -209,8 +209,9 @@ class Pick(smach.State):
             self.sim_basic.call_add_extra_module(1, "brick", "main_body")
 
         if self.rm == 1:
+            rospy.sleep(0.1)
             self.gripper_move.servo_target_cmd_qilin(0, -10)
-            #
+            rospy.sleep(2)
             # self.user_input = input()
             # if self.user_input == 'y':
             #     print(f'yes')
