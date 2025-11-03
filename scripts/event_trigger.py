@@ -85,12 +85,14 @@ class EventtriggerNode:
         print(f"pub")
 
     def _callback_servo_target_states_info(self, msg):
+        if msg.index[0] == None:
+            return
         self.servo_index = msg.index[0]
         self.servo_angle = int(msg.angles[0])
         # print(f'{self.servo_index} {self.servo_angle}')
 
     def _callback_servo_target_states_trigger(self, msg):
-        rospy.sleep(0.1)
+        rospy.sleep(0.5)
         self.gripper_move.servo_target_cmd(self.servo_index, self.servo_angle)
 
     def _callback_servo_return_trigger(self, msg):

@@ -48,7 +48,7 @@ class TargetSearch(smach.State):
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
-        self.gripper_move = GripperMoveNode
+        self.gripper_move = GripperMoveNode()
         # self.drone_basic_sim = DroneBasicSim()
         # self.sim_basic = SimbasicNode()
 
@@ -126,7 +126,7 @@ class TargetSearch(smach.State):
                 #     return
                 self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.87), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
                 time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - 0.87) < 0.02) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+                if (0.2 * (self.drone_basic.tag_target_z - 0.87) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
             # while abs(self.drone_basic.tag_target_x + 0.15) > 0.01:
             #     self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
@@ -138,7 +138,9 @@ class TargetSearch(smach.State):
             #     print(f'I got it!')
             time.sleep(0.1)
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            time.sleep(1)
+            time.sleep(0.1)
+            self.gripper_move.servo_target_cmd_qilin(0, 1400) 
+            rospy.sleep(2)
             self.dog_basic.sit()
             time.sleep(3)
             # while abs(self.drone_basic.tag_target_pitch) > 0.05:
@@ -209,9 +211,9 @@ class Pick(smach.State):
             self.sim_basic.call_add_extra_module(1, "brick", "main_body")
 
         if self.rm == 1:
-            rospy.sleep(0.1)
-            self.gripper_move.servo_target_cmd_qilin(0, -10)
-            rospy.sleep(2)
+            rospy.sleep(0.5)
+            self.gripper_move.servo_target_cmd_qilin(0, 80)
+            rospy.sleep(3)
             # self.user_input = input()
             # if self.user_input == 'y':
             #     print(f'yes')
