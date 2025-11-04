@@ -32,13 +32,15 @@ class Start(smach.State):
 
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
         self.dog_basic = DogBasic()
-
+        self.gripper_move = GripperMoveNode()
         self.rm = 0
 
     def execute(self, userdata):
         self.rm = userdata.rm
         if self.rm == 1:
             self.dog_basic.stand()
+            self.gripper_move.servo_target_cmd_qilin(0, 1400) 
+            rospy.sleep(0.1)
         print(f'pass begin.')
         return 'succeeded'
 
@@ -118,15 +120,15 @@ class TargetSearch(smach.State):
             self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
             rospy.loginfo(f'find tag')
 
-            while abs(self.drone_basic.tag_target_z - 0.87) > 0.01 or abs(self.drone_basic.tag_target_x + 0.03) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
+            while abs(self.drone_basic.tag_target_z - 0.86) > 0.01 or abs(self.drone_basic.tag_target_x + 0.03) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
                 # if self.drone_basic.tag_info == 0:
                 #     rospy.logwarn("No tag detections.")
                 #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 #     return
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.87), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
+                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.86), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
                 time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - 0.87) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+                if (0.2 * (self.drone_basic.tag_target_z - 0.86) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
             # while abs(self.drone_basic.tag_target_x + 0.15) > 0.01:
             #     self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
@@ -139,8 +141,6 @@ class TargetSearch(smach.State):
             time.sleep(0.1)
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
             time.sleep(0.1)
-            self.gripper_move.servo_target_cmd_qilin(0, 1400) 
-            rospy.sleep(2)
             self.dog_basic.sit()
             time.sleep(3)
             # while abs(self.drone_basic.tag_target_pitch) > 0.05:
@@ -212,7 +212,7 @@ class Pick(smach.State):
 
         if self.rm == 1:
             rospy.sleep(0.5)
-            self.gripper_move.servo_target_cmd_qilin(0, 80)
+            self.gripper_move.servo_target_cmd_qilin(0, 180)
             rospy.sleep(3)
             # self.user_input = input()
             # if self.user_input == 'y':
@@ -286,6 +286,22 @@ class MoveDestination(smach.State):
         #     userdata.put_position = self.put_position
         if self.rm == 1:
             rospy.sleep(0.1)
+            while self.drone_basic.drone_y > 0.5:
+                self.dog_basic.qilin_cmd_vel(-0.3, 0, 0, 0, 0)
+                time.sleep(0.1)
+                print(f'{self.drone_basic.drone_x}')
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+            while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
+                if (self.drone_basic.drone_yaw + 1.57) > 0:
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.1*(self.drone_basic.drone_yaw + 1.57))
+                if (self.drone_basic.drone_yaw + 1.57) < 0:
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -0.3*(self.drone_basic.drone_yaw + 1.57))
+                time.sleep(0.1)
+                if abs(self.drone_basic.drone_yaw + 1.57) < 0.02:
+                    break
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+           
             self.drone_basic.add_module_trigger()
 
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
