@@ -85,7 +85,8 @@ class EventtriggerNode:
         print(f"pub")
 
     def _callback_servo_target_states_info(self, msg):
-        if msg.index[0] == None:
+        if not msg.index:
+            rospy.logwarn("Received empty msg.index — skipping this message")
             return
         self.servo_index = msg.index[0]
         self.servo_angle = int(msg.angles[0])
