@@ -120,15 +120,15 @@ class TargetSearch(smach.State):
             self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
             rospy.loginfo(f'find tag')
 
-            while abs(self.drone_basic.tag_target_z - 0.86) > 0.01 or abs(self.drone_basic.tag_target_x + 0.03) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
+            while abs(self.drone_basic.tag_target_z - 0.88) > 0.01 or abs(self.drone_basic.tag_target_x + 0.03) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
                 # if self.drone_basic.tag_info == 0:
                 #     rospy.logwarn("No tag detections.")
                 #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 #     return
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.86), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
+                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.88), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
                 time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - 0.86) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+                if (0.2 * (self.drone_basic.tag_target_z - 0.88) < 0.03) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
             # while abs(self.drone_basic.tag_target_x + 0.15) > 0.01:
             #     self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
@@ -140,7 +140,7 @@ class TargetSearch(smach.State):
             #     print(f'I got it!')
             time.sleep(0.1)
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            time.sleep(0.1)
+            time.sleep(1)
             self.dog_basic.sit()
             time.sleep(3)
             # while abs(self.drone_basic.tag_target_pitch) > 0.05:
