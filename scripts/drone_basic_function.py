@@ -52,6 +52,7 @@ class DroneBasic:
 
         self.extra_module = rospy.ServiceProxy('/xuanwu/add_extra_module', AddExtraModule)
 
+    # Get the drone position from ~/uav/cog/odom
     def _callback_drone_position(self, msg):
         self.drone_x = msg.pose.pose.position.x
         self.drone_y = msg.pose.pose.position.y
@@ -63,13 +64,14 @@ class DroneBasic:
         self.drone_roll = tft.euler_from_quaternion([self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw])[0]
         self.drone_pitch = tft.euler_from_quaternion([self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw])[1]
         self.drone_yaw = tft.euler_from_quaternion([self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw])[2]
-
+    # Get the drone state
     def _callback_drone_state(self, msg):
         self.drone_state = msg.data
 
     def _callback_tag_info(self, msg):
         self.tag_info = msg
         # print(f'self.tag_info: {self.tag_info}')
+    # Get the tag info and value the variable
     def tag_position(self,data,target_id):
         for det in data.detections:
             # print(f'{det}')
@@ -92,25 +94,25 @@ class DroneBasic:
 
         # print(f'x:{self.tag_target_x},y: {self.tag_target_y},z: {self.tag_target_z}')
         # print(f'x:{self.tag_target_roll},y: {self.tag_target_pitch},z: {self.tag_target_yaw}')
-
+    # arming the drone
     def drone_start(self):  # Use to takeoff
         time.sleep(0.5)
         rospy.loginfo("Publishing start command...")
         empty_msg = Empty()
         self.pub_drone_start.publish(empty_msg)
-
+    # Takeoff the drone
     def drone_takeoff(self):  # Use to takeoff
         time.sleep(0.5)
         rospy.loginfo("Publishing takeoff command...")
         empty_msg = Empty()
         self.pub_drone_takeoff.publish(empty_msg)
-
+    # Land the drone
     def drone_land(self):  # Use to land
         time.sleep(0.5)
         rospy.loginfo("Publishing land command...")
         empty_msg = Empty()
         self.pub_drone_land.publish(empty_msg)
-
+    # Drone navigation by /uav/nav topic
     def drone_nav(self, x, y, z):
         flight_nav_msg = FlightNav()
         # flight_nav_msg.header.seq = self._seq
@@ -136,7 +138,7 @@ class DroneBasic:
         flight_nav_msg.target_pos_diff_z = 0.0
 
         self.pub_drone_nav.publish(flight_nav_msg)
-
+    # Drone navigation by /drone_ns/target_pose topic
     def drone_target(self, frame, x,y,z,ox,oy,oz,ow):
         drone_target_pose = PoseStamped()
         drone_target_pose.header.frame_id = frame
@@ -151,19 +153,19 @@ class DroneBasic:
         self.pub_drone_target.publish(drone_target_pose)
         time.sleep(0.2)
         self.drone_target_trigger()
-
+    # Send the trigger of navigation
     def drone_target_trigger(self):
         time.sleep(0.1)
         empty_msg = Empty()
         self.pub_drone_target_trigger.publish(empty_msg)
-
+    # The function used to record takeoff position
     def record_takeoff_position(self, x, y, z, yaw):
         self.takeoff_x = x
         self.takeoff_y = y
         self.takeoff_z = z
         self.takeoff_yaw = yaw
         # print(f'takeoff position:{self.takeoff_x}, {self.takeoff_y},{self.takeoff_z}, {self.takeoff_yaw}')
-
+    # After grasping some objects, add the module for the drone to calculate
     def call_add_extra_module(self, action, module_name, parent_link_name):
         try:
             transform = Transform()
@@ -200,11 +202,12 @@ class DroneBasic:
             print("Service call failed:", e)
             return None
 
+    # Trigger of the drone to add an extra module
     def add_module_trigger(self):
         time.sleep(0.1)
         empty_msg = Empty()
         self.pub_drone_add_module_trigger.publish(empty_msg)
-
+    # Trigger of the drone to remove the extra module
     def remove_module_trigger(self):
         time.sleep(0.1)
         empty_msg = Empty()

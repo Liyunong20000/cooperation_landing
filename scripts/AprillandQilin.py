@@ -37,9 +37,11 @@ class AprillandqilinNode:
         pos = T[:3, 3]
         x, y, _ = pos
         dist = np.linalg.norm([x, y])
+        # Check the tag data
         if not isinstance(self.aqm.find_target_tag(self.aqm.msg_apriltag, 0), np.ndarray) or self.aqm.find_target_tag(self.aqm.msg_apriltag, 0).shape != (4, 4):
             rospy.logwarn("Tag 0 not found or invalid transform.")
             return
+        # Get the quaternion data from tag and transfer them into roll, pitch, yaw euler angle
         q = tft.quaternion_from_matrix(self.aqm.find_target_tag(self.aqm.msg_apriltag, 0))
         roll, pitch, yaw = tft.euler_from_quaternion(q)
 
@@ -57,7 +59,7 @@ class AprillandqilinNode:
         if T is not None and self.is_alignment_success(T):
             self.alignment_counter += 1
             rospy.loginfo_throttle(1.0, f"Alignment frame count: {self.alignment_counter}")
-
+            # If the drone haven`t land off and the alignment counter is enough, the drone will land off
             if self.alignment_counter >= self.required_frames and not self.aligned:
                 rospy.loginfo("Alignment held for sufficient frames. Landing drone.")
                 print('I will land')

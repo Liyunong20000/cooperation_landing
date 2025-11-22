@@ -25,12 +25,12 @@ class AprilmoveqilinNode:
         self.smoothed_ryaw = 0
         self.smooth_alpha = 0.5
         
-        # Subscribe and publish.
+        # Subscribe the tag_detection topic of dog camera.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
-
+        # Pub the velocity command for dog
         self.pub_qilin_vel= rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
 
-        # Load the parameter
+        # Load the parameter for landing process
         self.drone_tags_matrix_param = rospy.get_param("/drone_tags_matrix")
         self.origin_2_camera_matrix_param = np.array(rospy.get_param("/camera_drone_matrix")).reshape((4, 4))
         self.drone_tags_matrix()
@@ -46,6 +46,8 @@ class AprilmoveqilinNode:
 
     def _callback_apriltag(self, msg):
         self.msg_apriltag = msg
+
+    # Get the RT matrix of each tags from drone center
     def drone_tags_matrix(self):
         for entry in self.drone_tags_matrix_param:
             tag_id = entry.get("id")
@@ -67,11 +69,7 @@ class AprilmoveqilinNode:
             attr_name = f"tags_{tag_id}_matrix"
             setattr(self, attr_name, matrix_np)
 
-            # Use or print
-            # print(f"Set self.{attr_name}:\n{matrix_np}")
-            # print(f"ID: {tag_id}, Name: {name}")
-            # print(matrix_np)
-
+    # The function for getting target tag info
     def find_target_tag(self,data,target_id):
         T = 0
         # print(f'11111111')
@@ -83,8 +81,8 @@ class AprilmoveqilinNode:
             # print(f'{det.id}')
             if target_id in det.id:
                 pose = det.pose.pose.pose
-                x =  pose.position.x
-                y =  pose.position.y
+                x = pose.position.x
+                y = pose.position.y
                 z = pose.position.z
                 qx = pose.orientation.x
                 qy = pose.orientation.y
@@ -98,51 +96,51 @@ class AprilmoveqilinNode:
                 # print(f'{T}')
                 return T
 
-    def average_with_svd(self, T_list):
-        translations = []
-        rotations = []
-
-        for T in T_list:
-            R = T[:3, :3]
-            t = T[:3, 3]
-            rotations.append(R)
-            translations.append(t)
-
-        t_avg = np.mean(translations, axis=0)
-
-        R_avg_raw = np.mean(rotations, axis=0)
-        U, _, Vt = np.linalg.svd(R_avg_raw)
-        R_avg = U @ Vt
-
-        if np.linalg.det(R_avg) < 0:
-            U[:, -1] *= -1
-            R_avg = U @ Vt
-
-        T_avg = np.eye(4)
-        T_avg[:3, :3] = R_avg
-        T_avg[:3, 3] = t_avg
-
-        return T_avg
-
-    def filter_and_average_tags(self, T_list, sigma=1.5):
-        if not T_list:
-            return None
-
-        translations = np.array([T[:3, 3] for T in T_list])
-        rotations = [T[:3, :3] for T in T_list]
-
-        t_mean = np.mean(translations, axis=0)
-        dists = np.linalg.norm(translations - t_mean, axis=1)
-
-        std = np.std(dists)
-        keep_indices = np.where(dists < sigma * std)[0]
-
-        if len(keep_indices) == 0:
-            rospy.logwarn("All tag transforms are outliers, fallback to full average.")
-            return self.average_with_svd(T_list)
-
-        filtered_T = [T_list[i] for i in keep_indices]
-        return self.average_with_svd(filtered_T)
+    # def average_with_svd(self, T_list):
+    #     translations = []
+    #     rotations = []
+    #
+    #     for T in T_list:
+    #         R = T[:3, :3]
+    #         t = T[:3, 3]
+    #         rotations.append(R)
+    #         translations.append(t)
+    #
+    #     t_avg = np.mean(translations, axis=0)
+    #
+    #     R_avg_raw = np.mean(rotations, axis=0)
+    #     U, _, Vt = np.linalg.svd(R_avg_raw)
+    #     R_avg = U @ Vt
+    #
+    #     if np.linalg.det(R_avg) < 0:
+    #         U[:, -1] *= -1
+    #         R_avg = U @ Vt
+    #
+    #     T_avg = np.eye(4)
+    #     T_avg[:3, :3] = R_avg
+    #     T_avg[:3, 3] = t_avg
+    #
+    #     return T_avg
+    #
+    # def filter_and_average_tags(self, T_list, sigma=1.5):
+    #     if not T_list:
+    #         return None
+    #
+    #     translations = np.array([T[:3, 3] for T in T_list])
+    #     rotations = [T[:3, :3] for T in T_list]
+    #
+    #     t_mean = np.mean(translations, axis=0)
+    #     dists = np.linalg.norm(translations - t_mean, axis=1)
+    #
+    #     std = np.std(dists)
+    #     keep_indices = np.where(dists < sigma * std)[0]
+    #
+    #     if len(keep_indices) == 0:
+    #         rospy.logwarn("All tag transforms are outliers, fallback to full average.")
+    #         return self.average_with_svd(T_list)
+    #
+    #     filtered_T = [T_list[i] for i in keep_indices]
+    #     return self.average_with_svd(filtered_T)
 
     # def find_drone_center(self, data):
     #     drone_world_matrices = []
@@ -174,9 +172,13 @@ class AprilmoveqilinNode:
     #     # print(f'{T}')
     #     # return self.filter_and_average_tags(drone_world_matrices, sigma=1.5)
     #     return T_camera_2_drone
+
+    #
+
+    # Avage the position and follow the orientation of tag 0 or tag 1
     def find_drone_center(self, data, yaw_source_id=0, max_pair_gap=0.25):
 
-
+        # Calculate the rotation metrix from drone center --> tag --> camera of dog
         def cam_to_drone(tag_id):
             T_cam_tag = self.find_target_tag(data, tag_id)
             if not (isinstance(T_cam_tag, np.ndarray) and T_cam_tag.shape == (4, 4)):
@@ -186,6 +188,7 @@ class AprilmoveqilinNode:
                 return None
             return T_cam_tag @ T_tag_drone
 
+        # Get the metrix of tag 0 and tag 1
         T0 = cam_to_drone(0)
         T1 = cam_to_drone(1)
 
@@ -221,7 +224,7 @@ class AprilmoveqilinNode:
         if self.msg_apriltag is None:
             rospy.logwarn("No AprilTag message yet.")
             return
-
+        # Include the topic of apriltag detection and find the center
         T_drone_center = self.find_drone_center(self.msg_apriltag)
         
         if T_drone_center is None:
@@ -255,6 +258,7 @@ class AprilmoveqilinNode:
         roll, pitch, yaw = tft.euler_from_quaternion(q)
         ryaw = np.clip((self.rotate_param * yaw), -0.3, 0.3)
         # print(f'{lx}, {ly}, {ryaw}')
+
 
         self.smoothed_lx = (1- self.smooth_alpha) * self.smoothed_lx + self.smooth_alpha * lx
         self.smoothed_ly = (1- self.smooth_alpha) * self.smoothed_ly + self.smooth_alpha * ly

@@ -21,9 +21,9 @@ class DogBasic:
 
         self.pub_qilin_vel= rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
         self.pub_qilin_pose = rospy.Publisher('/go1/body_pose', Pose, queue_size=10)
-
-        rospy.wait_for_service('/go1/sit')
-        rospy.wait_for_service('/go1/stand')
+        #
+        # rospy.wait_for_service('/go1/sit')
+        # rospy.wait_for_service('/go1/stand')
 
         self.service_client_sit = rospy.ServiceProxy('/go1/sit', Trigger)
         self.service_client_stand = rospy.ServiceProxy('/go1/stand', Trigger)
@@ -44,6 +44,7 @@ class DogBasic:
         self.correction_err_pitch, self.correction_err_roll, self.correction_err_yaw = 0.0, 0.0, 0.0
 
         self.basic= BasicNode()
+    # Function for sit
     def sit(self):
         try:
             response = self.service_client_sit()
@@ -53,7 +54,7 @@ class DogBasic:
                 rospy.logwarn('Stand command failed: %s', response.message)
         except rospy.ServiceException as e:
             rospy.logerr('Service call failed: %s', e)
-
+    # Function for stand
     def stand(self):
         try:
             response = self.service_client_stand()
@@ -63,7 +64,7 @@ class DogBasic:
                 rospy.logwarn('Stand command failed: %s', response.message)
         except rospy.ServiceException as e:
             rospy.logerr('Service call failed: %s', e)
-
+    # velocity command
     def qilin_cmd_vel(self, lx, ly, ax, ay, az):
         qilin_cmd_vel = Twist()
         qilin_cmd_vel.linear.x = lx
@@ -73,7 +74,7 @@ class DogBasic:
         qilin_cmd_vel.angular.z = az
 
         self.pub_qilin_vel.publish(qilin_cmd_vel)
-
+    # orientation command
     def qilin_body_pose(self, qx, qy, qz, qw):
         qilin_body_pose = Pose()
         qilin_body_pose.orientation.x = qx
@@ -82,7 +83,7 @@ class DogBasic:
         qilin_body_pose.orientation.w = qw
         rospy.sleep(0.1)
         self.pub_qilin_pose.publish(qilin_body_pose)
-
+    # Get the target id and value the variable
     def tag_position_correction_tag_13(self,data,target_id):
         for det in data.detections:
             # print(f'{det}')

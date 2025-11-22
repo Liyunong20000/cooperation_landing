@@ -64,7 +64,7 @@ class EventtriggerNode:
     #     self.yaw_nav_mode = msg.yaw_nav_mode
     #     self.target_omega_z = msg.target_omega_z
     #     self.target_yaw = msg.target_yaw
-
+    # Capture the navigation information from ~drone_ns/target_pose topic
     def _callback_target_pose_info(self, msg):
         self.target_x = msg.pose.position.x
         self.target_y = msg.pose.position.y
@@ -73,7 +73,7 @@ class EventtriggerNode:
         self.target_oy = msg.pose.orientation.y
         self.target_oz = msg.pose.orientation.z
         self.target_ow = msg.pose.orientation.w
-
+    # Trigger the target_pose navigation topic of drone
     def _callback_target_pose_trigger(self, msg):
         if self.target_x == 0 and self.target_y == 0 and self.target_z == 0:
             rospy.sleep(0.5)
@@ -83,24 +83,24 @@ class EventtriggerNode:
     def _callback_nav_trigger(self, msg):
         self.drone_nav_info(self.x_y_mode, self.target_x, self.target_y, self.z_mode, self.target_z,self.yaw_nav_mode, self.target_omega_z, self.target_yaw)
         print(f"pub")
-
+    # Get the /target_state_info from dog side
     def _callback_servo_target_states_info(self, msg):
         self.servo_index = msg.index
         self.servo_angle = msg.angles
         # print(f'{self.servo_index} {self.servo_angle}')
-
+    # If the trigger from dog side published, the trigger for drone side will respond
     def _callback_servo_target_states_trigger(self, msg):
         rospy.sleep(0.1)
         self.gripper_move.servo_target_cmd(0, 1150)
-
+    # Trigger for gripper to return zero point
     def _callback_servo_return_trigger(self, msg):
         rospy.sleep(0.2)
         self.gripper_move.return_zero()
-
+    # trigger for add extra module
     def _callback_add_module_trigger(self, msg):
         rospy.sleep(0.1)
         self.drone_basic.call_add_extra_module(1, 'brick', 'main_body')
-
+    # trigger for remove extra module
     def _callback_remove_module_trigger(self, msg):
         rospy.sleep(0.1)
         self.drone_basic.call_add_extra_module(-1, 'brick', 'main_body')
@@ -111,19 +111,7 @@ class EventtriggerNode:
     #     time.sleep(0.1)
     #     self.pub_servo_target.publish(servo_target_cmd)
     #     print(f'servo_target_cmd:{servo_target_cmd}')
-
-    def takeoff(self):
-        time.sleep(0.5)
-        rospy.loginfo("Publishing takeoff command...")
-        empty_msg = Empty()
-        self.pub_takeoff.publish(empty_msg)
-
-    # drone land
-    def land(self):
-        time.sleep(0.5)
-        rospy.loginfo("Publishing land command...")
-        empty_msg = Empty()
-        self.pub_land.publish(empty_msg)
+    #
 
     def drone_nav_info(self, x_y_mode, x, y, z_mode, z, yaw_mode, omega_z, yaw):
         flight_nav_msg = FlightNav()
