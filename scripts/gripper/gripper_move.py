@@ -21,8 +21,8 @@ class GripperMoveNode:
         self.servo_target_index = 0
         self.servo_target_angles = 0
         self.robot_ns = rospy.get_param("~robot_ns", "xuanwu")
-        self.servo_max_angles = rospy.get_param(self.robot_ns + '/servo_info/max_angles',1690)
-        self.servo_min_angles = rospy.get_param(self.robot_ns + '/servo_info/min_angles',900)
+        self.servo_max_angles = rospy.get_param(self.robot_ns + '/servo_info/max_angles',1400)
+        self.servo_min_angles = rospy.get_param(self.robot_ns + '/servo_info/min_angles',0)
         self.servo_max_load = rospy.get_param(self.robot_ns + '/servo_info/max_load',350)
         # Subscribe and publish.
         rospy.Subscriber(self.robot_ns + '/servo/states', ServoStates, self._callback_servo_states)
