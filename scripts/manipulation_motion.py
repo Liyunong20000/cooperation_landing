@@ -33,12 +33,12 @@ def main():
 
             smach.StateMachine.add('Pick', Pick(), transitions={'succeeded': 'finished'}, remapping={'rm': 'rm'})
 
-        smach.StateMachine.add('TargetPick', sm_target_pick,transitions={'finished': 'Finish'})
+        smach.StateMachine.add('TargetPick', sm_target_pick,transitions={'finished': 'TargetPut'})
 
-        # sm_target_put = smach.StateMachine(outcomes=['succeeded', 'failed'], input_keys=['rm'], output_keys=['put_position', 'takeoff_position'] )
+        sm_target_put = smach.StateMachine(outcomes=['succeeded', 'failed'], input_keys=['rm'], output_keys=['put_position', 'takeoff_position'] )
 
-        # with sm_target_put:
-        #     smach.StateMachine.add('MoveDestination', MoveDestination(),transitions={'succeeded': 'Takeoff', 'failed': 'failed'}, remapping={'rm': 'rm', 'put_position': 'put_position', 'desk_dimension': 'desk_dimension'})
+        with sm_target_put:
+            smach.StateMachine.add('MoveDestination', MoveDestination(),transitions={'succeeded': 'succeeded', 'failed': 'failed'}, remapping={'rm': 'rm', 'put_position': 'put_position', 'desk_dimension': 'desk_dimension'})
         #
         #     smach.StateMachine.add('Takeoff', Takeoff(),transitions={'succeeded': 'FlyTarget'},remapping={'rm': 'rm', 'takeoff_position': 'takeoff_position'})
         #
@@ -46,7 +46,7 @@ def main():
         #
         #     smach.StateMachine.add('Correction', Correction(),transitions={'succeeded': 'succeeded'},remapping={'rm': 'rm', 'put_position': 'put_position'})
         #
-        # smach.StateMachine.add('TargetPut', sm_target_put,transitions={'succeeded': 'Finish', 'failed': 'preempted'}, remapping={'takeoff_position': 'takeoff_position', 'target_position': 'target_position'})
+        smach.StateMachine.add('TargetPut', sm_target_put,transitions={'succeeded': 'Finish', 'failed': 'preempted'}, remapping={'takeoff_position': 'takeoff_position', 'target_position': 'target_position'})
 
 
         # sm_precise_landing = smach.StateMachine(outcomes=['succeeded'], input_keys=['takeoff_position', 'rm'])
