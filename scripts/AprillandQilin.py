@@ -68,7 +68,18 @@ class AprillandqilinNode:
         else:
             self.alignment_counter = 0
             self.aligned = False
-
+    def demo(self):
+        self.drone_basic.record_takeoff_position(self.drone_basic.drone_x, self.drone_basic.drone_y, self.drone_basic.drone_z, self.drone_basic.drone_yaw)
+        time.sleep(1)
+        # self.drone_basic.drone_start()
+        # self.drone_basic.drone_takeoff()
+        # while self.drone_basic.drone_state != 5:
+        #     time.sleep(0.1)
+        self.drone_basic.drone_target('world', -2, 1, 1.0, 0, 0, 0, 1)
+        time.sleep(5)
+        self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, 1.0, 0, 0, 0, 1)
+        time.sleep(5)
+        self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.drone_basic.takeoff_z + 0.2, 0, 0, 0, 1)
     def run(self):
         rate = rospy.Rate(10)  # 10 Hz
         while not rospy.is_shutdown():
@@ -79,16 +90,7 @@ if __name__ == '__main__':
         node = AprillandqilinNode()
         node.dog_basic.stand()
         rospy.sleep(0.5)
-        node.drone_basic.record_takeoff_position(node.drone_basic.drone_x, node.drone_basic.drone_y, node.drone_basic.drone_z, node.drone_basic.drone_yaw)
-        time.sleep(1)
-        node.drone_basic.drone_start()
-        node.drone_basic.drone_takeoff()
-        time.sleep(3)
-        node.drone_basic.drone_target('world', -2, 1, 1.0, 0, 0, 0, 1)
-        time.sleep(3)
-        node.drone_basic.drone_target('world', node.drone_basic.takeoff_x, node.drone_basic.takeoff_y, 1.0, 0, 0, 0, 1)
-        time.sleep(3)
-        node.drone_basic.drone_target('world', node.drone_basic.takeoff_x, node.drone_basic.takeoff_y, node.drone_basic.takeoff_z + 0.2, 0, 0, 0, 1)
+        node.demo()
         node.run()
     except rospy.ROSInterruptException:
         pass
