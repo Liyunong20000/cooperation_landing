@@ -76,7 +76,7 @@ class EventtriggerNode:
     # Trigger the target_pose navigation topic of drone
     def _callback_target_pose_trigger(self, msg):
         if self.target_x == 0 and self.target_y == 0 and self.target_z == 0:
-            rospy.sleep(0.5)
+            return
         self.drone_target_pose(self.target_x, self.target_y, self.target_z, self.target_ox, self.target_oy, self.target_oz, self.target_ow)
         print(f"pub target pose")
 
