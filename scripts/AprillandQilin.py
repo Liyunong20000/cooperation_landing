@@ -71,15 +71,16 @@ class AprillandqilinNode:
     def demo(self):
         self.drone_basic.record_takeoff_position(self.drone_basic.drone_x, self.drone_basic.drone_y, self.drone_basic.drone_z, self.drone_basic.drone_yaw)
         time.sleep(1)
-        # self.drone_basic.drone_start()
-        # self.drone_basic.drone_takeoff()
-        # while self.drone_basic.drone_state != 5:
-        #     time.sleep(0.1)
+        self.drone_basic.drone_start()
+        self.drone_basic.drone_takeoff()
+        while self.drone_basic.drone_state != 5:
+            time.sleep(0.1)
+        rospy.sleep(1.0)
         self.drone_basic.drone_target('world', -2, 1, 1.0, 0, 0, 0, 1)
-        time.sleep(5)
+        rospy.sleep(5.0)
         self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, 1.0, 0, 0, 0, 1)
-        time.sleep(5)
-        self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.drone_basic.takeoff_z + 0.2, 0, 0, 0, 1)
+        rospy.sleep(5.0)
+        self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.drone_basic.takeoff_z + 0.1, 0, 0, 0, 1)
     def run(self):
         rate = rospy.Rate(10)  # 10 Hz
         while not rospy.is_shutdown():
