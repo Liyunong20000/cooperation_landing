@@ -57,12 +57,12 @@
 
   <link name="landing_gear">
     <inertial>
-      <mass value = "0.001" />
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value = "0.626" />
+      <origin xyz="0.02154 0 0.11318" rpy="0 0 ${-pi/2}"/>
       <inertia
-          ixx="0.000001" ixy="0" ixz="0"
-          iyy="0.000001" iyz="0"
-          izz="0.000001"/>
+          ixx="0.01052048067" ixy="0" ixz="0"
+          iyy="0.0107363246" iyz="0"
+          izz="0.01991415212"/>
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
