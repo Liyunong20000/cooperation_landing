@@ -91,7 +91,8 @@ class EventtriggerNode:
     # If the trigger from dog side published, the trigger for drone side will respond
     def _callback_servo_target_states_trigger(self, msg):
         rospy.sleep(0.1)
-        self.gripper_move.servo_target_cmd(0, 1150)
+        self.servo_angle = int(self.servo_angle[0])
+        self.gripper_move.servo_target_cmd(0, self.servo_angle)
     # Trigger for gripper to return zero point
     def _callback_servo_return_trigger(self, msg):
         rospy.sleep(0.2)
