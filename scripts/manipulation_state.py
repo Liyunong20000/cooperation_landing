@@ -32,7 +32,7 @@ class Start(smach.State):
 
         smach.State.__init__(self, outcomes=['succeeded'], input_keys=['rm'])
         self.dog_basic = DogBasic()
-
+        self.gripper_move = GripperMoveNode()
         self.rm = 0
 
     def execute(self, userdata):
@@ -40,6 +40,8 @@ class Start(smach.State):
         # if rm, let dog stand first.
         if self.rm == 1:
             self.dog_basic.stand()
+            self.gripper_move.servo_target_cmd_qilin(0, 1400)
+
         print(f'pass begin.')
         return 'succeeded'
 
@@ -55,12 +57,13 @@ class TargetSearch(smach.State):
 
         self.pick_position = []
         self.rm = 0
+        self.pick_z = 1.70
         self.sim_dog_x, self.sim_dog_y, self.sim_dog_z = 0.0, 0.0, 0.0
         self.sim_dog_roll, self.sim_dog_pitch, self.sim_dog_yaw= 0.0, 0.0, 0.0
         self.sim_target_x, self.sim_target_y, self.sim_target_z = 0.0, 0.0, 0.0
         self.sim_target_roll, self.sim_target_pitch, self.sim_target_yaw= 0.0, 0.0, 0.0
         self.msg_apriltag = None
-
+        
 
 
         rospy.Subscriber('/xuanwu/tag_detections', AprilTagDetectionArray, self._callback_simulation_apriltag)
@@ -124,11 +127,11 @@ class TargetSearch(smach.State):
             rospy.loginfo(f'find tag')
 
             # Trt to approach the target object
-            while abs(self.drone_basic.tag_target_z - 0.87) > 0.01 or abs(self.drone_basic.tag_target_x + 0.03) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
+            while abs(self.drone_basic.tag_target_z - self.pick_z) > 0.01 or abs(self.drone_basic.tag_target_x + 0.01) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 0.87), - 0.8 * (self.drone_basic.tag_target_x + 0.03), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
+                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - self.pick_z), - 0.8 * (self.drone_basic.tag_target_x + 0.01), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
                 time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - 0.87) < 0.02) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.03) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+                if (0.2 * (self.drone_basic.tag_target_z - self.pick_z) < 0.02) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.01) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
 
             time.sleep(0.1)
@@ -188,9 +191,10 @@ class Pick(smach.State):
         if self.rm == 1:
             # Begin to grasp and add an extra module for the drone.
             self.gripper_move.servo_target_cmd_qilin(0, 200)
+            rospy.sleep(1)
             self.drone_basic.call_add_extra_module(1, "brick", "main_body")
             self.dog_basic.stand()
-
+            rospy.sleep(2)
         return 'succeeded'
 
 class MoveDestination(smach.State):
@@ -203,7 +207,12 @@ class MoveDestination(smach.State):
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
         self.basic = BasicNode()
-
+        self.d_camera2spinal = 0.05798
+        self.h_camera2spinal = 0.080
+        self.h_gripper2spinal = 0.3
+        self.h_safe = 0.2
+        self.l_edge_box = 0.15
+        self.put_z = 1.5
     def execute(self, userdata):
         self.rm = userdata.rm
 
@@ -211,36 +220,52 @@ class MoveDestination(smach.State):
             rospy.sleep(0.1)
             self.drone_basic.add_module_trigger()
 
+            # First 
+            while self.drone_basic.drone_y > 1.0:
+                self.dog_basic.qilin_cmd_vel(-0.3, 0, 0, 0, 0)
+                time.sleep(0.1)
+                print(f'{self.drone_basic.drone_x}')
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+            # Then
+            while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.4)
+                time.sleep(0.1)
+                if abs(self.drone_basic.drone_yaw - 1.57) < 0.02:
+                    break
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            rospy.loginfo(f'enter y')
+
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
-            # while abs(self.drone_basic.tag_target_z - 1.20) > 0.1 or abs(self.drone_basic.tag_target_x ) > 0.1 or abs(self.drone_basic.tag_target_pitch) > 0.05:
-            #     self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
-            #     # if self.drone_basic.tag_info == 0:
-            #     #     rospy.logwarn("No tag detections.")
-            #     #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            #     #     return
-            #     self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - 1.2), - 0.5 * self.drone_basic.tag_target_x, 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
-            #     time.sleep(0.1)
-            #     if (0.2 * (self.drone_basic.tag_target_z - 1.20) < 0.05) and ((-0.5 * self.drone_basic.tag_target_x) < 0.05) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.01):
-            #         break
+            while abs(self.drone_basic.tag_target_z - self.put_z) > 0.1 or abs(self.drone_basic.tag_target_x ) > 0.1 or abs(self.drone_basic.tag_target_pitch) > 0.05:
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
+                # if self.drone_basic.tag_info == 0:
+                #     rospy.logwarn("No tag detections.")
+                #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                #     return
+                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - put_z), - 0.5 * self.drone_basic.tag_target_x, 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
+                time.sleep(0.1)
+                if (0.2 * (self.drone_basic.tag_target_z - put_z) < 0.05) and ((-0.5 * self.drone_basic.tag_target_x) < 0.05) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.01):
+                    break
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
             rospy.loginfo("Tag z finish.")
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
             rospy.sleep(3)
-            # self.dog_basic.sit()
+            self.dog_basic.sit()
             rospy.sleep(2)
             # Based on the tag 12 relative pose, calculate the destination.
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
             target_x = self.drone_basic.drone_x - self.drone_basic.tag_target_x + (self.basic.mocap_desk_x - self.basic.mocap_tag12_x)
-            target_y = self.drone_basic.drone_y - (self.drone_basic.tag_target_z + 0.15) + (self.basic.mocap_desk_y - self.basic.mocap_tag12_y) - 0.05798
-            target_z = self.drone_basic.drone_z - (self.drone_basic.tag_target_y - 0.15) + (self.basic.mocap_desk_z - self.basic.mocap_tag12_z) + 0.20 - 0.080 + 0.3
+            target_y = self.drone_basic.drone_y - (self.drone_basic.tag_target_z + 0.15) + (self.basic.mocap_desk_y - self.basic.mocap_tag12_y) - self.d_camera2spinal
+            target_z = self.drone_basic.drone_z - h_camera2spinal - (self.drone_basic.tag_target_y - 0.15) + (self.basic.mocap_desk_z - self.basic.mocap_tag12_z) + self.h_safe + self.h_gripper2spinal
             target_yaw = self.drone_basic.drone_yaw - self.drone_basic.tag_target_pitch + 1.57 + (self.basic.mocap_desk_yaw - self.basic.mocap_tag12_yaw)
             target_mocap_x = self.basic.mocap_xuanwu_x - self.drone_basic.tag_target_x + (
                         self.basic.mocap_desk_x - self.basic.mocap_tag12_x)
             target_mocap_y = self.basic.mocap_xuanwu_y - (self.drone_basic.tag_target_z + 0.15) + (
-                        self.basic.mocap_desk_y - self.basic.mocap_tag12_y) - 0.05798
+                        self.basic.mocap_desk_y - self.basic.mocap_tag12_y) - self.d_camera2spinal
             target_mocap_z = self.basic.mocap_xuanwu_z - (self.drone_basic.tag_target_y - 0.15) + (
-                        self.basic.mocap_desk_z - self.basic.mocap_tag12_z) + 0.15 + 0.080
+                        self.basic.mocap_desk_z - self.basic.mocap_tag12_z) + self.h_safe + self.h_gripper2spinal - self.h_camera2spinal
             put_position_mocap = [target_mocap_x, target_mocap_y, target_mocap_z]
             self.put_position = [target_x, target_y, target_z, target_yaw]
             userdata.put_position = self.put_position
