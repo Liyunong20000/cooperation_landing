@@ -91,4 +91,33 @@
     <kd>1.0</kd>
   </gazebo>
 
+  <joint name="tail_part_joint" type="fixed">
+    <parent link="trunk"/>
+    <child link="tail_part"/>
+    <origin rpy="0 0 0" xyz="-0.10 0.0 0.057"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="tail_part">
+    <inertial>
+      <mass value = "0.001" />
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia
+          ixx="0.01" ixy="0" ixz="0"
+          iyy="0.01" iyz="0"
+          izz="0.01"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://cooperation_landing/urdf/mesh/tail_part.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0.2 -0.1 0.154"/>
+      <geometry>
+        <box size="0.2 0.5 0.01"/>
+      </geometry>
+    </collision>
+  </link>
 </robot>
