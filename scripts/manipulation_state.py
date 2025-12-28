@@ -57,7 +57,7 @@ class TargetSearch(smach.State):
 
         self.pick_position = []
         self.rm = 0
-        self.pick_z = 0.80
+        self.pick_z = 0.77
         self.sim_dog_x, self.sim_dog_y, self.sim_dog_z = 0.0, 0.0, 0.0
         self.sim_dog_roll, self.sim_dog_pitch, self.sim_dog_yaw= 0.0, 0.0, 0.0
         self.sim_target_x, self.sim_target_y, self.sim_target_z = 0.0, 0.0, 0.0
@@ -98,29 +98,29 @@ class TargetSearch(smach.State):
 
         if self.rm == 1:
             # First the platform will move to the zero point along x axis
-            while self.drone_basic.drone_x < 0:
-                self.dog_basic.qilin_cmd_vel(0.3, 0, 0, 0, 0)
-                time.sleep(0.1)
-                print(f'{self.drone_basic.drone_x}')
-            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            # while self.drone_basic.drone_x < 0:
+            #     self.dog_basic.qilin_cmd_vel(0.3, 0, 0, 0, 0)
+            #     time.sleep(0.1)
+            #     print(f'{self.drone_basic.drone_x}')
+            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
             # Then it will rotate to the positive y axis.
-            while abs(self.drone_basic.drone_yaw - 1.57) > 0.05:
-                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -(self.drone_basic.drone_yaw - 1.57))
-                time.sleep(0.1)
-                if abs(self.drone_basic.drone_yaw - 1.57) < 0.02:
-                    break
-            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            rospy.loginfo(f'enter y')
+            # while abs(self.drone_basic.drone_yaw - 1.57) > 0.05:
+            #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -(self.drone_basic.drone_yaw - 1.57))
+            #     time.sleep(0.1)
+            #     if abs(self.drone_basic.drone_yaw - 1.57) < 0.02:
+            #         break
+            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            # rospy.loginfo(f'enter y')
 
             # Approach with the target and try to use domestic navigation by camera
-            while abs(self.drone_basic.drone_y - 1) > 0.1:
-                self.dog_basic.qilin_cmd_vel(- (self.drone_basic.drone_y - 1),0, 0, 0, 0)
-                time.sleep(0.1)
-                if abs(self.drone_basic.drone_y - 1) < 0.05:
-                    break
-            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            rospy.loginfo(f'out y')
+            # while abs(self.drone_basic.drone_y - 1) > 0.1:
+            #     self.dog_basic.qilin_cmd_vel(- (self.drone_basic.drone_y - 1),0, 0, 0, 0)
+            #     time.sleep(0.1)
+            #     if abs(self.drone_basic.drone_y - 1) < 0.05:
+            #         break
+            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            # rospy.loginfo(f'out y')
 
             # Try to capture tag 11 info
             self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
@@ -130,7 +130,7 @@ class TargetSearch(smach.State):
             while abs(self.drone_basic.tag_target_z - self.pick_z) > 0.01 or abs(self.drone_basic.tag_target_x + 0.01) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
                 self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - self.pick_z), - 0.8 * (self.drone_basic.tag_target_x + 0.01), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
-                time.sleep(0.1)
+                rospy.sleep(0.2)
                 if (0.2 * (self.drone_basic.tag_target_z - self.pick_z) < 0.02) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.01) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
                     break
 
@@ -191,7 +191,7 @@ class Pick(smach.State):
         if self.rm == 1:
             # Begin to grasp and add an extra module for the drone.
             self.gripper_move.servo_target_cmd_qilin(0, 200)
-            rospy.sleep(1)
+            rospy.sleep(3)
             self.drone_basic.call_add_extra_module(1, "brick", "main_body")
             self.dog_basic.stand()
             rospy.sleep(2)
@@ -233,7 +233,7 @@ class MoveDestination(smach.State):
             while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
                 self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.4)
                 time.sleep(0.1)
-                if abs(self.drone_basic.drone_yaw - 1.57) < 0.02:
+                if abs(self.drone_basic.drone_yaw + 1.57) < 0.01:
                     break
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
             rospy.loginfo(f'enter y')
@@ -254,8 +254,6 @@ class MoveDestination(smach.State):
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
             rospy.sleep(3)
-            self.dog_basic.sit()
-            rospy.sleep(2)
             # Based on the tag 12 relative pose, calculate the destination.
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
             target_x = self.drone_basic.drone_x - self.drone_basic.tag_target_x
@@ -381,7 +379,7 @@ class FlyBack(smach.State):
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
         self.rm= 0
-        self.land_offset = 0.4
+        self.land_offset = 0.2
 
 
 
@@ -407,8 +405,9 @@ class FlyBack(smach.State):
         print(f'This is the fly back position: {self.takeoff_x}, {self.takeoff_y}, {self.takeoff_z}')
         time.sleep(1)
         if self.rm ==1:
+            
             self.drone_target_pose( self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0, 0, 1,0)
-            time.sleep(10)
+            time.sleep(5)
             # self.drone_target_pose(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0, 0, 1, 0)
             # time.sleep(5)
         else:

@@ -38,7 +38,7 @@ def main():
         sm_target_put = smach.StateMachine(outcomes=['succeeded', 'failed'], input_keys=['rm'], output_keys=['put_position', 'takeoff_position'] )
 
         with sm_target_put:
-            smach.StateMachine.add('MoveDestination', MoveDestination(),transitions={'succeeded': 'succeeded', 'failed': 'failed'}, remapping={'rm': 'rm', 'put_position': 'put_position', 'desk_dimension': 'desk_dimension'})
+            smach.StateMachine.add('MoveDestination', MoveDestination(),transitions={'succeeded': 'succeeded', 'failed': 'failed'}, remapping={'rm': 'rm', 'put_position': 'put_position'})
         #
         #     smach.StateMachine.add('Takeoff', Takeoff(),transitions={'succeeded': 'FlyTarget'},remapping={'rm': 'rm', 'takeoff_position': 'takeoff_position'})
         #
