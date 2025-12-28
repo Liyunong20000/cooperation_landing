@@ -362,7 +362,7 @@ class FlyTarget(smach.State):
             self.drone_basic.drone_target('world', self.put_position[0], self.put_position[1], self.put_position[2], qx , qy, qz, qw)
             rospy.loginfo(f'{self.put_position[0]}, {self.put_position[1]}, {self.put_position[2]}, {qx}, {qy}, {qz}, {qw}')
             rospy.sleep(3)
-            # self.gripper_move.return_qilin_trigger()
+            self.gripper_move.servo_target_cmd_qilin(0, 1400)
             self.drone_basic.call_add_extra_module(-1, "brick", "main_body")
 
         else:
