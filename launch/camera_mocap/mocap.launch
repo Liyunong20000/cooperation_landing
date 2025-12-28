@@ -10,7 +10,7 @@
     required="true">
     <rosparam subst_value="true">
       rigid_bodies:
-         '$(arg robot_id)':
+         '2':
                pose: ground_robot/mocap/pose
                pose2d: ground_robot/mocap/ground_pose
                child_frame_id: baselink
@@ -23,16 +23,6 @@
          '4':
                pose: desk/mocap/pose
                pose2d: desk/mocap/ground_pose
-               child_frame_id: baselink
-               parent_frame_id: world
-         '5':
-               pose: tag12/mocap/pose
-               pose2d: tag12/mocap/ground_pose
-               child_frame_id: baselink
-               parent_frame_id: world
-         '6':
-               pose: tag13/mocap/pose
-               pose2d: tag13/mocap/ground_pose
                child_frame_id: baselink
                parent_frame_id: world
       optitrack_config:
