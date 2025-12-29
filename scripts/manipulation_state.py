@@ -41,6 +41,7 @@ class Start(smach.State):
         # if rm, let dog stand first.
         if self.rm == 1:
             self.dog_basic.stand()
+            rospy.sleep(0.1)
             self.gripper_move.servo_target_cmd_qilin(0, 1400)
 
         print(f'pass begin.')
@@ -58,7 +59,34 @@ class TargetSearch(smach.State):
 
         self.pick_position = []
         self.rm = 0
-        self.pick_z = 0.77
+        self.pick_z = 0.72
+        # === Convergence tolerances ===
+        # When errors are within these bounds, alignment is considered complete
+        self.tol_z = 0.01  # longitudinal tolerance (m)
+        self.tol_x = 0.01  # lateral tolerance (m)
+        self.tol_pitch = 0.05  # yaw tolerance (rad)
+
+        # === Proportional gains ===
+        self.k_vx = 0.2  # gain for forward/backward motion
+        self.k_vy = -0.8  # gain for lateral motion (sign depends on frame)
+        self.k_yaw = -0.5  # gain for yaw rotation
+
+        # === Minimum executable velocities (deadzone compensation) ===
+        # These values ensure the Go1 actually moves when commands are small
+        self.vx_min = 0.02       # m/s
+        self.vy_min = 0.02       # m/s
+        self.wz_min = 0.10       # rad/s
+
+        # === Maximum velocities (safety limits) ===
+        self.vx_max = 0.25  # m/s
+        self.vy_max = 0.25  # m/s
+        self.wz_max = 0.60  # rad/s
+
+        # Control loop parameters
+        self.control_dt = 0.1  # control period (s)
+        self.timeout_s = 6.0  # maximum duration of this state (s)
+        self.x_bias = 0.02
+
         self.sim_dog_x, self.sim_dog_y, self.sim_dog_z = 0.0, 0.0, 0.0
         self.sim_dog_roll, self.sim_dog_pitch, self.sim_dog_yaw= 0.0, 0.0, 0.0
         self.sim_target_x, self.sim_target_y, self.sim_target_z = 0.0, 0.0, 0.0
@@ -94,6 +122,27 @@ class TargetSearch(smach.State):
 
         print(f'{self.sim_target_x}, {self.sim_target_y}, {self.sim_target_z}')
 
+    def clamp(self, x, lo, hi):
+        """
+        Clamp a value x to the range [lo, hi].
+        This is used to enforce safety limits on velocity commands.
+        """
+        return max(lo, min(hi, x))
+
+    def p_with_deadzone(self, err, k, v_min, v_max, tol):
+
+        if abs(err) < tol:
+            return 0.0
+
+        v = k * err
+
+        # Deadzone compensation: enforce minimum executable velocity
+        if abs(v) < v_min:
+            v = v_min if v > 0 else -v_min
+
+        # Saturation for safety
+        return self.clamp(v, -v_max, v_max)
+
     def execute(self, userdata):
         self.rm = userdata.rm
 
@@ -127,21 +176,53 @@ class TargetSearch(smach.State):
             self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
             rospy.loginfo(f'find tag')
 
-            # Trt to approach the target object
-            while abs(self.drone_basic.tag_target_z - self.pick_z) > 0.01 or abs(self.drone_basic.tag_target_x + 0.01) > 0.01 or abs(self.drone_basic.tag_target_pitch) > 0.1:
-                self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - self.pick_z), - 0.8 * (self.drone_basic.tag_target_x + 0.01), 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
-                rospy.sleep(0.2)
-                if (0.2 * (self.drone_basic.tag_target_z - self.pick_z) < 0.02) and (abs(-0.8 * (self.drone_basic.tag_target_x + 0.03)) < 0.01) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.05):
+            start_t = rospy.Time.now()
+            rate = rospy.Rate(1.0 / self.control_dt)
+
+            while not rospy.is_shutdown():
+
+                # Timeout protection to avoid getting stuck in this state
+                if (rospy.Time.now() - start_t).to_sec() > self.timeout_s:
+                    rospy.logwarn("TargetSearch: timeout reached, stopping.")
                     break
+
+                # Update AprilTag pose estimation (must be done every iteration)
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
+
+                # Compute control errors
+                z_err = self.drone_basic.tag_target_z - self.pick_z
+                x_err = self.drone_basic.tag_target_x - self.x_bias
+                pitch_err = self.drone_basic.tag_target_pitch
+
+                # Check convergence condition
+                if (abs(z_err) < self.tol_z and
+                        abs(x_err) < self.tol_x and
+                        abs(pitch_err) < self.tol_pitch):
+                    break
+
+                # === P control with deadzone compensation and saturation ===
+                vx = self.p_with_deadzone(z_err, self.k_vx,
+                                     self.vx_min, self.vx_max, self.tol_z)
+
+                vy = self.p_with_deadzone(x_err, self.k_vy,
+                                     self.vy_min, self.vy_max, self.tol_x)
+
+                wz = self.p_with_deadzone(pitch_err, self.k_yaw,
+                                     self.wz_min, self.wz_max, self.tol_pitch)
+
+                # Send velocity command to the quadruped
+                self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
+
+                # Maintain fixed control frequency
+                rate.sleep()
+
+                # Stop the robot and switch to a stable posture
 
             time.sleep(0.1)
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
             time.sleep(1)
             self.dog_basic.sit()
             time.sleep(3)
-
-
             return 'succeeded'
 
         else:
@@ -216,22 +297,68 @@ class MoveDestination(smach.State):
         self.h_safe = 0.2
         self.l_edge_box = 0.15
         self.put_z = 0.9
-        self.t_cam2base = [0, 0, 1, 0.058,
-                           -1, 0, 0, 0.0,
-                           0, -1, 0, -0.0798,
-                           0, 0, 0, 1]
+        self.t_cam2base = [[0, 0, 1, 0.058],
+                           [-1, 0, 0, 0.0],
+                           [0, -1, 0, -0.0798],
+                           [0, 0, 0, 1]]
 
-        self.t_desk2tag = [-1, 0, 0, 0,
-                           0, 0, -1, -0.105,
-                           0, 1, 0, -0.31,
-                           0, 0, 0, 1]
+        self.t_desk2tag = [[-1, 0, 0, 0],
+                           [0, 0, -1, -0.105],
+                           [0, 1, 0, -0.31],
+                           [0, 0, 0, 1]]
 
+        self.tol_z = 0.03  # longitudinal tolerance (m)
+        self.tol_x = 0.03  # lateral tolerance (m)
+        self.tol_pitch = 0.05  # yaw tolerance (rad)
+
+        # === Proportional gains ===
+        self.k_vx = 0.2  # gain for forward/backward motion
+        self.k_vy = -0.5  # gain for lateral motion (sign depends on frame)
+        self.k_yaw = -0.5  # gain for yaw rotation
+
+        # === Minimum executable velocities (deadzone compensation) ===
+        # These values ensure the Go1 actually moves when commands are small
+        self.vx_min = 0.02       # m/s
+        self.vy_min = 0.02       # m/s
+        self.wz_min = 0.10       # rad/s
+
+        # === Maximum velocities (safety limits) ===
+        self.vx_max = 0.25  # m/s
+        self.vy_max = 0.25  # m/s
+        self.wz_max = 0.60  # rad/s
+
+        # Control loop parameters
+        self.control_dt = 0.1  # control period (s)
+        self.timeout_s = 6.0  # maximum duration of this state (s)
+        self.x_bias = 0
+
+
+    def clamp(self, x, lo, hi):
+        """
+        Clamp a value x to the range [lo, hi].
+        This is used to enforce safety limits on velocity commands.
+        """
+        return max(lo, min(hi, x))
+
+    def p_with_deadzone(self, err, k, v_min, v_max, tol):
+
+        if abs(err) < tol:
+            return 0.0
+
+        v = k * err
+
+        # Deadzone compensation: enforce minimum executable velocity
+        if abs(v) < v_min:
+            v = v_min if v > 0 else -v_min
+
+        # Saturation for safety
+        return self.clamp(v, -v_max, v_max)
 
     def t_se3(self,x, y, z, qx, qy, qz, qw):
-        R = tft.quaternion_matrix([qx, qy, qz, qw])
-        T = np.eye(4)
-        T[:3, :3] = R
-        T[:3, 3] = np.array([x, y, z])
+        T = tft.quaternion_matrix([qx, qy, qz, qw])  # 4x4
+        T[0, 3] = x
+        T[1, 3] = y
+        T[2, 3] = z
         return T
 
     def execute(self, userdata):
@@ -258,19 +385,51 @@ class MoveDestination(smach.State):
             rospy.loginfo(f'enter y')
 
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
-            while abs(self.drone_basic.tag_target_z - self.put_z) > 0.1 or abs(self.drone_basic.tag_target_x ) > 0.1 or abs(self.drone_basic.tag_target_pitch) > 0.05:
-                self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
-                # if self.drone_basic.tag_info == 0:
-                #     rospy.logwarn("No tag detections.")
-                #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-                #     return
-                self.dog_basic.qilin_cmd_vel(0.2 * (self.drone_basic.tag_target_z - self.put_z), - 0.5 * self.drone_basic.tag_target_x, 0, 0, - 0.5* self.drone_basic.tag_target_pitch)
-                time.sleep(0.1)
-                if (0.2 * (self.drone_basic.tag_target_z - self.put_z) < 0.05) and ((-0.5 * self.drone_basic.tag_target_x) < 0.05) and ((- 0.5* self.drone_basic.tag_target_pitch) < 0.01):
+            start_t = rospy.Time.now()
+            rate = rospy.Rate(1.0 / self.control_dt)
+
+            while not rospy.is_shutdown():
+
+                # Timeout protection to avoid getting stuck in this state
+                if (rospy.Time.now() - start_t).to_sec() > self.timeout_s:
+                    rospy.logwarn("TargetSearch: timeout reached, stopping.")
                     break
+
+                # Update AprilTag pose estimation (must be done every iteration)
+                self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
+
+                # Compute control errors
+                z_err = self.drone_basic.tag_target_z - self.put_z
+                x_err = self.drone_basic.tag_target_x + self.x_bias
+                pitch_err = self.drone_basic.tag_target_pitch
+
+                # Check convergence condition
+                if (abs(z_err) < self.tol_z and
+                        abs(x_err) < self.tol_x and
+                        abs(pitch_err) < self.tol_pitch):
+                    break
+
+                # === P control with deadzone compensation and saturation ===
+                vx = self.p_with_deadzone(z_err, self.k_vx,
+                                          self.vx_min, self.vx_max, self.tol_z)
+
+                vy = self.p_with_deadzone(x_err, self.k_vy,
+                                          self.vy_min, self.vy_max, self.tol_x)
+
+                wz = self.p_with_deadzone(pitch_err, self.k_yaw,
+                                          self.wz_min, self.wz_max, self.tol_pitch)
+
+                # Send velocity command to the quadruped
+                self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
+
+                # Maintain fixed control frequency
+                rate.sleep()
+
+                # Stop the robot and switch to a stable posture
+
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
             rospy.loginfo("Tag z finish.")
-            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
 
             rospy.sleep(3)
             # Based on the tag 12 relative pose, calculate the destination.
