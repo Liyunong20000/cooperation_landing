@@ -72,6 +72,7 @@ class AprillandqilinNode:
         self.drone_basic.record_takeoff_position(self.drone_basic.drone_x, self.drone_basic.drone_y, self.drone_basic.drone_z, self.drone_basic.drone_yaw)
         time.sleep(1)
         self.drone_basic.drone_start()
+        time.sleep(1)
         self.drone_basic.drone_takeoff()
         while self.drone_basic.drone_state != 5:
             time.sleep(0.1)
