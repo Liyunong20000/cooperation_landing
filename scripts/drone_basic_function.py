@@ -26,7 +26,7 @@ class DroneBasic:
         self.drone_roll, self.drone_pitch, self.drone_yaw  = 0.0, 0.0, 0.0
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
         self.tag_target_x, self.tag_target_y, self.tag_target_z = 0.0, 0.0, 0.0
-        self.tag_target_qx, self.tag_target_qy, self.tag_target_qz, self.drone_qw = 0.0, 0.0, 0.0, 0.0
+        self.tag_target_qx, self.tag_target_qy, self.tag_target_qz, self.tag_target_qw = 0.0, 0.0, 0.0, 0.0
         self.tag_target_roll, self.tag_target_pitch, self.tag_target_yaw = 0.0, 0.0, 0.0
 
         self.tag_info = 0
@@ -81,16 +81,16 @@ class DroneBasic:
                 self.tag_target_x = pose.position.x
                 self.tag_target_y = pose.position.y
                 self.tag_target_z = pose.position.z
-                qx = pose.orientation.x
-                qy = pose.orientation.y
-                qz = pose.orientation.z
-                qw = pose.orientation.w
+                self.tag_target_qx = pose.orientation.x
+                self.tag_target_qy = pose.orientation.y
+                self.tag_target_qz = pose.orientation.z
+                self.tag_target_qw = pose.orientation.w
                 self.tag_target_roll = \
-                tft.euler_from_quaternion([qx, qy, qz, qw])[0]
+                tft.euler_from_quaternion([self.tag_target_qx, self.tag_target_qy, self.tag_target_qz, self.tag_target_qw])[0]
                 self.tag_target_pitch = \
-                tft.euler_from_quaternion([qx, qy, qz, qw])[1]
+                tft.euler_from_quaternion([self.tag_target_qx, self.tag_target_qy, self.tag_target_qz, self.tag_target_qw])[1]
                 self.tag_target_yaw = \
-                tft.euler_from_quaternion([qx, qy, qz, qw])[2]
+                tft.euler_from_quaternion([self.tag_target_qx, self.tag_target_qy, self.tag_target_qz, self.tag_target_qw])[2]
 
         # print(f'x:{self.tag_target_x},y: {self.tag_target_y},z: {self.tag_target_z}')
         # print(f'x:{self.tag_target_roll},y: {self.tag_target_pitch},z: {self.tag_target_yaw}')
@@ -171,23 +171,23 @@ class DroneBasic:
             transform = Transform()
             transform.translation.x = 0.0
             transform.translation.y = 0.0
-            transform.translation.z = -0.105
+            transform.translation.z = -0.145
             transform.rotation.x = 0.0
             transform.rotation.y = 0.0
             transform.rotation.z = 0.0
             transform.rotation.w = 1.0
 
             inertia = Inertia()
-            inertia.m = 0.1342
+            inertia.m = 0.150
             inertia.com.x = 0.0
             inertia.com.y = 0.0
             inertia.com.z = 0.0
-            inertia.ixx = 0.00006174049
+            inertia.ixx = 0.00009627321
             inertia.ixy = 0.0
             inertia.ixz = 0.0
-            inertia.iyy = 0.00009220405
+            inertia.iyy = 0.00017161135
             inertia.iyz = 0.0
-            inertia.izz = 0.00013076914
+            inertia.izz = 0.00010055263
 
             response = self.extra_module(
                 action,
