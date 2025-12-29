@@ -10,6 +10,7 @@ import smach_ros
 import tf.transformations as tft
 from appdirs import user_data_dir
 from lxml.html import Classes
+from numpy.distutils.system_info import x11_info
 from std_msgs.msg import Empty, UInt8
 from nav_msgs.msg import Odometry
 from std_srvs.srv import Trigger
@@ -209,12 +210,30 @@ class MoveDestination(smach.State):
         self.basic = BasicNode()
         self.tag2desk_y = 0.31
         self.tag2desk_z = 0.105
-        self.d_camera2spinal = 0.05798
+        self.d_camera2spinal = 0.058
         self.h_camera2spinal = 0.080
-        self.h_gripper2spinal = 0.2
+        self.h_gripper2spinal = 0.201
         self.h_safe = 0.2
         self.l_edge_box = 0.15
         self.put_z = 0.9
+        self.t_cam2base = [0, 0, 1, 0.058,
+                           -1, 0, 0, 0.0,
+                           0, -1, 0, -0.0798,
+                           0, 0, 0, 1]
+
+        self.t_desk2tag = [-1, 0, 0, 0,
+                           0, 0, -1, -0.105,
+                           0, 1, 0, -0.31,
+                           0, 0, 0, 1]
+
+
+    def t_se3(self,x, y, z, qx, qy, qz, qw):
+        R = tft.quaternion_matrix([qx, qy, qz, qw])
+        T = np.eye(4)
+        T[:3, :3] = R
+        T[:3, 3] = np.array([x, y, z])
+        return T
+
     def execute(self, userdata):
         self.rm = userdata.rm
 
@@ -256,10 +275,16 @@ class MoveDestination(smach.State):
             rospy.sleep(3)
             # Based on the tag 12 relative pose, calculate the destination.
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
-            target_x = self.drone_basic.drone_x - self.drone_basic.tag_target_x
-            target_y = self.drone_basic.drone_y - self.d_camera2spinal - self.drone_basic.tag_target_z - self.tag2desk_y
-            target_z = self.drone_basic.drone_z - self.h_camera2spinal - self.drone_basic.tag_target_y + self.tag2desk_z + self.h_safe + self.h_gripper2spinal
-            target_yaw = self.drone_basic.drone_yaw - self.drone_basic.tag_target_pitch + 1.57
+            wtb = self.t_se3(self.drone_basic.drone_x, self.drone_basic.drone_y, self.drone_basic.drone_z, self.drone_basic.drone_qx, self.drone_basic.drone_qy, self.drone_basic.drone_qz, self.drone_basic.drone_qw)
+            btc = self.t_cam2base
+            ctt = self.t_se3(self.drone_basic.tag_target_x, self.drone_basic.tag_target_y, self.drone_basic.tag_target_z, self.drone_basic.tag_target_qx, self.drone_basic.tag_target_qy, self.drone_basic.tag_target_qz, self.drone_basic.tag_target_qw)
+            wtd = wtb @ btc @ ctt @ self.t_desk2tag
+            rospy.loginfo(f"{wtd}")
+            target_x = wtd[0,3]
+            target_y = wtd[1,3]
+            target_z =  wtd[2,3] + self.h_safe + self.h_gripper2spinal
+            _, _, target_yaw = tft.euler_from_matrix(wtd, axes='sxyz')
+            # target_yaw = self.drone_basic.drone_yaw - self.drone_basic.tag_target_pitch
             target_mocap_x = self.basic.mocap_xuanwu_x - self.drone_basic.tag_target_x
             target_mocap_y = self.basic.mocap_xuanwu_y - self.d_camera2spinal - self.drone_basic.tag_target_z - self.tag2desk_y
             target_mocap_z = self.basic.mocap_xuanwu_z - self.h_camera2spinal - self.drone_basic.tag_target_y + self.tag2desk_z + self.h_safe + self.h_gripper2spinal
