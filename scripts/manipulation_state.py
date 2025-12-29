@@ -356,12 +356,12 @@ class Takeoff(smach.State):
             # self.drone_basic.drone_takeoff()
             rospy.loginfo(f'takeoff!!!!!!!!!!')
             userdata.takeoff_position = [self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.drone_basic.takeoff_z, self.drone_basic.takeoff_yaw]
-            print(f'takeoff_x:{self.drone_basic.takeoff_x}, takeoff_y:{self.drone_basic.takeoff_y}, takeoff_z:{self.drone_basic.takeoff_z}, takeoff_yaw:{self.drone_basic.takeoff_yaw}')
+            rospy.loginfo(f'takeoff_x:{self.drone_basic.takeoff_x}, takeoff_y:{self.drone_basic.takeoff_y}, takeoff_z:{self.drone_basic.takeoff_z}, takeoff_yaw:{self.drone_basic.takeoff_yaw}')
             # After hovering, the drone state will be 5.
             # After hovering, send command to the drone.
             # while self.drone_basic.drone_state != 5:
             #     time.sleep(0.1)
-            rospy.sleep(5)
+            rospy.sleep(0.1)
         return 'succeeded'
 
 class FlyTarget(smach.State):
@@ -398,16 +398,15 @@ class FlyBack(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'],input_keys=['takeoff_position', 'rm'])
 
-        self.pub_drone_target_info = rospy.Publisher('/quadrotor/target_pose/info', PoseStamped, queue_size=10)
-        self.pub_drone_target_trigger = rospy.Publisher('/quadrotor/target_pose/trigger', Empty, queue_size=10)
         self.pub_drone_target_sim = rospy.Publisher('/quadrotor/target_pose', PoseStamped, queue_size=10)
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
-        self.rm= 0
         self.land_offset = 0.2
+        self.drone_basic = DroneBasic()
+        self.dog_basic = DogBasic()
 
-
-
+        self.takeoff_position = [0.0, 0.0, 0.0, 0.0]
+        self.rm = 0
 
     def drone_target_pose_sim(self, x, y, z, ox, oy, oz, ow):
         drone_target_pose = PoseStamped()
@@ -426,15 +425,16 @@ class FlyBack(smach.State):
         self.takeoff_x = userdata.takeoff_position[0]
         self.takeoff_y = userdata.takeoff_position[1]
         self.takeoff_z = userdata.takeoff_position[2]
+        qx, qy, qz, qw = tft.quaternion_from_euler(0, 0, userdata.takeoff_position[3])
+
         self.rm = userdata.rm
         print(f'This is the fly back position: {self.takeoff_x}, {self.takeoff_y}, {self.takeoff_z}')
         time.sleep(1)
         if self.rm ==1:
-            
-            self.drone_target_pose( self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0, 0, 1,0)
+            self.drone_basic.drone_target('world', self.takeoff_x, self.takeoff_y, 1.0, qx , qy, qz, qw)
             time.sleep(5)
-            # self.drone_target_pose(self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, 0, 0, 1, 0)
-            # time.sleep(5)
+            self.drone_basic.drone_target('world', self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, qx, qy, qz, qw)
+
         else:
             self.drone_target_pose_sim( self.takeoff_x, self.takeoff_y,  self.takeoff_z + self.land_offset, 0, 0, 0,1)
         return 'succeeded'
@@ -751,60 +751,7 @@ class AlignAndLand(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','failed'], input_keys=['rm'])
 
-        rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
-        rospy.Subscriber('/gazebo/model_states', ModelStates, self._callback_dog_position)
-
-        self.pub_land = rospy.Publisher('/quadrotor/teleop_command/land', Empty, queue_size=10)
-        self.pub_qilin_vel = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=10)
-        self.pub_sim_pose = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=10)
-
-        self.miss_first_time, self.miss_second_time = rospy.Time.now(), rospy.Time.now()
-        self.find_valve_tag = 0
-        self.find_drone_tag = 0
-        self.beginfollow = 0
-        self.detection = 0.0
-        self.flag = 0
-        self.rm= 0
-        self.timer_detector_marker = 5
-
-        self.lx, self.ly, self.lz = 0, 0, 0
-        self.april_x, self.april_y, self.april_z = 0.0, 0.0, 0.0
-        self.april_drone_x, self.april_drone_y, self.april_drone_z, self.april_drone_yaw = 0.0, 0.0, 0.0, 0.0
-        self.april_valve_x, self.april_valve_y, self.april_valve_z, self.april_valve_yaw = 0.0, 0.0, 0.0, 0.0
-        self.dog_x, self.dog_y, self.dog_z, self.dog_yaw = 0.0, 0.0, 0.0, 0.0
-
-    def _callback_apriltag(self, data):
-        current_time = rospy.Time.now()
-        # print(f'apriltag:{current_time.to_sec()}')
-
-        # get the apriltag`s position information compare with camera coordination
-        if data.detections:
-            self.find_valve_tag = self.find_target_tag(data.detections,1)
-            self.find_drone_tag = self.find_target_tag(data.detections, 0)
-            if self.find_drone_tag == 1:
-                if  self.beginfollow == 1:
-                    if self.rm == 1:
-                        self.align_dog_with_drone()
-                    else:
-                        self.align_dog_with_drone_sim()
-
-        else:
-            self.find_valve_tag = 0
-            self.find_drone_tag = 0
-            if self.beginfollow == 1:
-                self.miss_second_time = rospy.Time.now()
-                duration = self.miss_second_time - self.miss_first_time
-                # print(f'{duration.to_sec()}')
-
-                if duration.to_sec() > 0.5:
-                    self.qilin_cmd_vel(0, 0, 0, 0, 0)
-                    self.miss_first_time = self.miss_second_time
-
-    def _callback_dog_position(self, data):
-        self.dog_x= data.pose[2].position.x
-        self.dog_y= data.pose[2].position.y
-        self.dog_z= data.pose[2].position.z
-
+        self.rm = 0
     def sim_pose(self, px, py, ox, oy, oz, ow):
 
         sim_pose = ModelState()
@@ -818,51 +765,6 @@ class AlignAndLand(smach.State):
         sim_pose.reference_frame = 'world'
         self.pub_sim_pose.publish(sim_pose)
 
-    def find_target_tag(self,data,target_id):
-        b = len(data)
-        a = 0
-
-        while a < b:
-            c = target_id in data[a].id
-            # print(f'{a}')
-            if c:
-                if target_id == 0:
-                    self.april_drone_x = -data[a].pose.pose.pose.position.y
-                    self.april_drone_y = data[a].pose.pose.pose.position.x
-                    self.april_drone_z = data[a].pose.pose.pose.position.z
-                    self.april_drone_yaw = tft.euler_from_quaternion([data[a].pose.pose.pose.orientation.x,
-                                                                          data[a].pose.pose.pose.orientation.y,
-                                                                          data[a].pose.pose.pose.orientation.z,
-                                                                          data[a].pose.pose.pose.orientation.w])[2]
-
-                if target_id == 1:
-                    self.april_valve_x = -data[a].pose.pose.pose.position.y
-                    self.april_valve_y = data[a].pose.pose.pose.position.x
-                    self.april_valve_z = data[a].pose.pose.pose.position.z
-                    self.april_valve_yaw = tft.euler_from_quaternion([data[a].pose.pose.pose.orientation.x,
-                                                         data[a].pose.pose.pose.orientation.y,
-                                                         data[a].pose.pose.pose.orientation.z,
-                                                         data[a].pose.pose.pose.orientation.w])[2]
-
-                return 1
-            else:
-                return 0
-
-    def align_dog_with_drone(self):
-        self.lx = 1.3 * self.april_drone_x
-        self.ly = 1.3 * self.april_drone_y
-        self.april_z = 0.03 *self.april_drone_yaw
-        if self.april_z > 0.3:
-            self.april_z = 0.3
-        if self.april_z < -0.3:
-            self.april_z = -0.3
-        # print("align speed lx, ly, :", self.lx, self.ly, self.april_z)
-        # print(f'apriltag_time:{apriltag_time.to_sec()}')
-        if abs(self.lx) < 2 and abs(self.ly) < 2:
-            navigation_time = rospy.Time.now()
-            # print(f'navigation_time:{navigation_time.to_sec()}')
-            self.qilin_cmd_vel(self.lx, self.ly, 0, 0, self.april_z)
-
     def align_dog_with_drone_sim(self):
         print(f"This is the align:{self.april_drone_x},{self.april_drone_y}")
         if abs(self.april_drone_x) >0.1 or abs(self.april_drone_y) >0.1:
@@ -871,65 +773,10 @@ class AlignAndLand(smach.State):
             self.ly = self.april_drone_y + self.dog_y
             self.sim_pose(self.lx, self.ly, 0, 0, 0, 1)
 
-    def land(self):
-        time.sleep(0.5)
-        rospy.loginfo("Publishing land command...")
-        empty_msg = Empty()
-        self.pub_land.publish(empty_msg)
-
-    def drone_landing_detection(self, i):
-        r = rospy.Rate(i)
-        number = i
-        check = i
-        while not rospy.is_shutdown():
-            number = number - 1
-            if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.03 and abs(self.april_drone_yaw) < 0.5:
-            # if math.sqrt(self.april_drone_x ** 2 + self.april_drone_y ** 2) < 0.5:
-                check = check - 1
-            if number == 0:
-                break
-            r.sleep()
-        self.flag = check
-
-    def drone_landing_condition(self):
-        while not rospy.is_shutdown():
-            if self.april_drone_x != 0:
-                break
-            time.sleep(0.1)
-
-        self.flag = 0
-        self.drone_landing_detection(5)
-        print(f'plus = {self.flag}')
-        if self.flag == 0:
-            self.beginfollow = 0
-            # self.qilin_cmd_vel(0, 0, 0, 0, 0)
-            self.land()
-            print(f'landon')
-
-    def qilin_cmd_vel(self, lx, ly, ax, ay, az):
-
-        qilin_cmd_vel = Twist()
-        qilin_cmd_vel.linear.x = lx
-        qilin_cmd_vel.linear.y = ly
-        qilin_cmd_vel.angular.x = ax
-        qilin_cmd_vel.angular.y = ay
-        qilin_cmd_vel.angular.z = az
-
-        self.pub_qilin_vel.publish(qilin_cmd_vel)
-
     def execute(self, userdata):
         self.rm = userdata.rm
-        self.beginfollow = 1
-        current_time = rospy.Time.now()
-        a = current_time.to_sec()
-        b = current_time.to_sec()
-        while b - a < 5:
-            self.drone_landing_condition()
-            if self.beginfollow== 0:
-                return 'succeeded'
-            current_time = rospy.Time.now()
-            b = current_time.to_sec()
-        return 'failed'
+
+        return 'succeeded'
 class Idle(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'])
