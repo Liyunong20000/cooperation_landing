@@ -14,7 +14,7 @@ class AprillandqilinNode:
 
     def __init__(self):
         print(f'Hi, I am Cloud Cube')
-        rospy.init_node('Aprillandqilin', anonymous=True)
+
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
         self.alignment_counter = 0
@@ -89,6 +89,7 @@ class AprillandqilinNode:
             rate.sleep()
 if __name__ == '__main__':
     try:
+        rospy.init_node('Aprillandqilin', anonymous=True)
         node = AprillandqilinNode()
         node.dog_basic.stand()
         rospy.sleep(0.5)
