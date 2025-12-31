@@ -23,7 +23,7 @@ def main():
 
     with sm_top:
         smach.StateMachine.add('Start', Start(),
-                               transitions={'succeeded': 'TargetPick'}, remapping={'rm':'rm'})
+                               transitions={'succeeded': 'TargetPut'}, remapping={'rm':'rm'})
 
         sm_target_pick = smach.StateMachine(outcomes=['finished'], input_keys=['rm', 'pick_position'])
 
@@ -38,23 +38,23 @@ def main():
         sm_target_put = smach.StateMachine(outcomes=['succeeded', 'failed'], input_keys=['rm'], output_keys=['put_position', 'takeoff_position'] )
 
         with sm_target_put:
-            smach.StateMachine.add('MoveDestination', MoveDestination(),transitions={'succeeded': 'succeeded', 'failed': 'failed'}, remapping={'rm': 'rm', 'put_position': 'put_position'})
-        #
-        #     smach.StateMachine.add('Takeoff', Takeoff(),transitions={'succeeded': 'FlyTarget'},remapping={'rm': 'rm', 'takeoff_position': 'takeoff_position'})
-        #
-        #     smach.StateMachine.add('FlyTarget', FlyTarget(),transitions={'succeeded': 'Correction'},remapping={'rm': 'rm', 'put_position': 'put_position'})
-        #
-        smach.StateMachine.add('TargetPut', sm_target_put,transitions={'succeeded': 'Finish', 'failed': 'preempted'}, remapping={'takeoff_position': 'takeoff_position', 'put_position': 'put_position'})
+            smach.StateMachine.add('MoveDestination', MoveDestination(),transitions={'succeeded': 'Takeoff', 'failed': 'failed'}, remapping={'rm': 'rm', 'put_position': 'put_position'})
+
+            smach.StateMachine.add('Takeoff', Takeoff(),transitions={'succeeded': 'FlyTarget'},remapping={'rm': 'rm', 'takeoff_position': 'takeoff_position'})
+
+            smach.StateMachine.add('FlyTarget', FlyTarget(),transitions={'succeeded': 'succeeded'},remapping={'rm': 'rm', 'put_position': 'put_position'})
+
+        smach.StateMachine.add('TargetPut', sm_target_put,transitions={'succeeded': 'PreciseLanding', 'failed': 'preempted'}, remapping={'takeoff_position': 'takeoff_position', 'put_position': 'put_position'})
 
 
-        # sm_precise_landing = smach.StateMachine(outcomes=['succeeded'], input_keys=['takeoff_position', 'rm'])
-        # with sm_precise_landing:
-        #     smach.StateMachine.add('FlyBack', FlyBack(),transitions={'succeeded': 'AlignAndLand'}, remapping={'takeoff_position': 'takeoff_position', 'rm': 'rm'})
+        sm_precise_landing = smach.StateMachine(outcomes=['succeeded', 'failed'], input_keys=['takeoff_position', 'rm'])
+        with sm_precise_landing:
+            smach.StateMachine.add('FlyBack', FlyBack(),transitions={'succeeded': 'AlignAndLand'}, remapping={'takeoff_position': 'takeoff_position', 'rm': 'rm'})
 
             # smach.StateMachine.add('VisibilityAdjustment', VisibilityAdjustment(),transitions={'succeeded': 'AlignAndLand'}, remapping={'takeoff_position': 'takeoff_position', 'rm': 'rm'})
 
-        #     smach.StateMachine.add('AlignAndLand', AlignAndLand(),transitions={'succeeded': 'succeeded','failed': 'failed'}, remapping={ 'rm': 'rm'})
-        # smach.StateMachine.add('PreciseLanding', sm_precise_landing,transitions={'succeeded': 'Finish'})
+            smach.StateMachine.add('AlignAndLand', AlignAndLand(),transitions={'succeeded': 'succeeded'}, remapping={ 'rm': 'rm'})
+        smach.StateMachine.add('PreciseLanding', sm_precise_landing,transitions={'succeeded': 'Finish', 'failed': 'preempted'})
 
         # smach.StateMachine.add('Idle', Idle(),transitions={'succeeded': MarkerSearch})
 
