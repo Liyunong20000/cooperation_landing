@@ -24,6 +24,8 @@ from basic_function import *
 from dog_basic_function import *
 from drone_basic_function import *
 from gripper.gripper_move import *
+from AprillandQilin import *
+
 # from simulation.sim_basic import *
 # from simulation.sim_links_attachment import *
 
@@ -59,7 +61,7 @@ class TargetSearch(smach.State):
 
         self.pick_position = []
         self.rm = 0
-        self.pick_z = 0.72
+        self.pick_z = 0.75
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
         self.tol_z = 0.01  # longitudinal tolerance (m)
@@ -84,8 +86,8 @@ class TargetSearch(smach.State):
 
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
-        self.timeout_s = 6.0  # maximum duration of this state (s)
-        self.x_bias = 0.02
+        self.timeout_s = 12.0  # maximum duration of this state (s)
+        self.x_bias = 0.005
 
         self.sim_dog_x, self.sim_dog_y, self.sim_dog_z = 0.0, 0.0, 0.0
         self.sim_dog_roll, self.sim_dog_pitch, self.sim_dog_yaw= 0.0, 0.0, 0.0
@@ -294,7 +296,7 @@ class MoveDestination(smach.State):
         self.d_camera2spinal = 0.058
         self.h_camera2spinal = 0.080
         self.h_gripper2spinal = 0.201
-        self.h_safe = 0.2
+        self.h_safe = 0.3
         self.l_edge_box = 0.15
         self.put_z = 0.9
         self.t_cam2base = [[0, 0, 1, 0.058],
@@ -303,7 +305,7 @@ class MoveDestination(smach.State):
                            [0, 0, 0, 1]]
 
         self.t_desk2tag = [[-1, 0, 0, 0],
-                           [0, 0, -1, -0.105],
+                           [0, 0, 1, 0.105],
                            [0, 1, 0, -0.31],
                            [0, 0, 0, 1]]
 
@@ -329,7 +331,7 @@ class MoveDestination(smach.State):
 
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
-        self.timeout_s = 6.0  # maximum duration of this state (s)
+        self.timeout_s = 12.0  # maximum duration of this state (s)
         self.x_bias = 0
 
 
@@ -369,20 +371,20 @@ class MoveDestination(smach.State):
             self.drone_basic.add_module_trigger()
 
             # First 
-            while self.drone_basic.drone_y > 1.0:
-                self.dog_basic.qilin_cmd_vel(-0.3, 0, 0, 0, 0)
-                time.sleep(0.1)
-                print(f'{self.drone_basic.drone_x}')
-            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-
-            # Then
-            while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
-                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.4)
-                time.sleep(0.1)
-                if abs(self.drone_basic.drone_yaw + 1.57) < 0.01:
-                    break
-            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            rospy.loginfo(f'enter y')
+            # while self.drone_basic.drone_y > 1.0:
+            #     self.dog_basic.qilin_cmd_vel(-0.3, 0, 0, 0, 0)
+            #     time.sleep(0.1)
+            #     print(f'{self.drone_basic.drone_x}')
+            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            #
+            # # Then
+            # while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
+            #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.4)
+            #     time.sleep(0.1)
+            #     if abs(self.drone_basic.drone_yaw + 1.57) < 0.01:
+            #         break
+            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            # rospy.loginfo(f'enter y')
 
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
             start_t = rospy.Time.now()
@@ -453,7 +455,10 @@ class MoveDestination(smach.State):
             rospy.loginfo(f'put_position: {self.put_position}')
             rospy.loginfo(f'put_position_mocap: {put_position_mocap}')
             rospy.loginfo(f'desk_mocap: {self.basic.mocap_desk_x}, {self.basic.mocap_desk_y}, {self.basic.mocap_desk_z}')
-
+            while not rospy.is_shutdown():
+                s = input("Type 'y' to continue: ").strip().lower()
+                if s == 'y':
+                    break
         else:
             while abs(self.TargetSearch.drone_basic.drone_yaw - 1.57) > (3.14/12):
                 self.TargetSearch.sim_dog_yaw = -10
@@ -510,16 +515,16 @@ class Takeoff(smach.State):
         if self.rm == 1:
             self.drone_basic.record_takeoff_position(self.drone_basic.drone_x, self.drone_basic.drone_y, self.drone_basic.drone_z, self.drone_basic.drone_yaw)
             time.sleep(0.1)
-            # self.drone_basic.drone_start()
-            # time.sleep(0.1)
-            # self.drone_basic.drone_takeoff()
+            self.drone_basic.drone_start()
+            time.sleep(0.1)
+            self.drone_basic.drone_takeoff()
             rospy.loginfo(f'takeoff!!!!!!!!!!')
             userdata.takeoff_position = [self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.drone_basic.takeoff_z, self.drone_basic.takeoff_yaw]
             rospy.loginfo(f'takeoff_x:{self.drone_basic.takeoff_x}, takeoff_y:{self.drone_basic.takeoff_y}, takeoff_z:{self.drone_basic.takeoff_z}, takeoff_yaw:{self.drone_basic.takeoff_yaw}')
             # After hovering, the drone state will be 5.
             # After hovering, send command to the drone.
-            # while self.drone_basic.drone_state != 5:
-            #     time.sleep(0.1)
+            while self.drone_basic.drone_state != 5:
+                time.sleep(0.1)
             rospy.sleep(0.1)
         return 'succeeded'
 
@@ -540,13 +545,18 @@ class FlyTarget(smach.State):
             qx, qy,qz, qw = tft.quaternion_from_euler(0,0, self.put_position[3])
             self.drone_basic.drone_target('world', self.put_position[0], self.put_position[1], 1.0, 0 , 0, 0, 1)
             rospy.loginfo(f'send fly target')
-            rospy.sleep(3)
+            rospy.sleep(5)
+            rospy.loginfo(f'send fly target again')
             self.drone_basic.drone_target('world', self.put_position[0], self.put_position[1], self.put_position[2], qx , qy, qz, qw)
             rospy.loginfo(f'{self.put_position[0]}, {self.put_position[1]}, {self.put_position[2]}, {qx}, {qy}, {qz}, {qw}')
-            rospy.sleep(3)
+            rospy.sleep(6)
+            rospy.loginfo(f'Oopen gripper')
             self.gripper_move.servo_target_cmd_qilin(0, 1400)
-            self.drone_basic.call_add_extra_module(-1, "brick", "main_body")
-
+            self.drone_basic.remove_module_trigger()
+            while not rospy.is_shutdown():
+                s = input("Type 'y' to continue: ").strip().lower()
+                if s == 'y':
+                    break
         else:
             while self.drone_basic.drone_state != 5:
                 time.sleep(0.1)
@@ -563,7 +573,9 @@ class FlyBack(smach.State):
         self.land_offset = 0.2
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
+        self.aqm = AprilmoveqilinNode()
 
+        self.timeout_s = 12.0
         self.takeoff_position = [0.0, 0.0, 0.0, 0.0]
         self.rm = 0
 
@@ -581,6 +593,8 @@ class FlyBack(smach.State):
         self.pub_drone_target_sim.publish(drone_target_pose)
 
     def execute(self, userdata):
+        rospy.loginfo(f'Flyback!!')
+
         self.takeoff_x = userdata.takeoff_position[0]
         self.takeoff_y = userdata.takeoff_position[1]
         self.takeoff_z = userdata.takeoff_position[2]
@@ -591,9 +605,25 @@ class FlyBack(smach.State):
         time.sleep(1)
         if self.rm ==1:
             self.drone_basic.drone_target('world', self.takeoff_x, self.takeoff_y, 1.0, qx , qy, qz, qw)
+            rospy.loginfo(f'fly back:x= {self.takeoff_x}, {self.takeoff_y}, {self.takeoff_z}')
+
+            # start_t = rospy.Time.now()
+            # rate = rospy.Rate(1.0 / 20)
+            # rospy.loginfo(f'Begin align!!')
+            # while not rospy.is_shutdown():
+            #     self.aqm.align_dog_with_drone()
+            # # Timeout protection to avoid getting stuck in this state
+            #     if (rospy.Time.now() - start_t).to_sec() > 12:
+            #         rospy.logwarn("TargetSearch: timeout reached, stopping.")
+            #         break
+            #     rate.sleep()
             time.sleep(5)
             self.drone_basic.drone_target('world', self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, qx, qy, qz, qw)
-
+            rospy.loginfo(f'above 0.2mm!!')
+            while not rospy.is_shutdown():
+                s = input("Type 'y' to continue: ").strip().lower()
+                if s == 'y':
+                    break
         else:
             self.drone_target_pose_sim( self.takeoff_x, self.takeoff_y,  self.takeoff_z + self.land_offset, 0, 0, 0,1)
         return 'succeeded'
@@ -909,6 +939,7 @@ class VisibilityAdjustment(smach.State):
 class AlignAndLand(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','failed'], input_keys=['rm'])
+        self.alm = AprillandqilinNode()
 
         self.rm = 0
     def sim_pose(self, px, py, ox, oy, oz, ow):
@@ -934,8 +965,9 @@ class AlignAndLand(smach.State):
 
     def execute(self, userdata):
         self.rm = userdata.rm
-
-        return 'succeeded'
+        if self.rm == 1:
+            self.alm.run()
+            return 'succeeded'
 class Idle(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'])
