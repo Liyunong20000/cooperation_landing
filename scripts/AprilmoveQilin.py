@@ -165,7 +165,7 @@ class AprilmoveqilinNode:
         # self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ self.find_target_tag(self.msg_apriltag, 0)
         # print(f'{self.dog_align_drone_matrix}')
         if (self.dog_align_drone_matrix[0, 3] < 0.5) or (self.dog_align_drone_matrix[1, 3] < 0.5):
-            self.move_param = 1.2
+            self.move_param = 1.15
         else:
             self.move_param = 1
         lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -1, 1)
