@@ -61,7 +61,7 @@ class TargetSearch(smach.State):
 
         self.pick_position = []
         self.rm = 0
-        self.pick_z = 0.75
+        self.pick_z = 0.77
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
         self.tol_z = 0.01  # longitudinal tolerance (m)
@@ -69,25 +69,25 @@ class TargetSearch(smach.State):
         self.tol_pitch = 0.05  # yaw tolerance (rad)
 
         # === Proportional gains ===
-        self.k_vx = 0.2  # gain for forward/backward motion
-        self.k_vy = -0.8  # gain for lateral motion (sign depends on frame)
+        self.k_vx = 0.4  # gain for forward/backward motion
+        self.k_vy = -0.8 # gain for lateral motion (sign depends on frame)
         self.k_yaw = -0.5  # gain for yaw rotation
 
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
-        self.vx_min = 0.02       # m/s
-        self.vy_min = 0.02       # m/s
+        self.vx_min = 0.03       # m/s
+        self.vy_min = 0.03       # m/s
         self.wz_min = 0.10       # rad/s
 
         # === Maximum velocities (safety limits) ===
-        self.vx_max = 0.25  # m/s
-        self.vy_max = 0.25  # m/s
+        self.vx_max = 0.25 # m/s
+        self.vy_max = 0.25 # m/s
         self.wz_max = 0.60  # rad/s
 
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
-        self.timeout_s = 12.0  # maximum duration of this state (s)
-        self.x_bias = 0.005
+        self.timeout_s = 18.0  # maximum duration of this state (s)
+        self.x_bias = - 0.03
 
         self.sim_dog_x, self.sim_dog_y, self.sim_dog_z = 0.0, 0.0, 0.0
         self.sim_dog_roll, self.sim_dog_pitch, self.sim_dog_yaw= 0.0, 0.0, 0.0
@@ -140,7 +140,11 @@ class TargetSearch(smach.State):
 
         # Deadzone compensation: enforce minimum executable velocity
         if abs(v) < v_min:
-            v = v_min if v > 0 else -v_min
+            if v < 0:
+                v = -v_min
+            if v > 0:
+                v = v_min
+            # v = v_min if v > 0 else -v_min
 
         # Saturation for safety
         return self.clamp(v, -v_max, v_max)
@@ -155,8 +159,8 @@ class TargetSearch(smach.State):
             #     time.sleep(0.1)
             #     print(f'{self.drone_basic.drone_x}')
             # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-
-            # Then it will rotate to the positive y axis.
+            #
+            # # Then it will rotate to the positive y axis.
             # while abs(self.drone_basic.drone_yaw - 1.57) > 0.05:
             #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -(self.drone_basic.drone_yaw - 1.57))
             #     time.sleep(0.1)
@@ -188,8 +192,13 @@ class TargetSearch(smach.State):
                     rospy.logwarn("TargetSearch: timeout reached, stopping.")
                     break
 
+
                 # Update AprilTag pose estimation (must be done every iteration)
                 self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
+                # if self.drone_basic.tag_target_z < 1.0:
+                #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                #     time.sleep(0.1)
+                #     self.drone_basic.tag_position(self.drone_basic.tag_info, 11)
 
                 # Compute control errors
                 z_err = self.drone_basic.tag_target_z - self.pick_z
@@ -274,6 +283,9 @@ class Pick(smach.State):
 
         if self.rm == 1:
             # Begin to grasp and add an extra module for the drone.
+            time.sleep(1)
+            self.gripper_move.servo_target_cmd_qilin(0, 200)
+            time.sleep(1)
             self.gripper_move.servo_target_cmd_qilin(0, 200)
             rospy.sleep(3)
             self.drone_basic.call_add_extra_module(1, "brick", "main_body")
@@ -296,7 +308,7 @@ class MoveDestination(smach.State):
         self.d_camera2spinal = 0.058
         self.h_camera2spinal = 0.080
         self.h_gripper2spinal = 0.201
-        self.h_safe = 0.3
+        self.h_safe = 0.2
         self.l_edge_box = 0.15
         self.put_z = 0.9
         self.t_cam2base = [[0, 0, 1, 0.058],
@@ -310,7 +322,7 @@ class MoveDestination(smach.State):
                            [0, 0, 0, 1]]
 
         self.tol_z = 0.03  # longitudinal tolerance (m)
-        self.tol_x = 0.03  # lateral tolerance (m)
+        self.tol_x = 0.05  # lateral tolerance (m)
         self.tol_pitch = 0.05  # yaw tolerance (rad)
 
         # === Proportional gains ===
@@ -371,20 +383,20 @@ class MoveDestination(smach.State):
             self.drone_basic.add_module_trigger()
 
             # First 
-            # while self.drone_basic.drone_y > 1.0:
-            #     self.dog_basic.qilin_cmd_vel(-0.3, 0, 0, 0, 0)
-            #     time.sleep(0.1)
-            #     print(f'{self.drone_basic.drone_x}')
-            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            #
-            # # Then
-            # while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
-            #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.4)
-            #     time.sleep(0.1)
-            #     if abs(self.drone_basic.drone_yaw + 1.57) < 0.01:
-            #         break
-            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            # rospy.loginfo(f'enter y')
+            while self.drone_basic.drone_y > 1.0:
+                self.dog_basic.qilin_cmd_vel(-0.3, 0, 0, 0, 0)
+                time.sleep(0.1)
+                print(f'{self.drone_basic.drone_x}')
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+            # Then
+            while abs(self.drone_basic.drone_yaw + 1.57) > 0.05:
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0.4)
+                time.sleep(0.1)
+                if abs(self.drone_basic.drone_yaw + 1.57) < 0.01:
+                    break
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            rospy.loginfo(f'enter y')
 
             self.drone_basic.tag_position(self.drone_basic.tag_info, 12)
             start_t = rospy.Time.now()
@@ -545,7 +557,7 @@ class FlyTarget(smach.State):
             qx, qy,qz, qw = tft.quaternion_from_euler(0,0, self.put_position[3])
             self.drone_basic.drone_target('world', self.put_position[0], self.put_position[1], 1.0, 0 , 0, 0, 1)
             rospy.loginfo(f'send fly target')
-            rospy.sleep(5)
+            rospy.sleep(8)
             rospy.loginfo(f'send fly target again')
             self.drone_basic.drone_target('world', self.put_position[0], self.put_position[1], self.put_position[2], qx , qy, qz, qw)
             rospy.loginfo(f'{self.put_position[0]}, {self.put_position[1]}, {self.put_position[2]}, {qx}, {qy}, {qz}, {qw}')
@@ -570,7 +582,7 @@ class FlyBack(smach.State):
         self.pub_drone_target_sim = rospy.Publisher('/quadrotor/target_pose', PoseStamped, queue_size=10)
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
-        self.land_offset = 0.2
+        self.land_offset = 0.3
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
         self.aqm = AprilmoveqilinNode()
@@ -617,13 +629,13 @@ class FlyBack(smach.State):
             #         rospy.logwarn("TargetSearch: timeout reached, stopping.")
             #         break
             #     rate.sleep()
-            time.sleep(5)
+            time.sleep(8)
             self.drone_basic.drone_target('world', self.takeoff_x, self.takeoff_y, self.takeoff_z + self.land_offset, qx, qy, qz, qw)
             rospy.loginfo(f'above 0.2mm!!')
-            while not rospy.is_shutdown():
-                s = input("Type 'y' to continue: ").strip().lower()
-                if s == 'y':
-                    break
+            # while not rospy.is_shutdown():
+            #     s = input("Type 'y' to continue: ").strip().lower()
+            #     if s == 'y':
+            #         break
         else:
             self.drone_target_pose_sim( self.takeoff_x, self.takeoff_y,  self.takeoff_z + self.land_offset, 0, 0, 0,1)
         return 'succeeded'
