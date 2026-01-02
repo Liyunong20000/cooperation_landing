@@ -23,7 +23,7 @@ def main():
 
     with sm_top:
         smach.StateMachine.add('Start', Start(),
-                               transitions={'succeeded': 'TargetPut'}, remapping={'rm':'rm'})
+                               transitions={'succeeded': 'TargetPick'}, remapping={'rm':'rm'})
 
         sm_target_pick = smach.StateMachine(outcomes=['finished'], input_keys=['rm', 'pick_position'])
 
