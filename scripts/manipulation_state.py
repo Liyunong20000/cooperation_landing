@@ -61,7 +61,7 @@ class TargetSearch(smach.State):
 
         self.pick_position = []
         self.rm = 0
-        self.pick_z = 0.77
+        self.pick_z = 0.79
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
         self.tol_z = 0.01  # longitudinal tolerance (m)
@@ -87,7 +87,7 @@ class TargetSearch(smach.State):
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
         self.timeout_s = 18.0  # maximum duration of this state (s)
-        self.x_bias = - 0.03
+        self.x_bias = - 0.04
 
         self.sim_dog_x, self.sim_dog_y, self.sim_dog_z = 0.0, 0.0, 0.0
         self.sim_dog_roll, self.sim_dog_pitch, self.sim_dog_yaw= 0.0, 0.0, 0.0
@@ -154,20 +154,20 @@ class TargetSearch(smach.State):
 
         if self.rm == 1:
             # First the platform will move to the zero point along x axis
-            # while self.drone_basic.drone_x < 0:
-            #     self.dog_basic.qilin_cmd_vel(0.3, 0, 0, 0, 0)
-            #     time.sleep(0.1)
-            #     print(f'{self.drone_basic.drone_x}')
-            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            #
-            # # Then it will rotate to the positive y axis.
-            # while abs(self.drone_basic.drone_yaw - 1.57) > 0.05:
-            #     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -(self.drone_basic.drone_yaw - 1.57))
-            #     time.sleep(0.1)
-            #     if abs(self.drone_basic.drone_yaw - 1.57) < 0.02:
-            #         break
-            # self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-            # rospy.loginfo(f'enter y')
+            while self.drone_basic.drone_x < 0:
+                self.dog_basic.qilin_cmd_vel(0.3, 0, 0, 0, 0)
+                time.sleep(0.1)
+                print(f'{self.drone_basic.drone_x}')
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+            # Then it will rotate to the positive y axis.
+            while abs(self.drone_basic.drone_yaw - 1.57) > 0.05:
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, -(self.drone_basic.drone_yaw - 1.57))
+                time.sleep(0.1)
+                if abs(self.drone_basic.drone_yaw - 1.57) < 0.02:
+                    break
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            rospy.loginfo(f'enter y')
 
             # Approach with the target and try to use domestic navigation by camera
             # while abs(self.drone_basic.drone_y - 1) > 0.1:
