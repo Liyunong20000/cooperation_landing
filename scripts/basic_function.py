@@ -37,72 +37,42 @@ class BasicNode:
         self.mocap_xuanwu_qx, self.mocap_xuanwu_qy, self.mocap_xuanwu_qz, self.mocap_xuanwu_qw = 0.0, 0.0, 0.0, 0.0
         self.mocap_xuanwu_roll, self.mocap_xuanwu_pitch, self.mocap_xuanwu_yaw = 0.0, 0.0, 0.0
 
+    def _generic_pose_callback(self, msg, prefix):
+        """
+        Generic callback for pose messages to update position and orientation attributes.
+        """
+        pose = msg.pose
+        setattr(self, f'mocap_{prefix}_x', pose.position.x)
+        setattr(self, f'mocap_{prefix}_y', pose.position.y)
+        setattr(self, f'mocap_{prefix}_z', pose.position.z)
+        setattr(self, f'mocap_{prefix}_qx', pose.orientation.x)
+        setattr(self, f'mocap_{prefix}_qy', pose.orientation.y)
+        setattr(self, f'mocap_{prefix}_qz', pose.orientation.z)
+        setattr(self, f'mocap_{prefix}_qw', pose.orientation.w)
+        roll, pitch, yaw = tft.euler_from_quaternion([
+            getattr(self, f'mocap_{prefix}_qx'),
+            getattr(self, f'mocap_{prefix}_qy'),
+            getattr(self, f'mocap_{prefix}_qz'),
+            getattr(self, f'mocap_{prefix}_qw')
+        ])
+        setattr(self, f'mocap_{prefix}_roll', roll)
+        setattr(self, f'mocap_{prefix}_pitch', pitch)
+        setattr(self, f'mocap_{prefix}_yaw', yaw)
+
     def _callback_brick_mocap(self, msg):
-        pose = msg.pose
-        self.mocap_brick_x = pose.position.x
-        self.mocap_brick_y = pose.position.y
-        self.mocap_brick_z = pose.position.z
-        self.mocap_brick_qx = pose.orientation.x
-        self.mocap_brick_qy = pose.orientation.y
-        self.mocap_brick_qz = pose.orientation.z
-        self.mocap_brick_qw = pose.orientation.w
-        self.mocap_brick_roll, self.mocap_brick_pitch, self.mocap_brick_yaw = tft.euler_from_quaternion(
-            [self.mocap_brick_qx, self.mocap_brick_qy, self.mocap_brick_qz, self.mocap_brick_qw]
-        )
-        # print(f'mocap_brick_x={self.mocap_brick_x}', f'mocap_brick_y={self.mocap_brick_y}', f'mocap_brick_z={self.mocap_brick_z}')
-        # rospy.loginfo(f'mocap_brick_roll: {self.mocap_brick_roll}, mocap_brick_pitch: {self.mocap_brick_pitch}, mocap_brick_yaw: {self.mocap_brick_yaw}')
+        self._generic_pose_callback(msg, 'brick')
+
     def _callback_desk_mocap(self, msg):
-        pose = msg.pose
-        self.mocap_desk_x = pose.position.x
-        self.mocap_desk_y = pose.position.y
-        self.mocap_desk_z = pose.position.z
-        self.mocap_desk_qx = pose.orientation.x
-        self.mocap_desk_qy = pose.orientation.y
-        self.mocap_desk_qz = pose.orientation.z
-        self.mocap_desk_qw = pose.orientation.w
-        self.mocap_desk_roll, self.mocap_desk_pitch, self.mocap_desk_yaw = tft.euler_from_quaternion(
-            [self.mocap_desk_qx, self.mocap_desk_qy, self.mocap_desk_qz, self.mocap_desk_qw]
-        )
-        # print(f'mocap_desk_x={self.mocap_desk_x}', f'mocap_desk_y={self.mocap_desk_y}', f'mocap_brick_z={self.mocap_desk_z}')
+        self._generic_pose_callback(msg, 'desk')
 
     def _callback_tag12_mocap(self, msg):
-        pose = msg.pose
-        self.mocap_tag12_x = pose.position.x
-        self.mocap_tag12_y = pose.position.y
-        self.mocap_tag12_z = pose.position.z
-        self.mocap_tag12_qx = pose.orientation.x
-        self.mocap_tag12_qy = pose.orientation.y
-        self.mocap_tag12_qz = pose.orientation.z
-        self.mocap_tag12_qw = pose.orientation.w
-        self.mocap_tag12_roll, self.mocap_tag12_pitch, self.mocap_tag12_yaw = tft.euler_from_quaternion(
-            [self.mocap_tag12_qx, self.mocap_tag12_qy, self.mocap_tag12_qz, self.mocap_tag12_qw]
-        )
+        self._generic_pose_callback(msg, 'tag12')
 
     def _callback_tag13_mocap(self, msg):
-        pose = msg.pose
-        self.mocap_tag13_x = pose.position.x
-        self.mocap_tag13_y = pose.position.y
-        self.mocap_tag13_z = pose.position.z
-        self.mocap_tag13_qx = pose.orientation.x
-        self.mocap_tag13_qy = pose.orientation.y
-        self.mocap_tag13_qz = pose.orientation.z
-        self.mocap_tag13_qw = pose.orientation.w
-        self.mocap_tag13_roll, self.mocap_tag13_pitch, self.mocap_tag13_yaw = tft.euler_from_quaternion(
-            [self.mocap_tag13_qx, self.mocap_tag13_qy, self.mocap_tag13_qz, self.mocap_tag13_qw]
-        )
+        self._generic_pose_callback(msg, 'tag13')
 
     def _callback_xuanwu_mocap(self, msg):
-        pose = msg.pose
-        self.mocap_xuanwu_x = pose.position.x
-        self.mocap_xuanwu_y = pose.position.y
-        self.mocap_xuanwu_z = pose.position.z
-        self.mocap_xuanwu_qx = pose.orientation.x
-        self.mocap_xuanwu_qy = pose.orientation.y
-        self.mocap_xuanwu_qz = pose.orientation.z
-        self.mocap_xuanwu_qw = pose.orientation.w
-        self.mocap_xuanwu_roll, self.mocap_xuanwu_pitch, self.mocap_xuanwu_yaw = tft.euler_from_quaternion(
-            [self.mocap_xuanwu_qx, self.mocap_xuanwu_qy, self.mocap_xuanwu_qz, self.mocap_xuanwu_qw]
-        )
+        self._generic_pose_callback(msg, 'xuanwu')
 if __name__ == '__main__':
     rospy.init_node('Basic', anonymous=True)
     rospy.sleep(0.1)
