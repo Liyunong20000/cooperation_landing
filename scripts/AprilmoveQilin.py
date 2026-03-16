@@ -12,6 +12,9 @@ from dog_basic_function import DogBasic
 # It is for ground robot used to align with aerial robot
 
 class AprilmoveqilinNode:
+    """
+    Node for ground robot to align with aerial robot using AprilTag detections.
+    """
 
     def __init__(self):  # This part will work when this node is used.
         print(f'Hi, I am Cloud Cube')
@@ -23,7 +26,6 @@ class AprilmoveqilinNode:
         self.smoothed_lx = 0
         self.smoothed_ly = 0
         self.smoothed_ryaw = 0
-        self.smooth_alpha = 0.5
         
         # Subscribe the tag_detection topic of dog camera.
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self._callback_apriltag)
@@ -39,6 +41,12 @@ class AprilmoveqilinNode:
         # self.above_z = rospy.get_param("/above_z")
         self.move_param = rospy.get_param("/move_parameter",1.5)
         self.rotate_param = rospy.get_param("/rotate_parameter",0.5)
+        self.smooth_alpha = rospy.get_param("/smooth_alpha", 0.5)
+        self.close_distance_threshold = rospy.get_param("/close_distance_threshold", 0.5)
+        self.fast_move_param = rospy.get_param("/fast_move_param", 1.15)
+        self.normal_move_param = rospy.get_param("/normal_move_param", 1.0)
+        self.max_linear_vel = rospy.get_param("/max_linear_vel", 1.0)
+        self.max_angular_vel = rospy.get_param("/max_angular_vel", 0.3)
         # self.pose_parameter = rospy.get_param("/pose_parameter")
 
         self.msg_apriltag = None
@@ -49,6 +57,9 @@ class AprilmoveqilinNode:
 
     # Get the RT matrix of each tags from drone center
     def drone_tags_matrix(self):
+        """
+        Load and set tag matrices from ROS parameters.
+        """
         for entry in self.drone_tags_matrix_param:
             tag_id = entry.get("id")
             name = entry.get("name")
@@ -164,20 +175,21 @@ class AprilmoveqilinNode:
         self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ T_drone_center
         # self.dog_align_drone_matrix = self.origin_2_camera_matrix_param @ self.find_target_tag(self.msg_apriltag, 0)
         # print(f'{self.dog_align_drone_matrix}')
-        if (self.dog_align_drone_matrix[0, 3] < 0.5) or (self.dog_align_drone_matrix[1, 3] < 0.5):
-            self.move_param = 1.15
+        if (self.dog_align_drone_matrix[0, 3] > self.close_distance_threshold) or (self.dog_align_drone_matrix[1, 3] > self.close_distance_threshold):
+            self.move_param = self.fast_move_param
         else:
-            self.move_param = 1
-        lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -1, 1)
-        ly = np.clip((self.move_param * self.dog_align_drone_matrix[1, 3]), -1, 1)
+            self.move_param = self.normal_move_param
+        lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -self.max_linear_vel, self.max_linear_vel)
+        ly = np.clip((self.move_param * self.dog_align_drone_matrix[1, 3]), -self.max_linear_vel, self.max_linear_vel)
         # q = tft.quaternion_from_matrix(self.dog_align_drone_matrix)
-        if not isinstance(self.find_target_tag(self.msg_apriltag, 0), np.ndarray) or self.find_target_tag(self.msg_apriltag, 0).shape != (4, 4):
+        T_tag_0 = self.find_target_tag(self.msg_apriltag, 0)
+        if not isinstance(T_tag_0, np.ndarray) or T_tag_0.shape != (4, 4):
             rospy.logwarn("Tag 0 not found or invalid transform.")
             return
       
-        q = tft.quaternion_from_matrix(self.find_target_tag(self.msg_apriltag, 0))
+        q = tft.quaternion_from_matrix(T_tag_0)
         roll, pitch, yaw = tft.euler_from_quaternion(q)
-        ryaw = np.clip((self.rotate_param * yaw), -0.3, 0.3)
+        ryaw = np.clip((self.rotate_param * yaw), -self.max_angular_vel, self.max_angular_vel)
         # print(f'{lx}, {ly}, {ryaw}')
 
 
@@ -185,7 +197,6 @@ class AprilmoveqilinNode:
         self.smoothed_ly = (1- self.smooth_alpha) * self.smoothed_ly + self.smooth_alpha * ly
         self.smoothed_ryaw = (1- self.smooth_alpha) * self.smoothed_ryaw + self.smooth_alpha * ryaw
         self.dog_basic_function.qilin_cmd_vel(self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw)
-        self.dog_basic_function.qilin_cmd_vel(lx, ly, 0, 0, ryaw)
 
 if __name__ == '__main__':
     rospy.init_node('Aprilmoveqilin', anonymous=True)
@@ -194,9 +205,7 @@ if __name__ == '__main__':
     time.sleep(1)
     # print(type(node.drone_tags_matrix_param))
     # node.drone_tags_matrix()
+    rate = rospy.Rate(10)  # 10 Hz
     while not rospy.is_shutdown():
-        time.sleep(0.1)
         node.align_dog_with_drone()
-    # while not rospy.is_shutdown():
-    #
-    #     rospy.spin()
+        rate.sleep()
