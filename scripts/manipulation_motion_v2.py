@@ -10,52 +10,91 @@ def main():
     rospy.init_node('manipulation_motion')
 
     # Load ROS parameters
-    picking_marker = rospy.get_param('picking_marker', 11)  # Default to 11
-    placing_marker = rospy.get_param('placing_marker', 12)  # Default to 12
+    picking_marker = rospy.get_param('picking_marker', 11)
+    placing_marker = rospy.get_param('placing_marker', 12)
+    object_state = rospy.get_param('object_state', 0)
+    picking_position = rospy.get_param('picking_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    placing_position = rospy.get_param('placing_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    takeoff_position = rospy.get_param('takeoff_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+    switching_threshold = rospy.get_param('switching_threshold', 0.5)
+    detaching_takeoff_threshold = rospy.get_param('detaching_takeoff_threshold', 0.5)
 
     sm_top = smach.StateMachine(outcomes=['preempted'])
-    sm_top.userdata.rm = 1  # real_machine = 1
+
     sm_top.userdata.picking_marker = picking_marker
     sm_top.userdata.placing_marker = placing_marker
+    sm_top.userdata.object_state = object_state
+    sm_top.userdata.picking_position = picking_position
+    sm_top.userdata.placing_position = placing_position
+    sm_top.userdata.takeoff_position = takeoff_position
+
+    sm_top.userdata.switching_threshold = switching_threshold
+    sm_top.userdata.detaching_takeoff_threshold = detaching_takeoff_threshold
 
     with sm_top:
         # Sub-state machine for target search
-        sm_target_search = smach.StateMachine(outcomes=['to_docking', 'to_detaching', 'finished'], input_keys=['rm', 'picking_marker', 'placing_marker'], output_keys=['scan_results'])
+        smach.StateMachine.add('Start', Start(),
+                               transitions={'succeeded': 'TargetSearch'})
+
+        sm_target_search = smach.StateMachine(outcomes=['succeed_docking', 'succeed_detaching', 'failed'], input_keys=['object_state', 'picking_marker', 'placing_marker', 'switching_threshold'], output_keys=['picking_position', 'placing_position'])
 
         with sm_target_search:
-            smach.StateMachine.add('HorizontalScan', HorizontalScan(),
-                                   transitions={'scanned': 'VerticalScan', 'finished': 'finished'},
-                                   remapping={'rm': 'rm', 'scan_results': 'scan_results'})
 
-            smach.StateMachine.add('VerticalScan', VerticalScan(),
-                                   transitions={'scanned': 'StateJudgment'},
-                                   remapping={'rm': 'rm', 'scan_results': 'scan_results'})
+            smach.StateMachine.add('HorizontalScan', HorizontalScan(),transitions={'succeeded': 'StateJudgment', 'need_vertical': 'VerticalScan', 'failed': 'failed'}, remapping={'object_state': 'object_state', 'picking_position': 'picking_position', 'placing_position': 'placing_position',  'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker'})
 
-            smach.StateMachine.add('StateJudgment', StateJudgment(),
-                                   transitions={'to_docking': 'to_docking',
-                                                'to_detaching': 'to_detaching',
-                                                'finished': 'finished'},
-                                   remapping={'rm': 'rm', 'scan_results': 'scan_results', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker'})
+            smach.StateMachine.add('VerticalScan', VerticalScan(), transitions={'succeeded': 'StateJudgment', 'failed': 'HorizontalScan'}, remapping={'object_state': 'object_state', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker'})
 
-        smach.StateMachine.add('TargetSearch', sm_target_search,
-                               transitions={'to_docking': 'DockingManipulation',
-                                            'to_detaching': 'DetachingManipulation',
-                                            'finished': 'Finish'},
-                               remapping={'rm': 'rm', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker'})
+            smach.StateMachine.add('StateJudgment', StateJudgment(), transitions={'succeed_docking': 'succeed_docking', 'succeed_detaching': 'succeed_detaching'}, remapping={'switching_threshold': 'switching_threshold'})
 
-        smach.StateMachine.add('DockingManipulation', DockingManipulation(),
-                               transitions={'back_to_search': 'TargetSearch',
-                                            'finished': 'Finish'},
-                               remapping={'rm': 'rm'})
+        smach.StateMachine.add('TargetSearch', sm_target_search, transitions={'succeed_docking': 'DockingManipulation','succeed_detaching': 'DetachingManipulation', 'failed': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'switching_threshold': 'switching_threshold'})
 
-        smach.StateMachine.add('DetachingManipulation', DetachingManipulation(),
-                               transitions={'to_precise_landing': 'PreciseLanding'},
-                               remapping={'rm': 'rm'})
+        sm_docking_manipulation = smach.StateMachine(outcomes=['succeed', 'finish'], input_keys=['object_state', 'picking_marker', 'placing_marker', 'picking_position', 'placing_position'], output_keys=['object_state'])
 
-        smach.StateMachine.add('PreciseLanding', PreciseLanding(),
-                               transitions={'back_to_search': 'TargetSearch',
-                                            'finished': 'Finish'},
-                               remapping={'rm': 'rm'})
+        with sm_docking_manipulation:
+
+            smach.StateMachine.add('DockApproach', DockApproach(),transitions={'succeeded': 'DockManipulation', 'failed': 'DockHome'}, remapping={'object_state': 'object_state', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker'})
+
+            smach.StateMachine.add('DockManipulation', DockManipulation(), transitions={'succeeded': 'DockHome'}, remapping={'object_state': 'object_state'})
+
+            smach.StateMachine.add('DockHome', DockHome(), transitions={'succeed': 'succeed', 'finish': 'finish'})
+
+        smach.StateMachine.add('DockingManipulation', sm_docking_manipulation, transitions={'succeed': 'TargetSearch','finish': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker', 'picking_position': 'picking_position', 'placing_position': 'placing_position'})
+
+        sm_detaching_manipulation = smach.StateMachine(outcomes=['succeed', 'failed'], input_keys=['object_state', 'picking_marker', 'placing_marker', 'picking_position', 'placing_position', 'detaching_takeoff_threshold', 'takeoff_position'], output_keys=['object_state', 'takeoff_position', 'picking_position', 'placing_position'])
+
+        with sm_detaching_manipulation:
+
+            smach.StateMachine.add('DetachApproach', DetachApproach(),transitions={'succeeded': 'DetachManipulation', 'failed': 'failed'}, remapping={'object_state': 'object_state', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker', 'detaching_takeoff_threshold': 'detaching_takeoff_threshold', 'picking_position': 'picking_position', 'placing_position': 'placing_position'})
+            
+            sm_detach_manipulation = smach.StateMachine(
+                outcomes=['succeed', 'failed'],
+                input_keys=['object_state', 'picking_position', 'placing_position', 'takeoff_position'],
+                output_keys=['object_state', 'takeoff_position']
+            )
+
+            with sm_detach_manipulation:
+                smach.StateMachine.add('Takeoff', Takeoff(),
+                                       transitions={'succeeded': 'FlyTarget', 'failed': 'failed'},
+                                       remapping={'takeoff_position': 'takeoff_position'})
+                smach.StateMachine.add('FlyTarget', FlyTarget(),
+                                       transitions={'succeeded': 'succeed', 'failed': 'failed'},
+                                       remapping={'object_state': 'object_state', 'picking_position': 'picking_position',
+                                                  'placing_position': 'placing_position'})
+
+            smach.StateMachine.add('DetachManipulation', sm_detach_manipulation, transitions={'succeed': 'succeed', 'failed': 'failed'}, remapping={'object_state': 'object_state', 'takeoff_position': 'takeoff_position', 'picking_position': 'picking_position', 'placing_position': 'placing_position'})
+
+        smach.StateMachine.add('DetachingManipulation', sm_detaching_manipulation, transitions={'succeed': 'PreciseLanding', 'failed': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'takeoff_position': 'takeoff_position', 'detaching_takeoff_threshold': 'detaching_takeoff_threshold'})
+
+        sm_precise_landing = smach.StateMachine(outcomes=['succeed', 'finish'], input_keys=['object_state', 'takeoff_position'])
+
+        with sm_precise_landing:
+
+            smach.StateMachine.add('FlyBack', FlyBack(), transitions={'succeeded': 'AlignAndLand'}, remapping={'takeoff_position': 'takeoff_position'})
+
+            smach.StateMachine.add('AlignAndLand', AlignAndLand(), transitions={'succeeded': 'succeed', 'failed': 'finish'})
+
+        smach.StateMachine.add('PreciseLanding', sm_precise_landing, transitions={'succeed': 'TargetSearch', 'finish': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker': 'picking_marker', 'placing_marker': 'placing_marker', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'takeoff_position': 'takeoff_position'})
 
         smach.StateMachine.add('Finish', Finish(), transitions={})
 
