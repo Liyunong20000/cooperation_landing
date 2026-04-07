@@ -7,8 +7,8 @@
   <rosparam file="$(find cooperation_landing)/config/DroneTagsMatrix.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/LandingInfo.yaml" command="load" />
 
-  <node name="manipulation_motion" pkg="cooperation_landing" type="manipulation_motion.py" >
-  </node>
+<!--   <node name="manipulation_motion" pkg="cooperation_landing" type="manipulation_motion.py" > -->
+<!--   </node> -->
 
 <!--  <node name="ground_robot_keyboard_control" pkg="cooperation_landing" type="keyboard_control.py" >-->
 <!--    <param name="keyboard_mode" value="$(arg rm)" />-->
