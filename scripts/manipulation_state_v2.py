@@ -188,15 +188,15 @@ class HorizontalScan(smach.State):
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
 
-        self.alpha_h = math.radians(rospy.get_param('~scan_alpha_h_deg', 70.0))
+        self.alpha_h = math.radians(rospy.get_param('~scan_alpha_h_deg', 118.0))
         self.rho_h = rospy.get_param('~scan_rho_h', 0.25)
-        self.detect_wait_s = rospy.get_param('~scan_detect_wait_s', 2)
+        self.detect_wait_s = rospy.get_param('~scan_detect_wait_s', 3)
         self.yaw_tol = rospy.get_param('~scan_yaw_tol_rad', 0.3)
         self.yaw_kp = rospy.get_param('~scan_yaw_kp', 0.9)
         self.yaw_wz_max = rospy.get_param('~scan_yaw_wz_max', 0.6)
         self.rotate_timeout_s = rospy.get_param('~scan_rotate_timeout_s', 4.0)
 
-        self.delta_yaw = max(0.12, (1.0 - self.rho_h) * self.alpha_h)
+        self.delta_yaw = max(0.4, (1.0 - self.rho_h) * self.alpha_h)
         self.n_h = int(math.ceil((2.0 * math.pi) / self.delta_yaw))
         self.yaw_offsets = [k * self.delta_yaw for k in range(self.n_h)]
 
