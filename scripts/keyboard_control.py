@@ -2,10 +2,12 @@
 
 from __future__ import print_function # for print function in python2
 import sys, select, termios, tty
+import math
 
 import rospy
 from std_msgs.msg import Empty
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Pose
 import rosgraph
 from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Trigger
@@ -23,6 +25,8 @@ Instruction:
      a           s           d          j       k       l
 (move left)  (backward) (move right)  (stop) (stand)  (sit)
 
+     u                i                 o
+(pitch 0 deg)   (pitch -15 deg)   (pitch -30 deg)
 
 Please don't have caps lock on.
 CTRL+c to quit
@@ -53,6 +57,31 @@ def service_client_sit():
     except rospy.ServiceException as e:
         rospy.logerr(f"Service call failed: {e}")
 
+
+def publish_zero_body_pose(pub):
+    pose = Pose()
+    pose.position.x = 0.0
+    pose.position.y = 0.0
+    pose.position.z = 0.0
+    pose.orientation.x = 0.0
+    pose.orientation.y = 0.0
+    pose.orientation.z = 0.0
+    pose.orientation.w = 0.0
+    pub.publish(pose)
+
+
+def publish_body_pose_with_pitch_deg(pub, pitch_deg):
+    pose = Pose()
+    pose.position.x = 0.0
+    pose.position.y = 0.0
+    pose.position.z = 0.0
+
+    pitch_rad = math.radians(pitch_deg)
+    pose.orientation.x = 0.0
+    pose.orientation.y = round(math.sin(pitch_rad / 2.0), 6)
+    pose.orientation.z = 0.0
+    pose.orientation.w = round(math.cos(pitch_rad / 2.0), 6)
+    pub.publish(pose)
 
 
 
@@ -85,6 +114,7 @@ if __name__=="__main__":
 
         if rm:
                 nav_pub = rospy.Publisher('/go1/cmd_vel', Twist, queue_size=1)
+                body_pose_pub = rospy.Publisher('/go1/body_pose', Pose, queue_size=1)
                 xy_vel = rospy.get_param("xy_vel", 0.2)
                 yaw_vel = rospy.get_param("yaw_vel", 0.4)
                 nav_msg = Twist()
@@ -126,8 +156,9 @@ if __name__=="__main__":
                                         nav_msg.linear.x = 0
                                         nav_msg.linear.y = 0
                                         nav_msg.angular.z = 0
-                                        msg = "stop!"
                                         nav_pub.publish(nav_msg)
+                                        publish_zero_body_pose(body_pose_pub)
+                                        msg = "stop and reset body pose!"
                                 if key == 'k':
                                         response = service_client_stand()
                                         if response.success:
@@ -142,6 +173,15 @@ if __name__=="__main__":
                                         else:
                                                 rospy.logwarn("Failed to send sit command.")
                                         msg = "sit!"
+                                if key == 'u':
+                                        publish_zero_body_pose(body_pose_pub)
+                                        msg = "set body pose quat to [0,0,0,0]"
+                                if key == 'i':
+                                        publish_body_pose_with_pitch_deg(body_pose_pub, -15.0)
+                                        msg = "set body pitch to -15 deg"
+                                if key == 'o':
+                                        publish_body_pose_with_pitch_deg(body_pose_pub, -30.0)
+                                        msg = "set body pitch to -30 deg"
 
                                 if key == '\x03':
                                         break
@@ -156,6 +196,7 @@ if __name__=="__main__":
                         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         else:
                 nav_pub = rospy.Publisher('/gazebo/set_model_state', ModelState, queue_size=1)
+                body_pose_pub = rospy.Publisher('/go1/body_pose', Pose, queue_size=1)
                 xy_vel = rospy.get_param("xy_vel", 0.5)
                 yaw_vel = rospy.get_param("yaw_vel", 2.5)
                 nav_msg = ModelState()
@@ -200,8 +241,9 @@ if __name__=="__main__":
                                         nav_msg.twist.linear.x = 0
                                         nav_msg.twist.linear.y = 0
                                         nav_msg.twist.angular.z = 0
-                                        msg = "stop!"
                                         nav_pub.publish(nav_msg)
+                                        publish_zero_body_pose(body_pose_pub)
+                                        msg = "stop and reset body pose!"
                                 if key == 'k':
                                         response = service_client_stand()
                                         if response.success:
@@ -216,6 +258,15 @@ if __name__=="__main__":
                                         else:
                                                 rospy.logwarn("Failed to send sit command.")
                                         msg = "sit!"
+                                if key == 'u':
+                                        publish_zero_body_pose(body_pose_pub)
+                                        msg = "set body pose quat to [0,0,0,0]"
+                                if key == 'i':
+                                        publish_body_pose_with_pitch_deg(body_pose_pub, -15.0)
+                                        msg = "set body pitch to -15 deg"
+                                if key == 'o':
+                                        publish_body_pose_with_pitch_deg(body_pose_pub, -30.0)
+                                        msg = "set body pitch to -30 deg"
 
                                 if key == '\x03':
                                         break
@@ -228,8 +279,3 @@ if __name__=="__main__":
                 finally:
                         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         # motion_start_pub = rospy.Publisher('task_start', Empty, queue_size=1)
-
-
-
-
-
