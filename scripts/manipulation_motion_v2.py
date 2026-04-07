@@ -10,10 +10,10 @@ def main():
     rospy.init_node('manipulation_motion')
 
     # Load ROS parameters (far/near marker ids)
-    picking_marker_far = rospy.get_param('~picking_marker_far', 11)
-    picking_marker_near = rospy.get_param('~picking_marker_near', 12)
-    placing_marker_far = rospy.get_param('~placing_marker_far', 13)
-    placing_marker_near = rospy.get_param('~placing_marker_near', 14)
+    picking_marker_far = rospy.get_param('~picking_marker_far', 0)
+    picking_marker_near = rospy.get_param('~picking_marker_near', 1)
+    placing_marker_far = rospy.get_param('~placing_marker_far', 2)
+    placing_marker_near = rospy.get_param('~placing_marker_near', 3)
 
     # Keep existing state interfaces: picking/placing_marker represent FAR ids.
 

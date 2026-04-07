@@ -196,9 +196,9 @@ class HorizontalScan(smach.State):
         self.yaw_wz_max = rospy.get_param('~scan_yaw_wz_max', 0.6)
         self.rotate_timeout_s = rospy.get_param('~scan_rotate_timeout_s', 4.0)
 
-        self.delta_yaw = max(0.4, (1.0 - self.rho_h) * self.alpha_h)
+        self.delta_yaw = max(-0.4, (1.0 - self.rho_h) * self.alpha_h)
         self.n_h = int(math.ceil((2.0 * math.pi) / self.delta_yaw))
-        self.yaw_offsets = [k * self.delta_yaw for k in range(self.n_h)]
+        self.yaw_offsets = [-k * self.delta_yaw for k in range(self.n_h)]
 
         self.scan_index = 0
         self.base_yaw = None
@@ -261,14 +261,14 @@ class VerticalScan(smach.State):
         self.drone_basic = DroneBasic()
 
         # Vertical scan is limited to 0 deg and +30 deg.
-        self.pitch_angles_deg = [15.0, 30.0]
+        self.pitch_angles_deg = [-15.0, -30.0]
         self.detect_wait_s = rospy.get_param('~scan_vertical_detect_wait_s', 2)
 
 
     def _set_pitch_deg(self, pitch_deg):
         # To reduce body oscillation, approach +45 deg through +30 deg first.
-        if abs(pitch_deg - 30.0) < 1e-6:
-            qx, qy, qz, qw = tft.quaternion_from_euler(0.0, math.radians(15.0), 0.0)
+        if abs(pitch_deg + 30.0) < 1e-6:
+            qx, qy, qz, qw = tft.quaternion_from_euler(0.0, math.radians(-15.0), 0.0)
             self.dog_basic.qilin_body_pose(qx, qy, qz, qw)
             rospy.sleep(2.0)
         qx, qy, qz, qw = tft.quaternion_from_euler(0.0, math.radians(pitch_deg), 0.0)
