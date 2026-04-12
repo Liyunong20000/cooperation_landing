@@ -21,6 +21,16 @@
                child_frame_id: baselink
                parent_frame_id: world
          '4':
+               pose: picking_area/mocap/pose
+               pose2d: picking_area/mocap/ground_pose
+               child_frame_id: baselink
+               parent_frame_id: world
+         '5':
+               pose: placing_area/mocap/pose
+               pose2d: placing_area/mocap/ground_pose
+               child_frame_id: baselink
+               parent_frame_id: world
+         '6':
                pose: desk/mocap/pose
                pose2d: desk/mocap/ground_pose
                child_frame_id: baselink
