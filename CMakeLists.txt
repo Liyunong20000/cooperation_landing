@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  sensor_msgs
   tf
   urdf
   xacro
@@ -26,15 +27,17 @@ add_message_files(
  generate_messages(
    DEPENDENCIES
    std_msgs
+   sensor_msgs
    nav_msgs
    geometry_msgs
    apriltag_ros
    aerial_robot_msgs
-   apriltag_ros
    spinal
    )
 
-catkin_package()
+catkin_package(
+  CATKIN_DEPENDS message_runtime std_msgs sensor_msgs nav_msgs geometry_msgs apriltag_ros aerial_robot_msgs spinal
+)
 
 include_directories(
 # include
