@@ -66,7 +66,7 @@ def publish_zero_body_pose(pub):
     pose.orientation.x = 0.0
     pose.orientation.y = 0.0
     pose.orientation.z = 0.0
-    pose.orientation.w = 0.0
+    pose.orientation.w = 1.0
     pub.publish(pose)
 
 
@@ -175,7 +175,7 @@ if __name__=="__main__":
                                         msg = "sit!"
                                 if key == 'u':
                                         publish_zero_body_pose(body_pose_pub)
-                                        msg = "set body pose quat to [0,0,0,0]"
+                                        msg = "set body pose quat to [0,0,0,1]"
                                 if key == 'i':
                                         publish_body_pose_with_pitch_deg(body_pose_pub, -15.0)
                                         msg = "set body pitch to -15 deg"
@@ -218,7 +218,7 @@ if __name__=="__main__":
                                         nav_pub.publish(nav_msg)
                                         msg = "send +x vel command"
                                 if key == 's':
-                                        nav_msg.twist.linear.x = -xy_vel - 0.3
+                                        nav_msg.twist.linear.x = -xy_vel - 0.2
                                         nav_pub.publish(nav_msg)
                                         msg = "send -x vel command"
                                 if key == 'a':
