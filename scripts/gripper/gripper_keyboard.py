@@ -69,7 +69,7 @@ class GripperKeyboardNode:
                                 msg = "close"
                         if key == 'l':
                                 # self.gripper_move.grasp(0,50)
-                                self.gripper_move.servo_target_cmd(self.gripper_move.servo_index, 200)
+                                self.gripper_move.servo_target_cmd(self.gripper_move.servo_index, -100)
                                 msg = "grasp"
 
                         if key == '\x03':
