@@ -23,6 +23,37 @@ from gripper.gripper_move import *
 from AprillandQilin import *
 
 
+# Shared transform configuration cache (loaded once per node run).
+_TRANSFORM_CONFIG = None
+
+
+def get_transform_config():
+    """Load and cache shared transform matrices to avoid duplicated drift."""
+    global _TRANSFORM_CONFIG
+    if _TRANSFORM_CONFIG is None:
+        tag2desk_y = rospy.get_param('~tag2desk_y', 0.31)
+        tag2desk_z = rospy.get_param('~tag2desk_z', 0.105)
+        t_cam2base = np.array([
+            [0, 0, 1, rospy.get_param('~t_cam2base_x', 0.058)],
+            [-1, 0, 0, rospy.get_param('~t_cam2base_y', 0.0)],
+            [0, -1, 0, rospy.get_param('~t_cam2base_z', -0.0798)],
+            [0, 0, 0, 1]
+        ], dtype=float)
+        t_desk2tag = np.array([
+            [-1, 0, 0, 0],
+            [0, 0, 1, tag2desk_z],
+            [0, 1, 0, -tag2desk_y],
+            [0, 0, 0, 1]
+        ], dtype=float)
+        _TRANSFORM_CONFIG = {
+            'tag2desk_y': tag2desk_y,
+            'tag2desk_z': tag2desk_z,
+            't_cam2base': t_cam2base,
+            't_desk2tag': t_desk2tag,
+        }
+    return _TRANSFORM_CONFIG
+
+
 # ── Shared P-controller utilities ──────────────────────────────────────────
 
 def clamp(x, lo, hi):
@@ -45,6 +76,52 @@ def wrap_angle(rad):
     return math.atan2(math.sin(rad), math.cos(rad))
 
 
+def world_xy_to_body_xy(vx_w, vy_w, yaw):
+    """Convert world-frame XY velocity into the robot body frame.
+
+    Body frame follows the standard robot convention: x forward, y left, z up.
+    """
+    vx_b = math.cos(yaw) * vx_w + math.sin(yaw) * vy_w
+    vy_b = -math.sin(yaw) * vx_w + math.cos(yaw) * vy_w
+    return vx_b, vy_b
+
+
+def _t_se3(x, y, z, qx, qy, qz, qw):
+    T = tft.quaternion_matrix([qx, qy, qz, qw])
+    T[0, 3] = x
+    T[1, 3] = y
+    T[2, 3] = z
+    return T
+
+
+def compute_tag_world_z(drone_basic):
+    """Estimate marker world-frame z using current base pose and camera->base transform."""
+    t_cam2base = get_transform_config()['t_cam2base']
+    wtb = _t_se3(
+        drone_basic.drone_x, drone_basic.drone_y, drone_basic.drone_z,
+        drone_basic.drone_qx, drone_basic.drone_qy, drone_basic.drone_qz, drone_basic.drone_qw
+    )
+    ctt = _t_se3(
+        drone_basic.tag_target_x, drone_basic.tag_target_y, drone_basic.tag_target_z,
+        drone_basic.tag_target_qx, drone_basic.tag_target_qy, drone_basic.tag_target_qz, drone_basic.tag_target_qw
+    )
+    wtt = wtb @ t_cam2base @ ctt
+    return float(wtt[2, 3])
+
+
+def adaptive_vy_gain(x_err_abs, base_k, small_err, large_err, small_err_scale=1.5, large_err_scale=0.8):
+    """Scale lateral gain by lateral error magnitude: larger error => stronger response."""
+    if x_err_abs is None or not np.isfinite(x_err_abs):
+        return base_k
+    if large_err <= small_err:
+        return base_k
+
+    e = clamp(x_err_abs, small_err, large_err)
+    t = (e - small_err) / (large_err - small_err)
+    scale = small_err_scale + t * (large_err_scale - small_err_scale)
+    return base_k * scale
+
+
 def scan_target_marker(userdata):
     object_state = getattr(userdata, 'object_state', 0)
     return int(userdata.picking_marker_far) if object_state == 0 else int(userdata.placing_marker_far)
@@ -60,6 +137,7 @@ def scan_tag_detected(drone_basic, marker_id):
 
 
 def scan_write_target_pose(userdata, drone_basic):
+    world_z = compute_tag_world_z(drone_basic)
     pose = [
         drone_basic.tag_target_x,
         drone_basic.tag_target_y,
@@ -68,6 +146,7 @@ def scan_write_target_pose(userdata, drone_basic):
         drone_basic.tag_target_qy,
         drone_basic.tag_target_qz,
         drone_basic.tag_target_qw,
+        world_z,
     ]
     object_state = int(getattr(userdata, 'object_state', 0))
     if object_state == 0:
@@ -108,6 +187,7 @@ def run_visual_approach_loop(dog_basic, drone_basic, marker_far, marker_near,
                              vx_max, vy_max, wz_max,
                              control_dt, timeout_s,
                              lost_tag_hold_s, relaxed_factor,
+                             vy_gain_fn=None,
                              state_name='Approach'):
     """Shared closed-loop approach: keep tag centered and depth at target_z."""
     start_t = rospy.Time.now()
@@ -150,11 +230,12 @@ def run_visual_approach_loop(dog_basic, drone_basic, marker_far, marker_near,
         best_err[2] = min(best_err[2], abs(pitch_err))
 
         vx = p_with_deadzone(z_err, k_vx, vx_min, vx_max, tol_z)
-        vy = p_with_deadzone(x_err, k_vy, vy_min, vy_max, tol_x)
+        vy_k = vy_gain_fn(abs(x_err)) if vy_gain_fn is not None else k_vy
+        vy = p_with_deadzone(x_err, vy_k, vy_min, vy_max, tol_x)
         wz = p_with_deadzone(pitch_err, k_yaw, wz_min, wz_max, tol_pitch)
         dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
-        rospy.logdebug('%s marker=%s err[z,x,p]=[%.3f, %.3f, %.3f]',
-                       state_name, active_marker if detected else 'none', z_err, x_err, pitch_err)
+        rospy.logdebug('%s marker=%s err[z,x,p]=[%.3f, %.3f, %.3f], k_vy=%.3f',
+                       state_name, active_marker if detected else 'none', z_err, x_err, pitch_err, vy_k)
         rate.sleep()
 
     dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
@@ -163,8 +244,9 @@ def run_visual_approach_loop(dog_basic, drone_basic, marker_far, marker_near,
 # The Cooperative manipulation system by Xuanwu
 class Start(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['object_state'])
+        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['object_state'], output_keys=['home_x', 'home_y'])
         self.dog_basic = DogBasic()
+        self.drone_basic = DroneBasic()
         self.gripper_move = GripperMoveNode()
 
     def execute(self, userdata):
@@ -173,6 +255,14 @@ class Start(smach.State):
         object_state = int(getattr(userdata, 'object_state', 0))
         if object_state == 0:
             self.gripper_move.servo_target_cmd_qilin(0, 1400)
+            rospy.sleep(1.0)
+
+        home_x = float(self.drone_basic.drone_x)
+        home_y = float(self.drone_basic.drone_y)
+        userdata.home_x = home_x
+        userdata.home_y = home_y
+        rospy.loginfo('Start: lock home x=%.3f y=%.3f', home_x, home_y)
+
         rospy.loginfo('pass begin.')
         return 'succeeded'
 
@@ -238,6 +328,7 @@ class HorizontalScan(smach.State):
         rate = rospy.Rate(20)
         while not rospy.is_shutdown() and rospy.Time.now() < detect_deadline:
             if scan_tag_detected(self.drone_basic, marker_id):
+                rospy.sleep(0.5)
                 scan_write_target_pose(userdata, self.drone_basic)
                 rospy.loginfo('HorizontalScan: marker %d detected.', marker_id)
                 self.scan_index = 0
@@ -246,6 +337,7 @@ class HorizontalScan(smach.State):
             rate.sleep()
 
         self.scan_index += 1
+        rospy.sleep(2.0)
         return 'need_vertical'
 
 
@@ -270,7 +362,7 @@ class VerticalScan(smach.State):
         if abs(pitch_deg + 30.0) < 1e-6:
             qx, qy, qz, qw = tft.quaternion_from_euler(0.0, math.radians(-15.0), 0.0)
             self.dog_basic.qilin_body_pose(qx, qy, qz, qw)
-            rospy.sleep(2.0)
+            rospy.sleep(1.0)
         qx, qy, qz, qw = tft.quaternion_from_euler(0.0, math.radians(pitch_deg), 0.0)
         self.dog_basic.qilin_body_pose(qx, qy, qz, qw)
         rospy.sleep(0.2)
@@ -281,17 +373,21 @@ class VerticalScan(smach.State):
 
         for pitch_deg in self.pitch_angles_deg:
             self._set_pitch_deg(pitch_deg)
+            rospy.sleep(1.0)
             detect_deadline = rospy.Time.now() + rospy.Duration(self.detect_wait_s)
             rate = rospy.Rate(20)
             while not rospy.is_shutdown() and rospy.Time.now() < detect_deadline:
                 if scan_tag_detected(self.drone_basic, marker_id):
+                    rospy.sleep(0.5)
                     scan_write_target_pose(userdata, self.drone_basic)
                     self._set_pitch_deg(0.0)
+                    rospy.sleep(1.0)
                     rospy.loginfo('VerticalScan: marker %d detected at pitch %.1f deg.', marker_id, pitch_deg)
                     return 'succeeded'
                 rate.sleep()
 
         self._set_pitch_deg(0.0)
+        rospy.sleep(1.0)
         return 'failed'
 
 
@@ -307,26 +403,36 @@ class StateJudgment(smach.State):
         try:
             object_state = int(userdata.object_state)
             switching_threshold = float(userdata.switching_threshold)
-            picking_position = userdata.picking_position
-            placing_position = userdata.placing_position
-        except AttributeError as e:
-            rospy.logerr('StateJudgment: userdata key missing: %s', e)
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
+            rospy.logerr('StateJudgment: invalid userdata for object_state/switching_threshold: %s', e)
             return 'succeed_docking'
 
-        target_z = None
         if object_state == 0:
-            if isinstance(picking_position, (list, tuple)) and len(picking_position) > 2:
-                target_z = float(picking_position[2])
+            target_pos = getattr(userdata, 'picking_position', None)
         elif object_state == 1:
-            if isinstance(placing_position, (list, tuple)) and len(placing_position) > 2:
-                target_z = float(placing_position[2])
+            target_pos = getattr(userdata, 'placing_position', None)
         else:
             rospy.logwarn('StateJudgment: unsupported object_state=%s, fallback to docking.', object_state)
             return 'succeed_docking'
 
-        if target_z is None:
-            rospy.logwarn('StateJudgment: no valid target z found for object_state=%s, fallback to docking.', object_state)
+        if not isinstance(target_pos, (list, tuple)) or len(target_pos) < 3:
+            rospy.logwarn('StateJudgment: invalid target position for object_state=%s, fallback to docking.', object_state)
             return 'succeed_docking'
+
+        try:
+            # Prefer world-frame z cached by scan_write_target_pose (index 7).
+            if len(target_pos) > 7:
+                target_z = float(target_pos[7])
+                z_source = 'world_z'
+            else:
+                target_z = float(target_pos[2])
+                z_source = 'camera_z_fallback'
+        except (TypeError, ValueError) as e:
+            rospy.logwarn('StateJudgment: invalid target z value (%s), fallback to docking.', e)
+            return 'succeed_docking'
+
+        rospy.loginfo('StateJudgment: object_state=%d target_z=%.3f source=%s threshold=%.3f',
+                      object_state, target_z, z_source, switching_threshold)
 
         if target_z > switching_threshold:
             return 'succeed_detaching'
@@ -343,8 +449,8 @@ class DockApproach(smach.State):
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
 
-        self.manipulation_target_z_pick = rospy.get_param('~manipulation_target_z_pick', 0.79)
-        self.manipulation_target_z_place = rospy.get_param('~manipulation_target_z_place', 0.79)
+        self.manipulation_target_z_pick = rospy.get_param('~manipulation_target_z_pick', 0.50)
+        self.manipulation_target_z_place = rospy.get_param('~manipulation_target_z_place', 0.53)
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
         self.tol_z = 0.03  # longitudinal tolerance (m)
@@ -352,9 +458,27 @@ class DockApproach(smach.State):
         self.tol_pitch = 0.05  # yaw tolerance (rad)
 
         # === Proportional gains ===
-        self.k_vx = 0.2  # gain for forward/backward motion
-        self.k_vy = -0.5 # gain for lateral motion (sign depends on frame)
+        self.k_vx = 0.3  # gain for forward/backward motion
+        self.k_vy = -0.6 # gain for lateral motion (sign depends on frame)
         self.k_yaw = -0.5  # gain for yaw rotation
+
+        # x_err-based y gain schedule: small error => gentler, large error => stronger.
+        self.vy_gain_small_x_err = rospy.get_param(
+            '~dock_vy_gain_small_x_err',
+            rospy.get_param('~dock_vy_gain_near_z', 0.02)
+        )
+        self.vy_gain_large_x_err = rospy.get_param(
+            '~dock_vy_gain_large_x_err',
+            rospy.get_param('~dock_vy_gain_far_z', 0.20)
+        )
+        self.vy_gain_small_err_scale = rospy.get_param(
+            '~dock_vy_gain_small_err_scale',
+            rospy.get_param('~dock_vy_gain_far_scale', 1.5)
+        )
+        self.vy_gain_large_err_scale = rospy.get_param(
+            '~dock_vy_gain_large_err_scale',
+            rospy.get_param('~dock_vy_gain_near_scale', 0.8)
+        )
 
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
@@ -370,10 +494,10 @@ class DockApproach(smach.State):
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
         self.timeout_s = 18.0  # maximum duration of this state (s)
-        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.5)
+        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.3)
         self.lost_tag_hold_s = rospy.get_param('~dock_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~dock_relaxed_factor', 2.0)
-        self.x_bias = - 0.04
+        self.x_bias = - 0.00
 
     def _active_marker_config(self, userdata):
         object_state = int(getattr(userdata, 'object_state', 0))
@@ -390,6 +514,14 @@ class DockApproach(smach.State):
 
 
     def execute(self, userdata):
+        vy_gain_fn = lambda x_err_abs: adaptive_vy_gain(
+            x_err_abs,
+            self.k_vy,
+            self.vy_gain_small_x_err,
+            self.vy_gain_large_x_err,
+            self.vy_gain_small_err_scale,
+            self.vy_gain_large_err_scale,
+        )
         marker_far, marker_near, manipulation_target_z = self._active_marker_config(userdata)
         ok = run_visual_approach_loop(
             self.dog_basic, self.drone_basic,
@@ -401,9 +533,11 @@ class DockApproach(smach.State):
             self.vx_max, self.vy_max, self.wz_max,
             self.control_dt, self.timeout_s,
             self.lost_tag_hold_s, self.relaxed_factor,
+            vy_gain_fn=vy_gain_fn,
             state_name='DockApproach'
         )
         if ok:
+            rospy.sleep(1.0)
             self.dog_basic.sit()
             rospy.sleep(1.0)
             return 'succeeded'
@@ -424,9 +558,9 @@ class DockManipulation(smach.State):
 
         if object_state == 0:
             # Picking: close gripper and attach module.
-            self.gripper_move.servo_target_cmd_qilin(0, 200)
+            self.gripper_move.servo_target_cmd_qilin(0, -130)
             time.sleep(1)
-            self.gripper_move.servo_target_cmd_qilin(0, 200)
+            self.gripper_move.servo_target_cmd_qilin(0, -130)
             rospy.sleep(2)
             self.drone_basic.call_add_extra_module(1, "brick", "main_body")
             userdata.object_state = 1
@@ -446,12 +580,12 @@ class DockManipulation(smach.State):
         return 'succeeded'
 class DockHome(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeed', 'finish'], input_keys=['object_state'])
+        smach.State.__init__(self, outcomes=['succeed', 'finish'], input_keys=['object_state', 'home_x', 'home_y', 'home_yaw'], output_keys=['home_x', 'home_y', 'home_yaw'])
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
-        self.home_x = rospy.get_param('~dock_home_x', 0.0)
-        self.home_y = rospy.get_param('~dock_home_y', 0.0)
-        self.home_yaw = rospy.get_param('~dock_home_yaw', 3.14)
+        self.home_x = rospy.get_param('~dock_home_x', None)
+        self.home_y = rospy.get_param('~dock_home_y', None)
+        self.home_yaw = rospy.get_param('~dock_home_yaw', None)
         self.back_speed = rospy.get_param('~dock_home_back_speed', -0.15)
         self.back_duration_s = rospy.get_param('~dock_home_back_duration_s', 1.2)
         self.home_timeout_s = rospy.get_param('~dock_home_timeout_s', 8.0)
@@ -465,6 +599,19 @@ class DockHome(smach.State):
     def execute(self, userdata):
         object_state = int(getattr(userdata, 'object_state', 0))
 
+        home_x = getattr(userdata, 'home_x', None)
+        home_y = getattr(userdata, 'home_y', None)
+        if home_x is None or home_y is None:
+            rospy.logwarn('DockHome: home x/y missing in userdata, fallback to current pose.')
+            home_x = float(self.drone_basic.drone_x)
+            home_y = float(self.drone_basic.drone_y)
+            userdata.home_x = home_x
+            userdata.home_y = home_y
+
+        home_yaw_target = float(self.drone_basic.drone_yaw)
+        userdata.home_yaw = home_yaw_target
+        rospy.loginfo('DockHome: use home x=%.3f y=%.3f, entry yaw=%.3f', home_x, home_y, home_yaw_target)
+
         # Step 1: retreat backward to leave the marker/workspace safely.
         back_end_t = rospy.Time.now() + rospy.Duration(self.back_duration_s)
         back_rate = rospy.Rate(20)
@@ -473,13 +620,13 @@ class DockHome(smach.State):
             back_rate.sleep()
         self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
 
-        # Step 2: return to home (origin by default) using current odom.
+        # Step 2: return to locked home x/y and entry yaw.
         start_t = rospy.Time.now()
         rate = rospy.Rate(20)
         while not rospy.is_shutdown():
-            dx = self.home_x - self.drone_basic.drone_x
-            dy = self.home_y - self.drone_basic.drone_y
-            yaw_err = wrap_angle(self.home_yaw - self.drone_basic.drone_yaw)
+            dx = home_x - self.drone_basic.drone_x
+            dy = home_y - self.drone_basic.drone_y
+            yaw_err = wrap_angle(home_yaw_target - self.drone_basic.drone_yaw)
 
             if math.hypot(dx, dy) < self.pos_tol and abs(yaw_err) < self.yaw_tol:
                 break
@@ -488,10 +635,14 @@ class DockHome(smach.State):
                 rospy.logwarn('DockHome: return-home timeout, stop at current pose.')
                 break
 
-            vx = clamp(self.k_home_xy * dx, -self.max_home_v, self.max_home_v)
-            vy = clamp(self.k_home_xy * dy, -self.max_home_v, self.max_home_v)
+            # Convert world-frame position error into body-frame velocity.
+            vx_w = self.k_home_xy * dx
+            vy_w = self.k_home_xy * dy
+            vx_b, vy_b = world_xy_to_body_xy(vx_w, vy_w, self.drone_basic.drone_yaw)
+            vx_b = clamp(vx_b, -self.max_home_v, self.max_home_v)
+            vy_b = clamp(vy_b, -self.max_home_v, self.max_home_v)
             wz = clamp(self.k_home_yaw * yaw_err, -self.max_home_w, self.max_home_w)
-            self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
+            self.dog_basic.qilin_cmd_vel(vx_b, vy_b, 0, 0, wz)
             rate.sleep()
 
         self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
@@ -513,7 +664,7 @@ class DetachApproach(smach.State):
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
         self.basic = BasicNode()
-        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.75)
+        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.04)
         self.tol_z = 0.03
         self.tol_x = 0.05
         self.tol_pitch = 0.05
@@ -543,24 +694,15 @@ class DetachApproach(smach.State):
 
         # Reference transform chain (same idea as MoveDestination):
         # world->base, base<-camera, camera->tag, tag->target(desk).
-        self.tag2desk_y = rospy.get_param('~tag2desk_y', 0.31)
-        self.tag2desk_z = rospy.get_param('~tag2desk_z', 0.105)
+        cfg = get_transform_config()
+        self.tag2desk_y = cfg['tag2desk_y']
+        self.tag2desk_z = cfg['tag2desk_z']
         self.d_camera2spinal = rospy.get_param('~d_camera2spinal', 0.058)
         self.h_camera2spinal = rospy.get_param('~h_camera2spinal', 0.080)
         self.h_gripper2spinal = rospy.get_param('~h_gripper2spinal', 0.201)
         self.h_safe = rospy.get_param('~h_safe', 0.2)
-        self.t_cam2base = np.array([
-            [0, 0, 1, 0.058],
-            [-1, 0, 0, 0.0],
-            [0, -1, 0, -0.0798],
-            [0, 0, 0, 1]
-        ], dtype=float)
-        self.t_desk2tag = np.array([
-            [-1, 0, 0, 0],
-            [0, 0, 1, 0.105],
-            [0, 1, 0, -0.31],
-            [0, 0, 0, 1]
-        ], dtype=float)
+        self.t_cam2base = np.array(cfg['t_cam2base'], copy=True)
+        self.t_desk2tag = np.array(cfg['t_desk2tag'], copy=True)
 
     def _t_se3(self, x, y, z, qx, qy, qz, qw):
         T = tft.quaternion_matrix([qx, qy, qz, qw])
@@ -619,6 +761,8 @@ class DetachApproach(smach.State):
             else:
                 userdata.placing_position = target_pose
             rospy.loginfo('DetachApproach: reached z threshold %.3f', target_z)
+            rospy.loginfo('DetachApproach: Target_pose %.3f', target_pose)
+
             return 'succeeded'
         rospy.logwarn('DetachApproach: timeout and not close enough, failed.')
         return 'failed'
@@ -633,9 +777,13 @@ class Takeoff(smach.State):
         self.drone_basic.record_takeoff_position(self.drone_basic.drone_x, self.drone_basic.drone_y,
                                                  self.drone_basic.drone_z, self.drone_basic.drone_yaw)
         time.sleep(0.1)
-        # self.drone_basic.drone_start()
+        while not rospy.is_shutdown():
+            s = input("Type 'y' to continue: ").strip().lower()
+            if s == 'y':
+                break
+        self.drone_basic.drone_start()
         time.sleep(0.1)
-        # self.drone_basic.drone_takeoff()
+        self.drone_basic.drone_takeoff()
         rospy.loginfo(f'takeoff!!!!!!!!!!')
         userdata.takeoff_position = [self.drone_basic.takeoff_x, self.drone_basic.takeoff_y,
                                      self.drone_basic.takeoff_z, self.drone_basic.takeoff_yaw]
@@ -677,9 +825,9 @@ class FlyTarget(smach.State):
         rospy.sleep(6)
         if object_state == 0:
             rospy.loginfo('Close gripper')
-            self.gripper_move.servo_target_cmd_qilin(0, 200)
+            self.gripper_move.servo_target_cmd_qilin(0, -100)
             rospy.sleep(0.5)
-            self.gripper_move.servo_target_cmd_qilin(0, 200)
+            self.gripper_move.servo_target_cmd_qilin(0, -100)
             userdata.object_state = 1
         elif object_state == 1:
             rospy.loginfo('Open gripper')

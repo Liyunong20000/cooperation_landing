@@ -22,8 +22,8 @@ def main():
     placing_position = rospy.get_param('placing_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     takeoff_position = rospy.get_param('takeoff_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-    switching_threshold = rospy.get_param('switching_threshold', 0.5)
-    detaching_takeoff_threshold = rospy.get_param('detaching_takeoff_threshold', 0.5)
+    switching_threshold = rospy.get_param('switching_threshold', 0.79)
+    detaching_takeoff_threshold = rospy.get_param('detaching_takeoff_threshold', 0.75)
 
     sm_top = smach.StateMachine(outcomes=['preempted'])
 
@@ -35,6 +35,9 @@ def main():
     sm_top.userdata.picking_position = picking_position
     sm_top.userdata.placing_position = placing_position
     sm_top.userdata.takeoff_position = takeoff_position
+    sm_top.userdata.home_x = None
+    sm_top.userdata.home_y = None
+    sm_top.userdata.home_yaw = None
 
     sm_top.userdata.switching_threshold = switching_threshold
     sm_top.userdata.detaching_takeoff_threshold = detaching_takeoff_threshold
@@ -42,11 +45,11 @@ def main():
     with sm_top:
         # Sub-state machine for target search
         smach.StateMachine.add('Start', Start(),
-                               transitions={'succeeded': 'TargetSearch'}, remapping={'object_state': 'object_state'})
+                               transitions={'succeeded': 'TargetSearch'}, remapping={'object_state': 'object_state', 'home_x': 'home_x', 'home_y': 'home_y'})
 
         sm_target_search = smach.StateMachine(
             outcomes=['succeed_docking', 'succeed_detaching', 'failed'],
-            input_keys=['object_state', 'picking_marker_far', 'placing_marker_far', 'switching_threshold'],
+            input_keys=['object_state', 'picking_marker_far', 'placing_marker_far', 'switching_threshold', 'picking_position', 'placing_position'],
             output_keys=['picking_position', 'placing_position']
         )
 
@@ -56,11 +59,21 @@ def main():
 
             smach.StateMachine.add('VerticalScan', VerticalScan(), transitions={'succeeded': 'StateJudgment', 'failed': 'HorizontalScan'}, remapping={'object_state': 'object_state', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'picking_marker_far': 'picking_marker_far', 'placing_marker_far': 'placing_marker_far'})
 
-            smach.StateMachine.add('StateJudgment', StateJudgment(), transitions={'succeed_docking': 'succeed_docking', 'succeed_detaching': 'succeed_detaching'}, remapping={'switching_threshold': 'switching_threshold'})
+            smach.StateMachine.add(
+                'StateJudgment',
+                StateJudgment(),
+                transitions={'succeed_docking': 'succeed_docking', 'succeed_detaching': 'succeed_detaching'},
+                remapping={
+                    'object_state': 'object_state',
+                    'switching_threshold': 'switching_threshold',
+                    'picking_position': 'picking_position',
+                    'placing_position': 'placing_position'
+                }
+            )
 
         smach.StateMachine.add('TargetSearch', sm_target_search, transitions={'succeed_docking': 'DockingManipulation','succeed_detaching': 'DetachingManipulation', 'failed': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker_far': 'picking_marker_far', 'placing_marker_far': 'placing_marker_far', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'switching_threshold': 'switching_threshold'})
 
-        sm_docking_manipulation = smach.StateMachine(outcomes=['succeed', 'finish'], input_keys=['object_state', 'picking_marker_far', 'placing_marker_far', 'picking_marker_near', 'placing_marker_near', 'picking_position', 'placing_position'], output_keys=['object_state'])
+        sm_docking_manipulation = smach.StateMachine(outcomes=['succeed', 'finish'], input_keys=['object_state', 'picking_marker_far', 'placing_marker_far', 'picking_marker_near', 'placing_marker_near', 'picking_position', 'placing_position', 'home_x', 'home_y', 'home_yaw'], output_keys=['object_state'])
 
         with sm_docking_manipulation:
 
@@ -68,9 +81,9 @@ def main():
 
             smach.StateMachine.add('DockManipulation', DockManipulation(), transitions={'succeeded': 'DockHome'}, remapping={'object_state': 'object_state'})
 
-            smach.StateMachine.add('DockHome', DockHome(), transitions={'succeed': 'succeed', 'finish': 'finish'})
+            smach.StateMachine.add('DockHome', DockHome(), transitions={'succeed': 'succeed', 'finish': 'finish'}, remapping={'object_state': 'object_state', 'home_x': 'home_x', 'home_y': 'home_y', 'home_yaw': 'home_yaw'})
 
-        smach.StateMachine.add('DockingManipulation', sm_docking_manipulation, transitions={'succeed': 'TargetSearch','finish': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker_far': 'picking_marker_far', 'placing_marker_far': 'placing_marker_far', 'picking_marker_near': 'picking_marker_near', 'placing_marker_near': 'placing_marker_near', 'picking_position': 'picking_position', 'placing_position': 'placing_position'})
+        smach.StateMachine.add('DockingManipulation', sm_docking_manipulation, transitions={'succeed': 'TargetSearch','finish': 'Finish'}, remapping={'object_state': 'object_state', 'picking_marker_far': 'picking_marker_far', 'placing_marker_far': 'placing_marker_far', 'picking_marker_near': 'picking_marker_near', 'placing_marker_near': 'placing_marker_near', 'picking_position': 'picking_position', 'placing_position': 'placing_position', 'home_x': 'home_x', 'home_y': 'home_y', 'home_yaw': 'home_yaw'})
 
         sm_detaching_manipulation = smach.StateMachine(outcomes=['succeed', 'failed'], input_keys=['object_state', 'picking_marker_far', 'placing_marker_far', 'picking_marker_near', 'placing_marker_near', 'picking_position', 'placing_position', 'detaching_takeoff_threshold', 'takeoff_position'], output_keys=['object_state', 'takeoff_position', 'picking_position', 'placing_position'])
 
