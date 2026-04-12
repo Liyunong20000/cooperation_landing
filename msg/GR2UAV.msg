@@ -1,4 +1,2 @@
-geometry_msgs/Twist go1__cmd_vel
-geometry_msgs/Pose go1__body_pose
 geometry_msgs/PoseStamped xuanwu__target_pose__info
 spinal/ServoControlCmd xuanwu__servo__target_states__info
