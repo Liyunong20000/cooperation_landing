@@ -133,7 +133,7 @@ if __name__=="__main__":
                                         nav_pub.publish(nav_msg)
                                         msg = "send +x vel command"
                                 if key == 's':
-                                        nav_msg.linear.x += -xy_vel -0.1
+                                        nav_msg.linear.x += -xy_vel
                                         nav_pub.publish(nav_msg)
                                         msg = "send -x vel command"
                                 if key == 'a':
