@@ -109,18 +109,17 @@ def compute_tag_world_z(drone_basic):
     return float(wtt[2, 3])
 
 
-def signed_min_speed(err, min_speed):
-    """Return a minimum speed with the same sign as err."""
-    if err >= 0.0:
-        return min_speed
-    return -min_speed
+def adaptive_vy_gain(x_err_abs, base_k, small_err, large_err, small_err_scale=1.5, large_err_scale=0.8):
+    """Scale lateral gain by lateral error magnitude: larger error => stronger response."""
+    if x_err_abs is None or not np.isfinite(x_err_abs):
+        return base_k
+    if large_err <= small_err:
+        return base_k
 
-
-def select_axis_velocity(err, k, v_min, v_max, tol, switch_thresh):
-    """Select axis command using switch-threshold min-speed/P-control policy."""
-    if abs(err) <= switch_thresh:
-        return signed_min_speed(err, v_min), 'min_speed'
-    return p_with_deadzone(err, k, v_min, v_max, tol), 'p_control'
+    e = clamp(x_err_abs, small_err, large_err)
+    t = (e - small_err) / (large_err - small_err)
+    scale = small_err_scale + t * (large_err_scale - small_err_scale)
+    return base_k * scale
 
 
 def scan_target_marker(userdata):
@@ -186,31 +185,26 @@ def run_visual_approach_loop(dog_basic, drone_basic, marker_far, marker_near,
                              k_vx, k_vy, k_yaw,
                              vx_min, vy_min, wz_min,
                              vx_max, vy_max, wz_max,
-                             control_dt,
-                             lost_tag_hold_s,
-                             vx_switch_z,
-                             vy_switch_x,
-                             x_two_stage=False,
-                             x_pre_target=0.2,
-                             x_sweep_speed=0.02,
-                             x_sweep_direction=-1.0,
-                             stale_timeout=1.5,
-                             max_sweep_time=15.0,
-                             stop_confirm_frames=10,
+                             control_dt, timeout_s,
+                             lost_tag_hold_s, relaxed_factor,
+                             vy_gain_fn=None,
                              state_name='Approach'):
-    """Shared closed-loop approach with simple x behavior for docking.
-
-    x_two_stage=True:
-      1) Move to x_err ~= x_pre_target.
-      2) Sweep with fixed vy=-0.02 until x_err is within tol_x.
-    """
+    """Shared closed-loop approach: keep tag centered and depth at target_z."""
+    start_t = rospy.Time.now()
     rate = rospy.Rate(1.0 / control_dt)
-    x_phase = 'pre_align' if x_two_stage else 'normal'
     last_err = None
     last_seen_t = rospy.Time.now()
-    fixed_vy_mag = 0.02
+    best_err = [float('inf'), float('inf'), float('inf')]
 
     while not rospy.is_shutdown():
+        if (rospy.Time.now() - start_t).to_sec() > timeout_s:
+            close_enough = (
+                best_err[0] < relaxed_factor * tol_z and
+                best_err[1] < relaxed_factor * tol_x and
+                best_err[2] < relaxed_factor * tol_pitch
+            )
+            dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            return close_enough
 
         detected, active_marker = detect_with_marker_pair(drone_basic, marker_far, marker_near, marker_switch_z)
         if detected:
@@ -220,54 +214,28 @@ def run_visual_approach_loop(dog_basic, drone_basic, marker_far, marker_near,
             last_err = (z_err, x_err, pitch_err)
             last_seen_t = rospy.Time.now()
         else:
-            if last_err is not None and (rospy.Time.now() - last_seen_t).to_sec() <= lost_tag_hold_s:
+            if last_err is not None and (rospy.Time.now() - last_seen_t).to_sec() < lost_tag_hold_s:
                 z_err, x_err, pitch_err = last_err
-                rospy.logdebug('%s marker=%s no tag, keep last error for %.2fs.',
-                               state_name, active_marker, lost_tag_hold_s)
             else:
                 dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-                rospy.logdebug('%s marker=%s no tag and hold expired, stop command sent.', state_name, active_marker)
                 rate.sleep()
                 continue
 
-        vx, vx_mode = select_axis_velocity(z_err, k_vx, vx_min, vx_max, tol_z, vx_switch_z)
+        if abs(z_err) < tol_z and abs(x_err) < tol_x and abs(pitch_err) < tol_pitch:
+            dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            return True
+
+        best_err[0] = min(best_err[0], abs(z_err))
+        best_err[1] = min(best_err[1], abs(x_err))
+        best_err[2] = min(best_err[2], abs(pitch_err))
+
+        vx = p_with_deadzone(z_err, k_vx, vx_min, vx_max, tol_z)
+        vy_k = vy_gain_fn(abs(x_err)) if vy_gain_fn is not None else k_vy
+        vy = p_with_deadzone(x_err, vy_k, vy_min, vy_max, tol_x)
         wz = p_with_deadzone(pitch_err, k_yaw, wz_min, wz_max, tol_pitch)
-
-        if x_two_stage:
-            if x_phase == 'pre_align':
-                x_pre_err = x_err - x_pre_target
-                # Move toward x_pre_target with fixed small speed.
-                vy = -fixed_vy_mag if x_pre_err > 0.0 else fixed_vy_mag
-                vy_mode = 'pre_align'
-                if abs(x_pre_err) <= tol_x:
-                    x_phase = 'sweep'
-                    vy = -fixed_vy_mag
-                    vy_mode = 'sweep_start'
-            else:
-                vy = -fixed_vy_mag
-                vy_mode = 'sweep'
-                if abs(x_err) <= tol_x:
-                    vy = 0.0
-                    vy_mode = 'x_hold'
-
-            if abs(z_err) < tol_z and abs(x_err) < tol_x and abs(pitch_err) < tol_pitch:
-                dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-                rospy.loginfo('%s reached xyz tolerance: z=%.3f x=%.3f p=%.3f',
-                              state_name, z_err, x_err, pitch_err)
-                return True
-        else:
-            vy, vy_mode = select_axis_velocity(x_err, k_vy, vy_min, vy_max, tol_x, vy_switch_x)
-            if abs(z_err) < tol_z and abs(x_err) < tol_x and abs(pitch_err) < tol_pitch:
-                dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-                return True
-
         dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
-        rospy.logdebug(
-            '%s phase=%s marker=%s err[z,x,p]=[%.3f, %.3f, %.3f] '
-            'mode[vx,vy]=[%s, %s] cmd[vx,vy,wz]=[%.3f, %.3f, %.3f]',
-            state_name, x_phase, active_marker, z_err, x_err, pitch_err,
-            vx_mode, vy_mode, vx, vy, wz
-        )
+        rospy.logdebug('%s marker=%s err[z,x,p]=[%.3f, %.3f, %.3f], k_vy=%.3f',
+                       state_name, active_marker if detected else 'none', z_err, x_err, pitch_err, vy_k)
         rate.sleep()
 
     dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
@@ -481,32 +449,41 @@ class DockApproach(smach.State):
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
 
-        self.manipulation_target_z_pick = rospy.get_param('~manipulation_target_z_pick', 0.48)
-        self.manipulation_target_z_place = rospy.get_param('~manipulation_target_z_place', 0.46)
+        self.manipulation_target_z_pick = rospy.get_param('~manipulation_target_z_pick', 0.50)
+        self.manipulation_target_z_place = rospy.get_param('~manipulation_target_z_place', 0.50)
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
-        self.tol_z = 0.03  # longitudinal tolerance (m)
+        self.tol_z = 0.04  # longitudinal tolerance (m)
         self.tol_x = 0.04  # lateral tolerance (m)
         self.tol_pitch = 0.05  # yaw tolerance (rad)
 
         # === Proportional gains ===
-        self.k_vx = 0.3  # gain for forward/backward motion
+        self.k_vx = 0.4  # gain for forward/backward motion
         self.k_vy = -0.6 # gain for lateral motion (sign depends on frame)
         self.k_yaw = -0.5  # gain for yaw rotation
 
-        # z_err-based k_vx schedule: large error => base gain, small error => stronger response.
-        self.vx_gain_switch_z = rospy.get_param('~dock_vx_gain_switch_z', 0.1)
-
-        # x_err threshold for near-zone minimum-speed mode.
+        # x_err-based y gain schedule: small error => gentler, large error => stronger.
         self.vy_gain_small_x_err = rospy.get_param(
             '~dock_vy_gain_small_x_err',
-            rospy.get_param('~dock_vy_gain_near_z', 0.10)
+            rospy.get_param('~dock_vy_gain_near_z', 0.02)
+        )
+        self.vy_gain_large_x_err = rospy.get_param(
+            '~dock_vy_gain_large_x_err',
+            rospy.get_param('~dock_vy_gain_far_z', 0.20)
+        )
+        self.vy_gain_small_err_scale = rospy.get_param(
+            '~dock_vy_gain_small_err_scale',
+            rospy.get_param('~dock_vy_gain_far_scale', 1.5)
+        )
+        self.vy_gain_large_err_scale = rospy.get_param(
+            '~dock_vy_gain_large_err_scale',
+            rospy.get_param('~dock_vy_gain_near_scale', 0.8)
         )
 
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
-        self.vx_min = 0.04       # m/s
-        self.vy_min = 0.03       # m/s
+        self.vx_min = 0.03       # m/s
+        self.vy_min = 0.04       # m/s
         self.wz_min = 0.10       # rad/s
 
         # === Maximum velocities (safety limits) ===
@@ -515,18 +492,12 @@ class DockApproach(smach.State):
         self.wz_max = 0.60  # rad/s
 
         # Control loop parameters
-        self.control_dt = 0.1  # control period (s)
+        self.control_dt = 0.2  # control period (s)
         self.timeout_s = 18.0  # maximum duration of this state (s)
-        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.3)
+        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.01)
         self.lost_tag_hold_s = rospy.get_param('~dock_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~dock_relaxed_factor', 2.0)
-        self.x_bias =  0.01
-        self.x_two_stage = rospy.get_param('~dock_x_two_stage_enable', True)
-        self.x_pre_target = rospy.get_param('~dock_x_pre_target', 0.2)
-        self.x_sweep_speed = rospy.get_param('~dock_x_sweep_speed', 0.02)
-        self.x_sweep_direction = rospy.get_param('~dock_x_sweep_direction', -1.0)
-        self.stale_timeout = rospy.get_param('~dock_stale_timeout', 0.50)
-        self.max_sweep_time = rospy.get_param('~dock_max_sweep_time', 5.0)
+        self.x_bias =  0.00
 
     def _active_marker_config(self, userdata):
         object_state = int(getattr(userdata, 'object_state', 0))
@@ -543,34 +514,89 @@ class DockApproach(smach.State):
 
 
     def execute(self, userdata):
+        start_t = rospy.Time.now()
+        rate = rospy.Rate(1.0 / self.control_dt)
         marker_far, marker_near, manipulation_target_z = self._active_marker_config(userdata)
-        ok = run_visual_approach_loop(
-            self.dog_basic, self.drone_basic,
-            marker_far, marker_near, self.marker_switch_z,
-            manipulation_target_z, self.x_bias,
-            self.tol_z, self.tol_x, self.tol_pitch,
-            self.k_vx, self.k_vy, self.k_yaw,
-            self.vx_min, self.vy_min, self.wz_min,
-            self.vx_max, self.vy_max, self.wz_max,
-            self.control_dt,
-            self.lost_tag_hold_s,
-            vx_switch_z=self.vx_gain_switch_z,
-            vy_switch_x=self.vy_gain_small_x_err,
-            x_two_stage=True,
-            x_pre_target=self.x_pre_target,
-            x_sweep_speed=self.x_sweep_speed,
-            x_sweep_direction=self.x_sweep_direction,
-            stale_timeout=self.stale_timeout,
-            max_sweep_time=self.max_sweep_time,
-            state_name='DockApproach'
-        )
-        if ok:
-            rospy.sleep(1.0)
-            self.dog_basic.sit()
-            rospy.sleep(1.0)
-            return 'succeeded'
-        rospy.logwarn('DockApproach: timeout and not close enough, failed.')
-        return 'failed'
+        last_err = None
+        last_seen_t = rospy.Time.now()
+        stall_ref_t = None
+        stall_ref_z_err = None
+        stall_ref_x_err = None
+
+        while not rospy.is_shutdown():
+            # Check convergence condition
+
+            # Timeout protection to avoid getting stuck in this state
+            if (rospy.Time.now() - start_t).to_sec() > self.timeout_s:
+                rospy.logwarn("TargetSearch: timeout reached, stopping.")
+                return 'failed'
+
+            detected, active_marker = detect_with_marker_pair(
+                self.drone_basic, marker_far, marker_near, self.marker_switch_z
+            )
+            if detected:
+                z_err = self.drone_basic.tag_target_z - manipulation_target_z
+                x_err = self.drone_basic.tag_target_x - self.x_bias
+                pitch_err = self.drone_basic.tag_target_pitch
+                last_err = (z_err, x_err, pitch_err)
+                last_seen_t = rospy.Time.now()
+            else:
+                if last_err is not None and (rospy.Time.now() - last_seen_t).to_sec() < self.lost_tag_hold_s:
+                    z_err, x_err, pitch_err = last_err
+                else:
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    rate.sleep()
+                    continue
+            if (abs(z_err) < self.tol_z and
+                    abs(x_err) < self.tol_x and
+                    abs(pitch_err) < self.tol_pitch):
+                break
+
+            now_t = rospy.Time.now()
+            if stall_ref_t is None:
+                stall_ref_t = now_t
+                stall_ref_z_err = z_err
+                stall_ref_x_err = x_err
+            elif (now_t - stall_ref_t).to_sec() >= 1.0:
+                dz = abs(z_err - stall_ref_z_err)
+                dx = abs(x_err - stall_ref_x_err)
+                if dz < 0.03 and dx < 0.03:
+                    rospy.loginfo('DockApproach: low progress in 1s (dz=%.3f, dx=%.3f), call stand.', dz, dx)
+                    self.dog_basic.stand()
+                stall_ref_t = now_t
+                stall_ref_z_err = z_err
+                stall_ref_x_err = x_err
+
+
+
+
+            # === P control with deadzone compensation and saturation ===
+            vx = p_with_deadzone(z_err, self.k_vx,
+                                 self.vx_min, self.vx_max, self.tol_z)
+
+            vy = p_with_deadzone(x_err, self.k_vy,
+                                 self.vy_min, self.vy_max, self.tol_x)
+
+            wz = p_with_deadzone(pitch_err, self.k_yaw,
+                                 self.wz_min, self.wz_max, self.tol_pitch)
+
+            # Send velocity command to the quadruped
+            self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
+            rospy.logdebug('DockApproach marker=%s target_z=%.3f err[z,x,p]=[%.3f, %.3f, %.3f]',
+                           active_marker, manipulation_target_z, z_err, x_err, pitch_err)
+
+            # Maintain fixed control frequency
+            rate.sleep()
+
+            # Stop the robot and switch to a stable posture
+
+        time.sleep(0.1)
+        self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+        rospy.sleep(1.0)
+        self.dog_basic.sit()
+        rospy.sleep(1.0)
+        return 'succeeded'
+
 
 class DockManipulation(smach.State):
     def __init__(self):
@@ -701,9 +727,6 @@ class DetachApproach(smach.State):
         self.k_vy = -0.5
         self.k_yaw = -0.5
 
-        self.vx_gain_switch_z = rospy.get_param('~detach_vx_gain_switch_z', 0.1)
-        self.vy_switch_x = rospy.get_param('~detach_vy_switch_x', 0.10)
-
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
         # These values ensure the Go1 actually moves when commands are small
@@ -781,12 +804,8 @@ class DetachApproach(smach.State):
             self.k_vx, self.k_vy, self.k_yaw,
             self.vx_min, self.vy_min, self.wz_min,
             self.vx_max, self.vy_max, self.wz_max,
-            self.control_dt,
-            self.lost_tag_hold_s,
-            vx_switch_z=self.vx_gain_switch_z,
-            vy_switch_x=self.vy_switch_x,
-            x_two_stage=True,
-            x_pre_target=0.2,
+            self.control_dt, self.timeout_s,
+            self.lost_tag_hold_s, self.relaxed_factor,
             state_name='DetachApproach'
         )
         if ok:
