@@ -449,16 +449,16 @@ class DockApproach(smach.State):
         self.dog_basic = DogBasic()
         self.drone_basic = DroneBasic()
 
-        self.manipulation_target_z_pick = rospy.get_param('~manipulation_target_z_pick', 0.50)
-        self.manipulation_target_z_place = rospy.get_param('~manipulation_target_z_place', 0.50)
+        self.manipulation_target_z_pick = rospy.get_param('~manipulation_target_z_pick', 0.48)
+        self.manipulation_target_z_place = rospy.get_param('~manipulation_target_z_place', 0.47)
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
-        self.tol_z = 0.04  # longitudinal tolerance (m)
+        self.tol_z = 0.03  # longitudinal tolerance (m)
         self.tol_x = 0.04  # lateral tolerance (m)
         self.tol_pitch = 0.05  # yaw tolerance (rad)
 
         # === Proportional gains ===
-        self.k_vx = 0.4  # gain for forward/backward motion
+        self.k_vx = 0.25  # gain for forward/backward motion
         self.k_vy = -0.6 # gain for lateral motion (sign depends on frame)
         self.k_yaw = -0.5  # gain for yaw rotation
 
@@ -482,8 +482,8 @@ class DockApproach(smach.State):
 
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
-        self.vx_min = 0.03       # m/s
-        self.vy_min = 0.04       # m/s
+        self.vx_min = 0.025       # m/s
+        self.vy_min = 0.035       # m/s
         self.wz_min = 0.10       # rad/s
 
         # === Maximum velocities (safety limits) ===
@@ -492,8 +492,8 @@ class DockApproach(smach.State):
         self.wz_max = 0.60  # rad/s
 
         # Control loop parameters
-        self.control_dt = 0.2  # control period (s)
-        self.timeout_s = 18.0  # maximum duration of this state (s)
+        self.control_dt = 0.1  # control period (s)
+        self.timeout_s = 28.0  # maximum duration of this state (s)
         self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.01)
         self.lost_tag_hold_s = rospy.get_param('~dock_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~dock_relaxed_factor', 2.0)
@@ -540,6 +540,10 @@ class DockApproach(smach.State):
                 pitch_err = self.drone_basic.tag_target_pitch
                 last_err = (z_err, x_err, pitch_err)
                 last_seen_t = rospy.Time.now()
+                if (abs(z_err) < self.tol_z and
+                        abs(x_err) < self.tol_x and
+                        abs(pitch_err) < self.tol_pitch):
+                    break
             else:
                 if last_err is not None and (rospy.Time.now() - last_seen_t).to_sec() < self.lost_tag_hold_s:
                     z_err, x_err, pitch_err = last_err
@@ -547,10 +551,7 @@ class DockApproach(smach.State):
                     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                     rate.sleep()
                     continue
-            if (abs(z_err) < self.tol_z and
-                    abs(x_err) < self.tol_x and
-                    abs(pitch_err) < self.tol_pitch):
-                break
+
 
             now_t = rospy.Time.now()
             if stall_ref_t is None:
