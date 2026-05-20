@@ -22,7 +22,7 @@ def main():
     placing_position = rospy.get_param('placing_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     takeoff_position = rospy.get_param('takeoff_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-    switching_threshold = rospy.get_param('switching_threshold', 0.79)
+    switching_threshold = rospy.get_param('switching_threshold', 0.40)
     detaching_takeoff_threshold = rospy.get_param('detaching_takeoff_threshold', 0.75)
 
     sm_top = smach.StateMachine(outcomes=['preempted'])

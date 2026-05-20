@@ -39,17 +39,36 @@ def get_transform_config():
             [0, -1, 0, rospy.get_param('~t_cam2base_z', -0.0798)],
             [0, 0, 0, 1]
         ], dtype=float)
+        # t_cam2base = np.array([
+        #     [0, 0, 1, rospy.get_param('~t_cam2base_x', 0)],
+        #     [-1, 0, 0, rospy.get_param('~t_cam2base_y', -0.0798)],
+        #     [0, -1, 0, rospy.get_param('~t_cam2base_z', -0.058)],
+        #     [0, 0, 0, 1]
+        # ], dtype=float)
+        # t_desk2tag = np.array([
+        #     [-1, 0, 0, 0],
+        #     [0, 0, 1, tag2desk_z],
+        #     [0, 1, 0, -tag2desk_y],
+        #     [0, 0, 0, 1]
+        # ], dtype=float)
         t_desk2tag = np.array([
-            [-1, 0, 0, 0],
+            [1, 0, 0, 0],
             [0, 0, 1, tag2desk_z],
-            [0, 1, 0, -tag2desk_y],
+            [0, -1, 0, -tag2desk_y],
             [0, 0, 0, 1]
+        ], dtype=float)
+        t_marker2picking = np.array([
+            [1, 0, 0, 0],
+            [0,1,0,-0.235],
+            [0,0,1,0.515],
+            [0,0,0,1]
         ], dtype=float)
         _TRANSFORM_CONFIG = {
             'tag2desk_y': tag2desk_y,
             'tag2desk_z': tag2desk_z,
             't_cam2base': t_cam2base,
             't_desk2tag': t_desk2tag,
+            't_marker2picking': t_marker2picking,
         }
     return _TRANSFORM_CONFIG
 
@@ -63,8 +82,8 @@ def clamp(x, lo, hi):
 
 def p_with_deadzone(err, k, v_min, v_max, tol):
     """P control with tolerance dead-zone and velocity saturation."""
-    if abs(err) < tol:
-        return 0.0
+    # if abs(err) < tol:
+    #     return 0.0
     v = k * err
     if abs(v) < v_min:
         v = v_min if v > 0 else -v_min
@@ -137,7 +156,21 @@ def scan_tag_detected(drone_basic, marker_id):
 
 
 def scan_write_target_pose(userdata, drone_basic):
-    world_z = compute_tag_world_z(drone_basic)
+    cfg = get_transform_config()
+    t_cam2base = cfg['t_cam2base']
+    object_state = int(getattr(userdata, 'object_state', 0))
+    t_marker2object = cfg['t_marker2picking'] if object_state == 0 else cfg['t_desk2tag']
+
+    wtb = _t_se3(
+        drone_basic.drone_x, drone_basic.drone_y, drone_basic.drone_z,
+        drone_basic.drone_qx, drone_basic.drone_qy, drone_basic.drone_qz, drone_basic.drone_qw
+    )
+    ctt = _t_se3(
+        drone_basic.tag_target_x, drone_basic.tag_target_y, drone_basic.tag_target_z,
+        drone_basic.tag_target_qx, drone_basic.tag_target_qy, drone_basic.tag_target_qz, drone_basic.tag_target_qw
+    )
+    wtt = wtb @ t_cam2base @ ctt
+    world_z = float((wtt @ t_marker2object)[2, 3])
     pose = [
         drone_basic.tag_target_x,
         drone_basic.tag_target_y,
@@ -148,7 +181,6 @@ def scan_write_target_pose(userdata, drone_basic):
         drone_basic.tag_target_qw,
         world_z,
     ]
-    object_state = int(getattr(userdata, 'object_state', 0))
     if object_state == 0:
         userdata.picking_position = pose
     else:
@@ -329,6 +361,8 @@ class HorizontalScan(smach.State):
         while not rospy.is_shutdown() and rospy.Time.now() < detect_deadline:
             if scan_tag_detected(self.drone_basic, marker_id):
                 rospy.sleep(0.5)
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                rospy.sleep(2.0)
                 scan_write_target_pose(userdata, self.drone_basic)
                 rospy.loginfo('HorizontalScan: marker %d detected.', marker_id)
                 self.scan_index = 0
@@ -396,16 +430,27 @@ class StateJudgment(smach.State):
         smach.State.__init__(
             self,
             outcomes=['succeed_docking', 'succeed_detaching'],
-            input_keys=['object_state', 'switching_threshold', 'picking_position', 'placing_position']
+            input_keys=['object_state', 'switching_threshold', 'picking_position', 'placing_position',
+                       'picking_marker_far', 'placing_marker_far'],
+            output_keys=['picking_position', 'placing_position']
         )
+        self.drone_basic = DroneBasic()
+        self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.01)
+        self.scan_timeout_s = rospy.get_param('~state_judgment_scan_timeout_s', 3.0)
 
     def execute(self, userdata):
+        rospy.sleep(0.5)
         try:
             object_state = int(userdata.object_state)
             switching_threshold = float(userdata.switching_threshold)
         except (AttributeError, KeyError, TypeError, ValueError) as e:
             rospy.logerr('StateJudgment: invalid userdata for object_state/switching_threshold: %s', e)
             return 'succeed_docking'
+
+        marker_id = scan_target_marker(userdata)
+        if scan_tag_detected(self.drone_basic, marker_id):
+            rospy.sleep(2.0)
+            scan_write_target_pose(userdata, self.drone_basic)
 
         if object_state == 0:
             target_pos = getattr(userdata, 'picking_position', None)
@@ -414,24 +459,28 @@ class StateJudgment(smach.State):
         else:
             rospy.logwarn('StateJudgment: unsupported object_state=%s, fallback to docking.', object_state)
             return 'succeed_docking'
+        rospy.loginfo('target_pos:%s', target_pos)
 
         if not isinstance(target_pos, (list, tuple)) or len(target_pos) < 3:
             rospy.logwarn('StateJudgment: invalid target position for object_state=%s, fallback to docking.', object_state)
             return 'succeed_docking'
 
         try:
-            # Prefer world-frame z cached by scan_write_target_pose (index 7).
-            if len(target_pos) > 7:
+            # Must use world-frame object z (index 7) for accurate decision making.
+            if len(target_pos) >= 8 and target_pos[7] is not None:
                 target_z = float(target_pos[7])
-                z_source = 'world_z'
+                z_source = 'world_object_z_cached'
+                rospy.loginfo('StateJudgment: Using cached world object z=%.3f (from marker->object transform)', target_z)
             else:
-                target_z = float(target_pos[2])
-                z_source = 'camera_z_fallback'
+                rospy.logwarn('StateJudgment: missing world object z in target_pos, fallback to docking.')
+                return 'succeed_docking'
+
         except (TypeError, ValueError) as e:
             rospy.logwarn('StateJudgment: invalid target z value (%s), fallback to docking.', e)
             return 'succeed_docking'
 
-        rospy.loginfo('StateJudgment: object_state=%d target_z=%.3f source=%s threshold=%.3f',
+        # === Final decision based on WORLD coordinate system z ===
+        rospy.loginfo('StateJudgment: FINAL DECISION - object_state=%d, world_object_z=%.3f, source=%s, threshold=%.3f',
                       object_state, target_z, z_source, switching_threshold)
 
         if target_z > switching_threshold:
@@ -454,12 +503,12 @@ class DockApproach(smach.State):
         # === Convergence tolerances ===
         # When errors are within these bounds, alignment is considered complete
         self.tol_z = 0.03  # longitudinal tolerance (m)
-        self.tol_x = 0.04  # lateral tolerance (m)
+        self.tol_x = 0.03  # lateral tolerance (m)
         self.tol_pitch = 0.05  # yaw tolerance (rad)
 
         # === Proportional gains ===
-        self.k_vx = 0.25  # gain for forward/backward motion
-        self.k_vy = -0.6 # gain for lateral motion (sign depends on frame)
+        self.k_vx = 0.2  # gain for forward/backward motion
+        self.k_vy = -0.3 # gain for lateral motion (sign depends on frame)
         self.k_yaw = -0.5  # gain for yaw rotation
 
         # x_err-based y gain schedule: small error => gentler, large error => stronger.
@@ -482,8 +531,8 @@ class DockApproach(smach.State):
 
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
-        self.vx_min = 0.025       # m/s
-        self.vy_min = 0.035       # m/s
+        self.vx_min = 0.03       # m/s
+        self.vy_min = 0.03       # m/s
         self.wz_min = 0.10       # rad/s
 
         # === Maximum velocities (safety limits) ===
@@ -492,12 +541,12 @@ class DockApproach(smach.State):
         self.wz_max = 0.60  # rad/s
 
         # Control loop parameters
-        self.control_dt = 0.1  # control period (s)
+        self.control_dt = 0.2  # control period (s)
         self.timeout_s = 28.0  # maximum duration of this state (s)
         self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.01)
         self.lost_tag_hold_s = rospy.get_param('~dock_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~dock_relaxed_factor', 2.0)
-        self.x_bias =  0.00
+        self.x_bias =  0.01
 
     def _active_marker_config(self, userdata):
         object_state = int(getattr(userdata, 'object_state', 0))
@@ -543,33 +592,16 @@ class DockApproach(smach.State):
                 if (abs(z_err) < self.tol_z and
                         abs(x_err) < self.tol_x and
                         abs(pitch_err) < self.tol_pitch):
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                     break
             else:
                 if last_err is not None and (rospy.Time.now() - last_seen_t).to_sec() < self.lost_tag_hold_s:
                     z_err, x_err, pitch_err = last_err
                 else:
                     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    print(f'lost~~~~~~~~~~~~~~~')
                     rate.sleep()
                     continue
-
-
-            now_t = rospy.Time.now()
-            if stall_ref_t is None:
-                stall_ref_t = now_t
-                stall_ref_z_err = z_err
-                stall_ref_x_err = x_err
-            elif (now_t - stall_ref_t).to_sec() >= 1.0:
-                dz = abs(z_err - stall_ref_z_err)
-                dx = abs(x_err - stall_ref_x_err)
-                if dz < 0.03 and dx < 0.03:
-                    rospy.loginfo('DockApproach: low progress in 1s (dz=%.3f, dx=%.3f), call stand.', dz, dx)
-                    self.dog_basic.stand()
-                stall_ref_t = now_t
-                stall_ref_z_err = z_err
-                stall_ref_x_err = x_err
-
-
-
 
             # === P control with deadzone compensation and saturation ===
             vx = p_with_deadzone(z_err, self.k_vx,
@@ -585,11 +617,29 @@ class DockApproach(smach.State):
             self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
             rospy.logdebug('DockApproach marker=%s target_z=%.3f err[z,x,p]=[%.3f, %.3f, %.3f]',
                            active_marker, manipulation_target_z, z_err, x_err, pitch_err)
-
+            print(f'vx:{vx}, vy:{vy}, wz:{wz}')
+            # now_t = rospy.Time.now()
+            # if stall_ref_t is None:
+            #     stall_ref_t = now_t
+            #     stall_ref_z_err = z_err
+            #     stall_ref_x_err = x_err
+            # elif (now_t - stall_ref_t).to_sec() >= 1.0:
+            #     dz = abs(z_err - stall_ref_z_err)
+            #     dx = abs(x_err - stall_ref_x_err)
+            #     if dz < 0.01 and dx < 0.01:
+            #         rospy.loginfo('DockApproach: low progress in 1s (dz=%.3f, dx=%.3f), call stand.', dz, dx)
+            #         self.dog_basic.stand()
+            #     stall_ref_t = now_t
+            #     stall_ref_z_err = z_err
+            #     stall_ref_x_err = x_err
+            if (abs(z_err) < self.tol_z and
+                    abs(x_err) < self.tol_x and
+                    abs(pitch_err) < self.tol_pitch):
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                break
             # Maintain fixed control frequency
             rate.sleep()
 
-            # Stop the robot and switch to a stable posture
 
         time.sleep(0.1)
         self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
@@ -617,7 +667,7 @@ class DockManipulation(smach.State):
             time.sleep(1)
             self.gripper_move.servo_target_cmd_qilin(0, -130)
             rospy.sleep(2)
-            self.drone_basic.call_add_extra_module(1, "brick", "main_body")
+            # self.drone_basic.call_add_extra_module(1, "brick", "main_body")
             userdata.object_state = 1
             rospy.loginfo('DockManipulation: pick mode, gripper close.')
         else:
@@ -626,7 +676,7 @@ class DockManipulation(smach.State):
             time.sleep(1)
             self.gripper_move.servo_target_cmd_qilin(0, 1400)
             rospy.sleep(1)
-            self.drone_basic.remove_module_trigger()
+            # self.drone_basic.remove_module_trigger()
             userdata.object_state = 0
             rospy.loginfo('DockManipulation: place mode, gripper open.')
 
@@ -720,8 +770,8 @@ class DetachApproach(smach.State):
         self.dog_basic = DogBasic()
         self.basic = BasicNode()
         self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.04)
-        self.tol_z = 0.03
-        self.tol_x = 0.05
+        self.tol_z = 0.10
+        self.tol_x = 0.10
         self.tol_pitch = 0.05
 
         self.k_vx = 0.2
@@ -742,7 +792,7 @@ class DetachApproach(smach.State):
 
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
-        self.timeout_s = 12.0  # maximum duration of this state (s)
+        self.timeout_s = 25.0  # maximum duration of this state (s)
         self.x_bias = rospy.get_param('~detach_x_bias', 0.0)
         self.lost_tag_hold_s = rospy.get_param('~detach_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~detach_relaxed_factor', 2.0)
@@ -783,10 +833,18 @@ class DetachApproach(smach.State):
         _, _, target_yaw = tft.euler_from_matrix(wtd, axes='sxyz')
         qx, qy, qz, qw = tft.quaternion_from_euler(0.0, 0.0, target_yaw)
 
-        # Mocap values are only for reference comparison and do not affect output.
-        target_mocap_x = self.basic.mocap_xuanwu_x - self.drone_basic.tag_target_x
-        target_mocap_y = self.basic.mocap_xuanwu_y - self.d_camera2spinal - self.drone_basic.tag_target_z - self.tag2desk_y
-        target_mocap_z = self.basic.mocap_xuanwu_z - self.h_camera2spinal - self.drone_basic.tag_target_y + self.tag2desk_z + self.h_safe + self.h_gripper2spinal
+        # Mocap values computed via matrix transformation for reference comparison.
+        # Use mocap-measured base pose with the same rotation from drone_basic.
+        mocap_wtb = self._t_se3(
+            self.basic.mocap_xuanwu_x, self.basic.mocap_xuanwu_y, self.basic.mocap_xuanwu_z,
+            self.basic.mocap_xuanwu_qx, self.basic.mocap_xuanwu_qy, self.basic.mocap_xuanwu_qz, self.basic.mocap_xuanwu_qw
+        )
+        # Apply same chain: mocap_base -> camera -> tag -> desk_target
+        mocap_wtd = mocap_wtb @ self.t_cam2base @ ctt @ self.t_desk2tag
+        target_mocap_x = float(mocap_wtd[0, 3])
+        target_mocap_y = float(mocap_wtd[1, 3])
+        target_mocap_z = float(mocap_wtd[2, 3] + self.h_safe + self.h_gripper2spinal)
+
         rospy.loginfo('DetachApproach target(world): [%.3f, %.3f, %.3f], yaw=%.3f', target_x, target_y, target_z, target_yaw)
         rospy.loginfo('DetachApproach target(mocap-ref): [%.3f, %.3f, %.3f]', target_mocap_x, target_mocap_y, target_mocap_z)
 
@@ -797,30 +855,82 @@ class DetachApproach(smach.State):
         marker_far, marker_near = resolve_marker_pair(userdata)
         target_z = float(userdata.detaching_takeoff_threshold)
 
-        ok = run_visual_approach_loop(
-            self.dog_basic, self.drone_basic,
-            marker_far, marker_near, self.marker_switch_z,
-            target_z, self.x_bias,
-            self.tol_z, self.tol_x, self.tol_pitch,
-            self.k_vx, self.k_vy, self.k_yaw,
-            self.vx_min, self.vy_min, self.wz_min,
-            self.vx_max, self.vy_max, self.wz_max,
-            self.control_dt, self.timeout_s,
-            self.lost_tag_hold_s, self.relaxed_factor,
-            state_name='DetachApproach'
-        )
-        if ok:
-            target_pose = self._compute_target_pose_world()
-            if object_state == 0:
-                userdata.picking_position = target_pose
-            else:
-                userdata.placing_position = target_pose
-            rospy.loginfo('DetachApproach: reached z threshold %.3f', target_z)
-            rospy.loginfo('DetachApproach: Target_pose %.3f', target_pose)
+        start_t = rospy.Time.now()
+        rate = rospy.Rate(1.0 / self.control_dt)
+        last_err = None
+        last_seen_t = rospy.Time.now()
+        stall_ref_t = None
+        stall_ref_z_err = None
+        stall_ref_x_err = None
 
-            return 'succeeded'
-        rospy.logwarn('DetachApproach: timeout and not close enough, failed.')
-        return 'failed'
+        while not rospy.is_shutdown():
+            if (rospy.Time.now() - start_t).to_sec() > self.timeout_s:
+                rospy.logwarn('DetachApproach: timeout reached, stopping.')
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                return 'failed'
+
+            detected, active_marker = detect_with_marker_pair(
+                self.drone_basic, marker_far, marker_near, self.marker_switch_z
+            )
+            if detected:
+                z_err = self.drone_basic.tag_target_z - target_z
+                x_err = self.drone_basic.tag_target_x - self.x_bias
+                pitch_err = self.drone_basic.tag_target_pitch
+                last_err = (z_err, x_err, pitch_err)
+                last_seen_t = rospy.Time.now()
+                if (abs(z_err) < self.tol_z and
+                        abs(x_err) < self.tol_x and
+                        abs(pitch_err) < self.tol_pitch):
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+
+                    break
+            else:
+                if last_err is not None and (rospy.Time.now() - last_seen_t).to_sec() < self.lost_tag_hold_s:
+                    z_err, x_err, pitch_err = last_err
+                else:
+                    self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+                    rate.sleep()
+                    continue
+
+            # now_t = rospy.Time.now()
+            # if stall_ref_t is None:
+            #     stall_ref_t = now_t
+            #     stall_ref_z_err = z_err
+            #     stall_ref_x_err = x_err
+            # elif (now_t - stall_ref_t).to_sec() >= 1.0:
+            #     dz = abs(z_err - stall_ref_z_err)
+            #     dx = abs(x_err - stall_ref_x_err)
+            #     if dz < 0.03 and dx < 0.03:
+            #         rospy.loginfo('DetachApproach: low progress in 1s (dz=%.3f, dx=%.3f), call stand.', dz, dx)
+            #         self.dog_basic.stand()
+            #     stall_ref_t = now_t
+            #     stall_ref_z_err = z_err
+            #     stall_ref_x_err = x_err
+
+            vx = p_with_deadzone(z_err, self.k_vx,
+                                 self.vx_min, self.vx_max, self.tol_z)
+
+            vy = p_with_deadzone(x_err, self.k_vy,
+                                 self.vy_min, self.vy_max, self.tol_x)
+
+            wz = p_with_deadzone(pitch_err, self.k_yaw,
+                                 self.wz_min, self.wz_max, self.tol_pitch)
+
+            self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
+            rospy.logdebug('DetachApproach marker=%s target_z=%.3f err[z,x,p]=[%.3f, %.3f, %.3f]',
+                           active_marker, target_z, z_err, x_err, pitch_err)
+            rate.sleep()
+
+        target_pose = self._compute_target_pose_world()
+        if object_state == 0:
+            userdata.picking_position = target_pose
+        else:
+            userdata.placing_position = target_pose
+        self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+        rospy.sleep(1.0)
+        rospy.loginfo('DetachApproach: reached z threshold %.3f', target_z)
+        rospy.loginfo('DetachApproach: Target_pose %s', target_pose)
+        return 'succeeded'
 
 class Takeoff(smach.State):
     def __init__(self):
@@ -836,7 +946,16 @@ class Takeoff(smach.State):
             s = input("Type 'y' to continue: ").strip().lower()
             if s == 'y':
                 break
+            if s == 'n':
+                return 'failed'
+        if rospy.is_shutdown():
+            rospy.logwarn('Takeoff: ROS shutdown during user input')
+            return 'failed'
         self.drone_basic.drone_start()
+        time.sleep(0.1)
+        self.drone_basic.drone_start()
+        time.sleep(0.1)
+        self.drone_basic.drone_takeoff()
         time.sleep(0.1)
         self.drone_basic.drone_takeoff()
         rospy.loginfo(f'takeoff!!!!!!!!!!')
@@ -870,9 +989,9 @@ class FlyTarget(smach.State):
             return 'failed'
 
         qx, qy, qz, qw = self.target_position[3], self.target_position[4], self.target_position[5], self.target_position[6]
-        self.drone_basic.drone_target('world', self.target_position[0], self.target_position[1], 1.0, 0, 0, 0, 1)
+        self.drone_basic.drone_target('world', self.target_position[0], self.target_position[1], self.target_position[2]+ 0.5, 0, 0, 0, 1)
         rospy.loginfo(f'send fly target')
-        rospy.sleep(8)
+        rospy.sleep(3)
         rospy.loginfo(f'send fly target again')
         self.drone_basic.drone_target('world', self.target_position[0], self.target_position[1],
                                       self.target_position[2], qx, qy, qz, qw)
@@ -887,12 +1006,20 @@ class FlyTarget(smach.State):
         elif object_state == 1:
             rospy.loginfo('Open gripper')
             self.gripper_move.servo_target_cmd_qilin(0, 1400)
-            self.drone_basic.remove_module_trigger()
+            rospy.sleep(0.5)
+            # self.drone_basic.remove_module_trigger()
+            self.gripper_move.servo_target_cmd_qilin(0, 1400)
+
             userdata.object_state = 0
         while not rospy.is_shutdown():
             s = input("Type 'y' to continue: ").strip().lower()
             if s == 'y':
                 break
+            if s == 'n':
+                return 'failed'
+        # if rospy.is_shutdown():
+        #     rospy.logwarn('FlyTarget: ROS shutdown during user input')
+        #     return 'failed'
         return 'succeeded'
 
 class FlyBack(smach.State):
@@ -902,8 +1029,6 @@ class FlyBack(smach.State):
         self.land_offset = 0.3
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
-        self.aqm = AprilmoveqilinNode()
-        self.timeout_s = 12.0
         self.takeoff_position = [0.0, 0.0, 0.0, 0.0]
 
     def execute(self, userdata):
