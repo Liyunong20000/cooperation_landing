@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import rospy, sys
+import rospy
 import numpy as np
 import time
 import tf.transformations as tft
@@ -8,6 +8,23 @@ from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import Twist
 
 from dog_basic_function import DogBasic
+
+
+def clamp(x, lo, hi):
+    """Clamp x to [lo, hi]."""
+    return max(lo, min(hi, x))
+
+
+def p_with_deadzone(err, k, v_min, v_max, tol):
+    """P control with tolerance dead-zone and velocity saturation."""
+    # if abs(err) < tol:
+    #     return 0.0
+    v = k * err
+    if v == 0:
+        return 0.0
+    if abs(v) < v_min:
+        v = v_min if v > 0 else -v_min
+    return clamp(v, -v_max, v_max)
 
 # It is for ground robot used to align with aerial robot
 
@@ -45,8 +62,10 @@ class AprilmoveqilinNode:
         self.close_distance_threshold = rospy.get_param("/close_distance_threshold", 0.5)
         self.fast_move_param = rospy.get_param("/fast_move_param", 1.15)
         self.normal_move_param = rospy.get_param("/normal_move_param", 1.0)
-        self.max_linear_vel = rospy.get_param("/max_linear_vel", 1.0)
+        self.max_linear_vel = rospy.get_param("/max_linear_vel", 0.25)
         self.max_angular_vel = rospy.get_param("/max_angular_vel", 0.3)
+        self.min_linear_vel = rospy.get_param("/min_linear_vel", 0.025)
+        self.min_angular_vel = rospy.get_param("/min_angular_vel", 0.05)
         # self.pose_parameter = rospy.get_param("/pose_parameter")
 
         self.msg_apriltag = None
@@ -161,7 +180,7 @@ class AprilmoveqilinNode:
         
         if T_drone_center is None:
         # Check if it's been too long since last detection
-            if (rospy.Time.now() - self.last_tag_time) > rospy.Duration(1):
+            if (rospy.Time.now() - self.last_tag_time) > rospy.Duration(0.5):
                 rospy.logwarn("Tag lost for >0.5s. Stopping dog.")
                 self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
             return
@@ -179,8 +198,8 @@ class AprilmoveqilinNode:
             self.move_param = self.fast_move_param
         else:
             self.move_param = self.normal_move_param
-        lx = np.clip((self.move_param * self.dog_align_drone_matrix[0, 3]), -self.max_linear_vel, self.max_linear_vel)
-        ly = np.clip((self.move_param * self.dog_align_drone_matrix[1, 3]), -self.max_linear_vel, self.max_linear_vel)
+        lx = p_with_deadzone(self.dog_align_drone_matrix[0, 3], self.move_param, self.min_linear_vel, self.max_linear_vel, 0.0)
+        ly = p_with_deadzone(self.dog_align_drone_matrix[1, 3], self.move_param, self.min_linear_vel, self.max_linear_vel, 0.0)
         # q = tft.quaternion_from_matrix(self.dog_align_drone_matrix)
         T_tag_0 = self.find_target_tag(self.msg_apriltag, 0)
         if not isinstance(T_tag_0, np.ndarray) or T_tag_0.shape != (4, 4):
@@ -189,7 +208,7 @@ class AprilmoveqilinNode:
       
         q = tft.quaternion_from_matrix(T_tag_0)
         roll, pitch, yaw = tft.euler_from_quaternion(q)
-        ryaw = np.clip((self.rotate_param * yaw), -self.max_angular_vel, self.max_angular_vel)
+        ryaw = p_with_deadzone(yaw, self.rotate_param, self.min_angular_vel, self.max_angular_vel, 0.0)
         # print(f'{lx}, {ly}, {ryaw}')
 
 
