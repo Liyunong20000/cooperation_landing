@@ -6,6 +6,7 @@
   <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/DroneTagsMatrix.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/LandingInfo.yaml" command="load" />
+  <rosparam file="$(find cooperation_landing)/config/LandingPoints.yaml" command="load" />
 
 <!--   <node name="manipulation_motion" pkg="cooperation_landing" type="manipulation_motion.py" > -->
 <!--   </node> -->
