@@ -1,24 +1,11 @@
-# unitree_ros
+# kortex
 - git:
-    local-name: unitree_ros
-    uri: https://github.com/Liyunong20000/unitree_ros.git
-    version: 228e01d
+    local-name: ros_kortex
+    uri: https://github.com/Kinovarobotics/ros_kortex.git
+    version: c3280d8
 
 #jsk_common
 - git:
     local-name: jsk_common
     uri: https://github.com/Liyunong20000/jsk_common.git
     version: bb4e784
-    
-#ethz-asl/kalibr
-- git:
-    local-name: kalibr
-    uri: https://github.com/ethz-asl/kalibr.git
-    version: 1f60227
-
-#pal-robotics/gazebo_ros_link_attacher
-- git:
-    local-name: gazebo_ros_link_attacher
-    uri: https://github.com/pal-robotics/gazebo_ros_link_attacher.git
-    version: 1d170c4
-    

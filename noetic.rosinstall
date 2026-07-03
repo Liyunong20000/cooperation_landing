@@ -1,8 +1,8 @@
-# unitree_ros
+# kortex
 - git:
-    local-name: unitree_ros
-    uri: https://github.com/Liyunong20000/unitree_ros.git
-    version: 228e01d
+    local-name: ros_kortex
+    uri: https://github.com/Kinovarobotics/ros_kortex.git
+    version: c3280d8
 
 #jsk_common
 - git:
