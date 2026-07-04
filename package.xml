@@ -46,6 +46,7 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>actionlib</exec_depend>
   <exec_depend>control_msgs</exec_depend>
+  <exec_depend>kortex_driver</exec_depend>
   <exec_depend>moveit_commander</exec_depend>
   <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>tf</exec_depend>
