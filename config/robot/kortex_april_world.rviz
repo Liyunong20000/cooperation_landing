@@ -131,6 +131,14 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /door_tag/markers
+      Name: DoorMarkers
+      Namespaces:
+        door_tag: true
+      Queue Size: 100
+      Value: true
     - Acceleration_Scaling_Factor: 1
       Class: moveit_rviz_plugin/MotionPlanning
       Enabled: true
