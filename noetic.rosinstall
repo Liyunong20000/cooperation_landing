@@ -9,3 +9,10 @@
     local-name: jsk_common
     uri: https://github.com/Liyunong20000/jsk_common.git
     version: bb4e784
+    
+#gazebo_ros_link_attacher
+- git:
+    local-name: gazebo_ros_link_attacher
+    uri: https://github.com/pal-robotics/gazebo_ros_link_attacher.git
+    version: 1d170c4
+
