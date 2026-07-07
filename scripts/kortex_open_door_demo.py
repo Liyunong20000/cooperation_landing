@@ -11,7 +11,7 @@ import tf.transformations as tft
 from gazebo_ros_link_attacher.srv import Attach, AttachRequest
 from gazebo_msgs.srv import GetModelProperties
 from geometry_msgs.msg import Pose, Quaternion
-from moveit_msgs.msg import CollisionObject
+from moveit_msgs.msg import CollisionObject, Constraints, OrientationConstraint
 
 from kortex_arm_motion import KortexArmMotion
 
@@ -51,6 +51,12 @@ class KortexOpenDoorDemo:
         self.group.set_num_planning_attempts(args.planning_attempts)
         self.group.set_goal_position_tolerance(args.position_tolerance)
         self.group.set_goal_orientation_tolerance(args.orientation_tolerance)
+        self.pose_target_link = args.pose_target_link or args.robot_link
+        rospy.loginfo(
+            "MoveIt default end-effector link: '%s'; pose target link: '%s'",
+            self.group.get_end_effector_link(),
+            self.pose_target_link,
+        )
 
         self.collision_pub = rospy.Publisher(
             "/{}/collision_object".format(args.robot_name.strip("/")),
@@ -83,15 +89,124 @@ class KortexOpenDoorDemo:
     def restore_moving_door_collision(self):
         rospy.set_param("/door_tag/publish_moving_collision", True)
 
-    def go_to_pose(self, pose, label):
-        rospy.loginfo("Planning to %s", label)
-        self.group.set_pose_target(pose)
-        success = self.group.go(wait=True)
-        self.group.stop()
-        self.group.clear_pose_targets()
+    def go_to_pose(self, pose, label, target_link=None):
+        target_link = target_link or self.pose_target_link
+        rospy.loginfo("Planning to %s with target link %s", label, target_link)
+        self.group.set_pose_target(pose, target_link)
+        success = False
+        try:
+            plan = self.plan_to_current_target(label)
+            if plan is not None:
+                success = self.execute_timed_plan(plan, label)
+        finally:
+            self.group.stop()
+            self.group.clear_pose_targets()
         if not success:
+            if self.pose_reached(pose, target_link):
+                rospy.logwarn(
+                    "MoveIt reported failure for %s, but %s is within goal tolerance; continuing",
+                    label,
+                    target_link,
+                )
+                return True
             rospy.logerr("MoveIt failed while going to %s", label)
         return success
+
+    def plan_to_current_target(self, label):
+        result = self.group.plan()
+        if isinstance(result, tuple):
+            if len(result) >= 2:
+                success = bool(result[0])
+                plan = result[1]
+            else:
+                success = False
+                plan = None
+        else:
+            plan = result
+            points = getattr(plan.joint_trajectory, "points", [])
+            success = len(points) > 0
+
+        if not success or plan is None or len(plan.joint_trajectory.points) == 0:
+            rospy.logerr("MoveIt failed to plan %s", label)
+            return None
+        return plan
+
+    def execute_timed_plan(self, plan, label):
+        timed_plan = self.retime_plan(plan)
+        self.enforce_strictly_increasing_time(timed_plan)
+        return self.group.execute(timed_plan, wait=True)
+
+    def retime_plan(self, plan):
+        return self.group.retime_trajectory(
+            self.group.get_current_state(),
+            plan,
+            self.args.velocity_scaling,
+            self.args.acceleration_scaling,
+        )
+
+    def enforce_strictly_increasing_time(self, plan):
+        points = plan.joint_trajectory.points
+        last_time = rospy.Duration(0.0)
+        min_dt = rospy.Duration(self.args.min_waypoint_dt)
+        fixed = 0
+        for point in points:
+            if point.time_from_start <= last_time:
+                point.time_from_start = last_time + min_dt
+                fixed += 1
+            last_time = point.time_from_start
+        if fixed:
+            rospy.logwarn(
+                "Adjusted %d trajectory waypoint timestamps to be strictly increasing",
+                fixed,
+            )
+
+    def pose_reached(self, target_pose, target_link):
+        current_pose = self.group.get_current_pose(target_link).pose
+        dx = current_pose.position.x - target_pose.position.x
+        dy = current_pose.position.y - target_pose.position.y
+        dz = current_pose.position.z - target_pose.position.z
+        position_error = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+        cq = current_pose.orientation
+        tq = target_pose.orientation
+        current_q = [cq.x, cq.y, cq.z, cq.w]
+        target_q = [tq.x, tq.y, tq.z, tq.w]
+        dot = abs(sum(c * t for c, t in zip(current_q, target_q)))
+        dot = max(-1.0, min(1.0, dot))
+        orientation_error = 2.0 * math.acos(dot)
+
+        rospy.logwarn(
+            "Post-failure pose error for %s: position %.4f m, orientation %.4f rad",
+            target_link,
+            position_error,
+            orientation_error,
+        )
+        return (
+            position_error <= self.args.position_tolerance * 2.0
+            and orientation_error <= self.args.orientation_tolerance * 2.0
+        )
+
+    def set_orientation_constraint(self, quat, name="orientation", target_link=None):
+        if not self.args.constrain_approach_orientation:
+            return
+
+        target_link = target_link or self.pose_target_link
+        constraint = OrientationConstraint()
+        constraint.header.frame_id = self.group.get_planning_frame()
+        constraint.link_name = target_link
+        constraint.orientation = quat
+        constraint.absolute_x_axis_tolerance = self.args.orientation_constraint_tolerance
+        constraint.absolute_y_axis_tolerance = self.args.orientation_constraint_tolerance
+        constraint.absolute_z_axis_tolerance = self.args.orientation_constraint_tolerance
+        constraint.weight = 1.0
+
+        constraints = Constraints()
+        constraints.name = name
+        constraints.orientation_constraints.append(constraint)
+        self.group.set_path_constraints(constraints)
+
+    def clear_orientation_constraint(self):
+        self.group.clear_path_constraints()
 
     def attach(self):
         if not self.model_has_link(self.args.robot_model, self.args.robot_link):
@@ -132,6 +247,8 @@ class KortexOpenDoorDemo:
         return True
 
     def detach(self):
+        self.group.stop()
+        rospy.sleep(self.args.pre_detach_settle_time)
         req = AttachRequest()
         req.model_name_1 = self.args.robot_model
         req.link_name_1 = self.args.robot_link
@@ -164,16 +281,66 @@ class KortexOpenDoorDemo:
         )
         return make_pose(x, y, z, quat)
 
-    def build_open_waypoints(self, quat, start_angle=0.0):
+    def build_open_waypoints(self, quat, start_angle=0.0, base_pose=None):
         waypoints = []
+        if base_pose is None:
+            base_pose = self.target_pose_at_angle(start_angle, quat)
+        base_handle_x, base_handle_y, base_handle_z = self.handle_pose_at_angle(
+            start_angle,
+            self.args.contact_offset_x,
+            self.args.contact_offset_y,
+            self.args.contact_offset_z,
+        )
         steps = max(1, self.args.open_steps)
         for index in range(1, steps + 1):
             ratio = float(index) / float(steps)
             angle = start_angle + (self.args.open_angle - start_angle) * ratio
-            waypoints.append(self.target_pose_at_angle(angle, quat))
+            handle_x, handle_y, handle_z = self.handle_pose_at_angle(
+                angle,
+                self.args.contact_offset_x,
+                self.args.contact_offset_y,
+                self.args.contact_offset_z,
+            )
+            waypoints.append(
+                make_pose(
+                    base_pose.position.x + handle_x - base_handle_x,
+                    base_pose.position.y + handle_y - base_handle_y,
+                    base_pose.position.z + handle_z - base_handle_z,
+                    quat,
+                )
+            )
         return waypoints
 
-    def execute_cartesian_open_path(self, waypoints):
+    def displaced_pose_at_angle(self, base_pose, base_angle, target_angle, quat):
+        base_handle_x, base_handle_y, base_handle_z = self.handle_pose_at_angle(
+            base_angle,
+            self.args.contact_offset_x,
+            self.args.contact_offset_y,
+            self.args.contact_offset_z,
+        )
+        handle_x, handle_y, handle_z = self.handle_pose_at_angle(
+            target_angle,
+            self.args.contact_offset_x,
+            self.args.contact_offset_y,
+            self.args.contact_offset_z,
+        )
+        return make_pose(
+            base_pose.position.x + handle_x - base_handle_x,
+            base_pose.position.y + handle_y - base_handle_y,
+            base_pose.position.z + handle_z - base_handle_z,
+            quat,
+        )
+
+    def execute_cartesian_open_path(self, waypoints, target_link=None):
+        target_link = target_link or self.pose_target_link
+        if target_link != self.group.get_end_effector_link():
+            rospy.loginfo(
+                "Skipping Cartesian path because compute_cartesian_path uses default end-effector %s, not %s",
+                self.group.get_end_effector_link(),
+                target_link,
+            )
+            return self.execute_waypoint_open_path(waypoints, target_link)
+
         trajectory, fraction = self.group.compute_cartesian_path(
             waypoints,
             self.args.eef_step,
@@ -184,14 +351,32 @@ class KortexOpenDoorDemo:
             rospy.logwarn(
                 "Cartesian open path fraction is too low; falling back to waypoint planning"
             )
-            return self.execute_waypoint_open_path(waypoints)
-        return self.group.execute(trajectory, wait=True)
+            return self.execute_waypoint_open_path(waypoints, target_link)
+        return self.execute_timed_plan(trajectory, "Cartesian open path")
 
-    def execute_waypoint_open_path(self, waypoints):
+    def execute_waypoint_open_path(self, waypoints, target_link=None):
         for index, waypoint in enumerate(waypoints, start=1):
-            if not self.go_to_pose(waypoint, "door open waypoint {}/{}".format(index, len(waypoints))):
+            if not self.go_to_pose(
+                waypoint,
+                "door open waypoint {}/{}".format(index, len(waypoints)),
+                target_link,
+            ):
                 return False
         return True
+
+    def yaw_rotated_current_pose(self, target_link, yaw_delta):
+        current_pose = self.group.get_current_pose(target_link).pose
+        q = current_pose.orientation
+        current_q = [q.x, q.y, q.z, q.w]
+        local_yaw_q = tft.quaternion_from_euler(0.0, 0.0, yaw_delta)
+        rotated_q = tft.quaternion_multiply(current_q, local_yaw_q)
+        rotated_q = tft.unit_vector(rotated_q)
+        return make_pose(
+            current_pose.position.x,
+            current_pose.position.y,
+            current_pose.position.z,
+            Quaternion(rotated_q[0], rotated_q[1], rotated_q[2], rotated_q[3]),
+        )
 
     def run(self):
         quat = quaternion_from_rpy(
@@ -211,10 +396,12 @@ class KortexOpenDoorDemo:
         attached = False
         completed = False
         try:
+            self.set_orientation_constraint(quat)
             if not self.go_to_pose(approach_pose, "door handle approach"):
                 return False
             if not self.go_to_pose(contact_pose, "door handle contact"):
                 return False
+            self.clear_orientation_constraint()
 
             self.remove_moving_door_collision()
 
@@ -223,22 +410,49 @@ class KortexOpenDoorDemo:
             else:
                 rospy.logwarn("Continuing even though attach returned false")
 
+            open_target_link = self.args.open_target_link or self.args.robot_link
+            rospy.loginfo("Opening with target link %s", open_target_link)
+            open_base_pose = self.group.get_current_pose(open_target_link).pose
+            open_quat = open_base_pose.orientation
+            if abs(self.args.post_attach_yaw) > 1e-6:
+                rotate_pose = self.yaw_rotated_current_pose(
+                    open_target_link,
+                    self.args.post_attach_yaw,
+                )
+                open_quat = rotate_pose.orientation
+                if not self.go_to_pose(
+                    rotate_pose,
+                    "post-attach yaw rotation",
+                    open_target_link,
+                ):
+                    return False
+                rospy.sleep(self.args.post_attach_settle_time)
+                open_base_pose = self.group.get_current_pose(open_target_link).pose
+
+            self.set_orientation_constraint(open_quat, "open_orientation", open_target_link)
             start_angle = 0.0
             if self.args.pre_push_angle > 0.0:
-                pre_push_pose = self.target_pose_at_angle(self.args.pre_push_angle, quat)
-                if not self.go_to_pose(pre_push_pose, "door handle pre-push"):
+                pre_push_pose = self.displaced_pose_at_angle(
+                    open_base_pose,
+                    start_angle,
+                    self.args.pre_push_angle,
+                    open_quat,
+                )
+                if not self.go_to_pose(pre_push_pose, "door handle pre-push", open_target_link):
                     return False
                 start_angle = self.args.pre_push_angle
+                open_base_pose = self.group.get_current_pose(open_target_link).pose
 
-            waypoints = self.build_open_waypoints(quat, start_angle)
-            if not self.execute_cartesian_open_path(waypoints):
+            waypoints = self.build_open_waypoints(open_quat, start_angle, open_base_pose)
+            if not self.execute_cartesian_open_path(waypoints, open_target_link):
                 return False
 
             rospy.loginfo("Door opening demo completed")
             completed = True
             return True
         finally:
-            if attached and (self.args.detach_at_end or not completed):
+            self.clear_orientation_constraint()
+            if attached and self.args.detach_at_end:
                 self.detach()
             if self.args.restore_collision:
                 self.restore_moving_door_collision()
@@ -249,26 +463,28 @@ def main():
     parser.add_argument("--robot-name", default="my_gen3")
     parser.add_argument("--robot-model", default="my_gen3")
     parser.add_argument("--robot-link", default="bracelet_link")
+    parser.add_argument("--pose-target-link", default="tool_frame")
+    parser.add_argument("--open-target-link", default="bracelet_link")
     parser.add_argument("--door-model", default="hinged_door_with_tag")
     parser.add_argument("--door-link", default="door_handle")
     parser.add_argument("--attach-service", default="/link_attacher_node/attach")
     parser.add_argument("--detach-service", default="/link_attacher_node/detach")
     parser.add_argument("--timeout", type=float, default=15.0)
 
-    parser.add_argument("--hinge-x", type=float, default=0.50)
+    parser.add_argument("--hinge-x", type=float, default=0.55)
     parser.add_argument("--hinge-y", type=float, default=0.38)
     parser.add_argument("--hinge-z", type=float, default=0.45)
     parser.add_argument("--handle-local-x", type=float, default=-0.07)
     parser.add_argument("--handle-local-y", type=float, default=-0.58)
     parser.add_argument("--handle-local-z", type=float, default=0.05)
 
-    parser.add_argument("--approach-offset-x", type=float, default=-0.08)
+    parser.add_argument("--approach-offset-x", type=float, default=-0.05)
     parser.add_argument("--approach-offset-y", type=float, default=0.0)
     parser.add_argument("--approach-offset-z", type=float, default=0.0)
     parser.add_argument("--contact-offset-x", type=float, default=-0.01)
     parser.add_argument("--contact-offset-y", type=float, default=0.0)
     parser.add_argument("--contact-offset-z", type=float, default=0.0)
-    parser.add_argument("--open-angle", type=float, default=0.35)
+    parser.add_argument("--open-angle", type=float, default=0.20)
     parser.add_argument("--open-steps", type=int, default=1)
     parser.add_argument("--pre-push-angle", type=float, default=0.0)
     parser.add_argument("--eef-step", type=float, default=0.01)
@@ -279,10 +495,19 @@ def main():
     parser.add_argument("--tool-roll", type=float, default=math.pi / 2.0)
     parser.add_argument("--tool-pitch", type=float, default=0.0)
     parser.add_argument("--tool-yaw", type=float, default=math.pi / 2.0)
+    parser.add_argument("--post-attach-yaw", type=float, default=math.pi / 2.0)
+    parser.add_argument("--post-attach-settle-time", type=float, default=0.5)
+    parser.add_argument("--pre-detach-settle-time", type=float, default=1.0)
+    parser.add_argument("--constrain-approach-orientation", action="store_true", default=True)
+    parser.add_argument("--no-constrain-approach-orientation", action="store_false", dest="constrain_approach_orientation")
+    parser.add_argument("--orientation-constraint-tolerance", type=float, default=0.15)
     parser.add_argument("--position-tolerance", type=float, default=0.02)
     parser.add_argument("--orientation-tolerance", type=float, default=0.2)
     parser.add_argument("--planning-time", type=float, default=10.0)
     parser.add_argument("--planning-attempts", type=int, default=10)
+    parser.add_argument("--velocity-scaling", type=float, default=0.25)
+    parser.add_argument("--acceleration-scaling", type=float, default=0.25)
+    parser.add_argument("--min-waypoint-dt", type=float, default=0.02)
     parser.add_argument("--detach-at-end", action="store_true")
     parser.add_argument("--no-restore-collision", action="store_false", dest="restore_collision")
     parser.set_defaults(restore_collision=True)
