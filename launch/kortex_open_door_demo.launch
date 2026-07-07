@@ -1,0 +1,49 @@
+<launch>
+  <arg name="start_sim" default="true"/>
+  <arg name="demo_delay" default="25"/>
+  <arg name="robot_name" default="my_gen3"/>
+  <arg name="robot_model" default="$(arg robot_name)"/>
+  <arg name="robot_link" default="bracelet_link"/>
+  <arg name="pose_target_link" default="tool_frame"/>
+  <arg name="open_target_link" default="bracelet_link"/>
+  <arg name="door_model" default="hinged_door_with_tag"/>
+  <arg name="door_link" default="door_handle"/>
+  <arg name="open_angle" default="0.35"/>
+  <arg name="pre_detach_settle_time" default="1.0"/>
+  <arg name="detach_at_end" default="false"/>
+
+  <include file="$(find cooperation_landing)/launch/kortex_gazebo_world.launch" if="$(arg start_sim)">
+    <arg name="robot_name" value="$(arg robot_name)"/>
+  </include>
+
+  <node name="kortex_open_door_demo" pkg="cooperation_landing" type="kortex_open_door_demo.py" output="screen" unless="$(arg detach_at_end)"
+        launch-prefix="bash -c 'sleep $(arg demo_delay); $0 $@'"
+        args="--robot-name $(arg robot_name)
+              --robot-model $(arg robot_model)
+              --robot-link $(arg robot_link)
+              --pose-target-link $(arg pose_target_link)
+              --open-target-link $(arg open_target_link)
+              --door-model $(arg door_model)
+              --door-link $(arg door_link)
+              --open-angle $(arg open_angle)
+              --pre-detach-settle-time $(arg pre_detach_settle_time)">
+    <param name="use_sim_time" value="true"/>
+    <env name="PYTHONUNBUFFERED" value="1"/>
+  </node>
+
+  <node name="kortex_open_door_demo" pkg="cooperation_landing" type="kortex_open_door_demo.py" output="screen" if="$(arg detach_at_end)"
+        launch-prefix="bash -c 'sleep $(arg demo_delay); $0 $@'"
+        args="--robot-name $(arg robot_name)
+              --robot-model $(arg robot_model)
+              --robot-link $(arg robot_link)
+              --pose-target-link $(arg pose_target_link)
+              --open-target-link $(arg open_target_link)
+              --door-model $(arg door_model)
+              --door-link $(arg door_link)
+              --open-angle $(arg open_angle)
+              --pre-detach-settle-time $(arg pre_detach_settle_time)
+              --detach-at-end">
+    <param name="use_sim_time" value="true"/>
+    <env name="PYTHONUNBUFFERED" value="1"/>
+  </node>
+</launch>
