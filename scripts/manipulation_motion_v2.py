@@ -4,10 +4,20 @@
 import rospy
 import smach
 import smach_ros
+from dog_stall_monitor import DogStallMonitor
 from manipulation_state_v2 import *
 
 def main():
     rospy.init_node('manipulation_motion')
+
+    # Keep one stall monitor for the complete state-machine lifetime. Because
+    # it listens to the final /go1/cmd_vel topic, every DogBasic command issued
+    # by every state is covered without adding recovery code to each state.
+    _dog_stall_monitor = None
+    if rospy.get_param('~enable_dog_stall_monitor', True):
+        _dog_stall_monitor = DogStallMonitor()
+    else:
+        rospy.logwarn('Dog stall monitor is disabled by parameter.')
 
     # Load ROS parameters (far/near marker ids)
     picking_marker_far = rospy.get_param('~picking_marker_far', 0)

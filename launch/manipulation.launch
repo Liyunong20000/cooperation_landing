@@ -1,12 +1,31 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="rm" default="1" />
+  <arg name="enable_dog_stall_monitor" default="true" />
+  <arg name="dog_stall_pose_topic" default="/xuanwu/uav/cog/odom" />
 
   <!-- Load parameters -->
   <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/DroneTagsMatrix.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/LandingInfo.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/LandingPoints.yaml" command="load" />
+
+  <!-- Stall monitor parameters consumed by manipulation_motion_v2.py. -->
+  <group ns="manipulation_motion">
+    <param name="enable_dog_stall_monitor" value="$(arg enable_dog_stall_monitor)" />
+    <param name="cmd_vel_topic" value="/go1/cmd_vel" />
+    <param name="pose_topic" value="$(arg dog_stall_pose_topic)" />
+    <param name="stand_service" value="/go1/stand" />
+    <param name="window_s" value="1.0" />
+    <param name="min_translation_m" value="0.01" />
+    <param name="min_yaw_rad" value="0.02" />
+    <param name="linear_cmd_threshold" value="0.02" />
+    <param name="angular_cmd_threshold" value="0.05" />
+    <param name="cmd_timeout_s" value="1.5" />
+    <param name="pose_timeout_s" value="1.0" />
+    <param name="required_windows" value="2" />
+    <param name="recovery_cooldown_s" value="2.0" />
+  </group>
 
 <!--   <node name="manipulation_motion" pkg="cooperation_landing" type="manipulation_motion.py" > -->
 <!--   </node> -->
