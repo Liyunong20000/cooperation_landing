@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<robot name="spot_kortex" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!--
+    Composite model for the CHAMP/Gazebo Spot and a Kinova Gen3 7-DOF arm.
+
+    The arm is deliberately prefixed with "arm_" so its base_link, camera
+    frames, joints, and gripper links do not collide with Spot link names.
+    The Spot gazebo branch already supplies gazebo_ros_control, so this file
+    only adds the Kortex transmissions and does not load a second instance of
+    that plugin.
+  -->
+  <xacro:arg name="simulation" default="false"/>
+  <xacro:arg name="vision" default="true"/>
+  <xacro:arg name="with_gripper" default="true"/>
+  <xacro:arg name="arm_prefix" default="arm_"/>
+
+  <!-- The mount frame is centered on the body's upper surface. -->
+  <xacro:arg name="mount_xyz" default="0 0 0.105"/>
+  <xacro:arg name="mount_rpy" default="0 0 0"/>
+
+  <xacro:property name="arm_prefix" value="$(arg arm_prefix)"/>
+
+  <xacro:include filename="$(find cooperation_landing)/urdf/spot_champ_base.xacro"/>
+  <xacro:include filename="$(find kortex_description)/arms/gen3/7dof/urdf/gen3_macro.xacro"/>
+  <xacro:include filename="$(find kortex_description)/arms/gen3/7dof/urdf/gen3_transmission_macro.xacro"/>
+  <xacro:include filename="$(find kortex_description)/grippers/robotiq_2f_85/urdf/robotiq_2f_85_macro.xacro"/>
+  <xacro:include filename="$(find kortex_description)/grippers/robotiq_2f_85/urdf/robotiq_2f_85_transmission_macro.xacro"/>
+
+  <xacro:load_champ_spot/>
+
+  <!-- A small centered payload plate between Spot and the arm. -->
+  <link name="spot_kortex_mount">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.5"/>
+      <inertia ixx="0.0052" ixy="0" ixz="0"
+               iyy="0.0073" iyz="0" izz="0.0125"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="0.25 0.20 0.04"/>
+      </geometry>
+      <material name="mount_dark_gray">
+        <color rgba="0.18 0.18 0.18 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.25 0.20 0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="spot_kortex_mount_joint" type="fixed">
+    <origin xyz="$(arg mount_xyz)" rpy="$(arg mount_rpy)"/>
+    <parent link="body"/>
+    <child link="spot_kortex_mount"/>
+  </joint>
+
+  <!-- Instantiate the arm, then attach its prefixed base to the plate. -->
+  <xacro:load_arm parent="" dof="7" vision="$(arg vision)" prefix="${arm_prefix}">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:load_arm>
+
+  <joint name="${arm_prefix}mount_joint" type="fixed">
+    <origin xyz="0 0 0.02" rpy="0 0 0"/>
+    <parent link="spot_kortex_mount"/>
+    <child link="${arm_prefix}base_link"/>
+  </joint>
+
+  <xacro:if value="$(arg with_gripper)">
+    <xacro:load_gripper parent="${arm_prefix}${last_arm_link}" prefix="${arm_prefix}"/>
+  </xacro:if>
+
+  <xacro:unless value="$(arg with_gripper)">
+    <link name="${arm_prefix}tool_frame"/>
+    <joint name="${arm_prefix}tool_frame_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="${arm_prefix}${last_arm_link}"/>
+      <child link="${arm_prefix}tool_frame"/>
+    </joint>
+  </xacro:unless>
+
+  <xacro:if value="$(arg simulation)">
+    <xacro:load_gazebo_arm_transmissions prefix="${arm_prefix}"/>
+    <xacro:if value="$(arg with_gripper)">
+      <xacro:load_gazebo_gripper_transmissions prefix="${arm_prefix}"/>
+    </xacro:if>
+  </xacro:if>
+
+  <gazebo reference="spot_kortex_mount">
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+</robot>
