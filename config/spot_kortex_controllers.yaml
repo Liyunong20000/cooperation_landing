@@ -1,0 +1,79 @@
+joint_states_controller:
+  type: joint_state_controller/JointStateController
+  publish_rate: 50
+
+# CHAMP publishes Spot leg targets to this controller.
+joint_group_position_controller:
+  type: effort_controllers/JointTrajectoryController
+  joints:
+    - front_left_hip_x
+    - front_left_hip_y
+    - front_left_knee
+    - front_right_hip_x
+    - front_right_hip_y
+    - front_right_knee
+    - rear_left_hip_x
+    - rear_left_hip_y
+    - rear_left_knee
+    - rear_right_hip_x
+    - rear_right_hip_y
+    - rear_right_knee
+  constraints:
+    goal_time: 1.0
+    stopped_velocity_tolerance: 0.5
+  stop_trajectory_duration: 0.5
+  state_publish_rate: 50
+  action_monitor_rate: 20
+  gains:
+    front_left_hip_x:   {p: 600.0, i: 0.0, d: 20.0}
+    front_left_hip_y:   {p: 600.0, i: 0.0, d: 20.0}
+    front_left_knee:    {p: 600.0, i: 0.0, d: 20.0}
+    front_right_hip_x:  {p: 600.0, i: 0.0, d: 20.0}
+    front_right_hip_y:  {p: 600.0, i: 0.0, d: 20.0}
+    front_right_knee:   {p: 600.0, i: 0.0, d: 20.0}
+    rear_left_hip_x:    {p: 600.0, i: 0.0, d: 20.0}
+    rear_left_hip_y:    {p: 600.0, i: 0.0, d: 20.0}
+    rear_left_knee:     {p: 600.0, i: 0.0, d: 20.0}
+    rear_right_hip_x:   {p: 600.0, i: 0.0, d: 20.0}
+    rear_right_hip_y:   {p: 600.0, i: 0.0, d: 20.0}
+    rear_right_knee:    {p: 600.0, i: 0.0, d: 20.0}
+
+# Kortex arm controller. The arm_ prefix prevents collisions with Spot names.
+arm_gen3_joint_trajectory_controller:
+  type: effort_controllers/JointTrajectoryController
+  joints:
+    - arm_joint_1
+    - arm_joint_2
+    - arm_joint_3
+    - arm_joint_4
+    - arm_joint_5
+    - arm_joint_6
+    - arm_joint_7
+  constraints:
+    goal_time: 1.0
+    stopped_velocity_tolerance: 0.5
+  stop_trajectory_duration: 1.0
+  state_publish_rate: 50
+  action_monitor_rate: 20
+  gains:
+    arm_joint_1: {p: 3000.0,  i: 0.0, d: 2.0}
+    arm_joint_2: {p: 50000.0, i: 0.0, d: 0.0}
+    arm_joint_3: {p: 3000.0,  i: 0.0, d: 0.0}
+    arm_joint_4: {p: 50000.0, i: 0.0, d: 0.0}
+    arm_joint_5: {p: 750.0,   i: 0.0, d: 0.2}
+    arm_joint_6: {p: 5000.0,  i: 0.0, d: 1.0}
+    arm_joint_7: {p: 100.0,   i: 0.0, d: 0.0}
+
+arm_robotiq_2f_85_gripper_controller:
+  type: position_controllers/GripperActionController
+  joint: arm_finger_joint
+  action_monitor_rate: 100
+
+gazebo_ros_control:
+  pid_gains:
+    arm_finger_joint:              {p: 10.0, i: 0.0, d: 0.01}
+    arm_right_outer_knuckle_joint: {p: 10.0, i: 0.0, d: 0.00}
+    arm_right_inner_knuckle_joint: {p: 10.0, i: 0.0, d: 0.01}
+    arm_left_inner_knuckle_joint:  {p: 10.0, i: 0.0, d: 0.01}
+    arm_left_inner_finger_joint:   {p: 0.5,  i: 0.0, d: 0.001}
+    arm_right_inner_finger_joint:  {p: 0.5,  i: 0.0, d: 0.001}
