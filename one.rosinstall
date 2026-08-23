@@ -1,9 +1,3 @@
-# kortex
-- git:
-    local-name: ros_kortex
-    uri: https://github.com/Kinovarobotics/ros_kortex.git
-    version: c3280d8
-
 #jsk_common
 - git:
     local-name: jsk_common

@@ -44,13 +44,6 @@
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>actionlib</exec_depend>
-  <exec_depend>control_msgs</exec_depend>
-  <exec_depend>kortex_driver</exec_depend>
-  <exec_depend>moveit_commander</exec_depend>
-  <exec_depend>moveit_msgs</exec_depend>
-  <exec_depend>shape_msgs</exec_depend>
-  <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>tf</exec_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>jsk_network_tools</exec_depend>
@@ -63,28 +56,14 @@
   <exec_depend>gazebo_msgs</exec_depend>
   <exec_depend>gazebo_ros_link_attacher</exec_depend>
   <exec_depend>gazebo_ros_control</exec_depend>
-  <exec_depend>champ_base</exec_depend>
-  <exec_depend>champ_bringup</exec_depend>
-  <exec_depend>champ_gazebo</exec_depend>
   <exec_depend>controller_manager</exec_depend>
-  <exec_depend>controller_manager_msgs</exec_depend>
-  <exec_depend>effort_controllers</exec_depend>
-  <exec_depend>hector_gazebo_plugins</exec_depend>
   <exec_depend>joint_state_controller</exec_depend>
-  <exec_depend>joint_state_publisher</exec_depend>
-  <exec_depend>joint_state_publisher_gui</exec_depend>
-  <exec_depend>kortex_control</exec_depend>
-  <exec_depend>kortex_description</exec_depend>
-  <exec_depend>position_controllers</exec_depend>
-  <exec_depend>robot_localization</exec_depend>
+  <exec_depend>joy</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
-  <exec_depend>spot_config</exec_depend>
-  <exec_depend>spot_description</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
   <exec_depend>rviz</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>usb_cam</exec_depend>
   <exec_depend>image_proc</exec_depend>
   <exec_depend>jsk_common</exec_depend>
