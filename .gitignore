@@ -4,3 +4,12 @@
 # Jetbrains
 .idea/
 *cmake-build-debug/
+
+# ROS runtime data
+*.bag
+
+# Local deployment backups
+.deploy-backups/
+
+# Editor autosaves
+*#

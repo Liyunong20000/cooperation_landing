@@ -27,7 +27,7 @@ class AprillandqilinNode:
         self.success_start_time = None
 
         # Load parameters
-        self.demo_target_index = rospy.get_param("~demo_target_index", 7)
+        self.demo_target_index = rospy.get_param("~demo_target_index", 2)
         self.landing_points = rospy.get_param("landing_points", [])
         self.required_frames = rospy.get_param("~required_frames", 10)
         self.distance_threshold = rospy.get_param("~distance_threshold", 0.03)
@@ -181,7 +181,7 @@ class AprillandqilinNode:
         self.drone_basic.drone_takeoff()
         while self.drone_basic.drone_state != 5:
             rate.sleep()
-        for _ in range(30):  # 1 second
+        for _ in range(60):  # 1 second
             rate.sleep()
         # Send first target and wait for drone to reach it
         rospy.loginfo("Sending first target: (%.3f, %.3f, %.3f)", self.demo_target_x, self.demo_target_y, self.demo_target_z)
