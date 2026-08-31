@@ -5,6 +5,7 @@ import rospy
 import smach
 import smach_ros
 from dog_stall_monitor import DogStallMonitor
+
 from manipulation_state_v2 import *
 
 def main():
