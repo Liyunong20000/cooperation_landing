@@ -6,6 +6,7 @@
   <rosparam file="$(find cooperation_landing)/config/LandingInfo.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/LandingPoints.yaml" command="load" />
 
+  <arg name="demo_target_index" default="0" />
   <!-- Launch your node -->
 <!--   <node pkg="cooperation_landing" type="AprillandQilin.py" name="align_dog_drone" output="screen" respawn="false"> -->
 <!--     <param name="demo_target_index" value="$(arg demo_target_index)" /> -->
