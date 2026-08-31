@@ -1,11 +1,12 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+
 from AprilmoveQilin import *
 from drone_basic_function import DroneBasic
 from dog_basic_function import DogBasic
-from std_msgs.msg import Empty, UInt8
-import rospy, time
+import rospy
 import numpy as np
+import math
 import tf.transformations as tft
 
 # It is for  the Coopration for xuanwu and Qilin
@@ -26,14 +27,21 @@ class AprillandqilinNode:
         self.success_start_time = None
 
         # Load parameters
+        self.demo_target_index = rospy.get_param("~demo_target_index", 2)
+        self.landing_points = rospy.get_param("landing_points", [])
         self.required_frames = rospy.get_param("~required_frames", 10)
         self.distance_threshold = rospy.get_param("~distance_threshold", 0.03)
+        self.drone_distance_threshold = rospy.get_param("~drone_distance_threshold", 0.10)
         self.angle_threshold = rospy.get_param("~angle_threshold", 0.05)
+        self.demo_hover_z = rospy.get_param("~demo_hover_z", 1.0)
+        self.demo_final_z_offset = rospy.get_param("~demo_final_z_offset", 0.3)
+
         self.demo_target_x = rospy.get_param("~demo_target_x", -2)
         self.demo_target_y = rospy.get_param("~demo_target_y", 1)
         self.demo_target_z = rospy.get_param("~demo_target_z", 1.0)
-        self.demo_hover_z = rospy.get_param("~demo_hover_z", 1.0)
-        self.demo_final_z_offset = rospy.get_param("~demo_final_z_offset", 0.1)
+        self.demo_target_quaternion = [0, 0, 0, 1]
+        self.demo_target_timeout = rospy.get_param("~demo_target_timeout", 10.0)
+        self._apply_landing_point_selection()
 
         self.drone_basic = DroneBasic()
         self.dog_basic = DogBasic()
@@ -41,6 +49,40 @@ class AprillandqilinNode:
         # Subscribe and publish.
         # rospy.Subscriber('/uavandgr/event', UInt8, self._callback_event)
 
+    def _apply_landing_point_selection(self):
+        """Select one landing/demo point from the YAML-loaded list."""
+        if not isinstance(self.landing_points, list) or not self.landing_points:
+            rospy.logwarn("Aprillandqilin: no landing_points param found; using fallback demo target.")
+            return
+
+        # Only support selection by index. Ensure index is valid and pick that point.
+        try:
+            idx = int(self.demo_target_index)
+        except (TypeError, ValueError):
+            idx = 0
+
+        idx = max(0, min(idx, len(self.landing_points) - 1))
+        point = self.landing_points[idx]
+
+        self.demo_target_x = float(point.get("x", self.demo_target_x))
+        self.demo_target_y = float(point.get("y", self.demo_target_y))
+        self.demo_target_z = float(point.get("z", self.demo_target_z))
+
+        quat = point.get("quaternion", None)
+        if isinstance(quat, list) and len(quat) == 4:
+            self.demo_target_quaternion = [float(v) for v in quat]
+        else:
+            yaw = float(point.get("yaw", 0.0))
+            self.demo_target_quaternion = [0.0, 0.0, math.sin(yaw / 2.0), math.cos(yaw / 2.0)]
+
+        rospy.loginfo(
+            "Aprillandqilin: selected landing point #%d -> x=%.3f y=%.3f z=%.3f quat=%s",
+            idx,
+            self.demo_target_x,
+            self.demo_target_y,
+            self.demo_target_z,
+            str(self.demo_target_quaternion),
+        )
 
     def is_alignment_success(self, T):
         """
@@ -84,9 +126,50 @@ class AprillandqilinNode:
         else:
             self.alignment_counter = 0
             self.aligned = False
+
+    def _wait_for_target(self, target_x, target_y, target_z, timeout_s=None):
+        """
+        Wait for drone to reach the target position.
+
+        Args:
+            target_x, target_y, target_z: Target position in world frame
+            timeout_s: Timeout in seconds. If None, uses self.demo_target_timeout
+
+        Returns:
+            True if drone reached target, False if timeout occurred
+        """
+        if timeout_s is None:
+            timeout_s = self.demo_target_timeout
+
+        rate = rospy.Rate(10)
+        start_time = rospy.Time.now()
+
+        while not rospy.is_shutdown():
+            # Calculate distance from current position to target
+            dx = self.drone_basic.drone_x - target_x
+            dy = self.drone_basic.drone_y - target_y
+            dz = self.drone_basic.drone_z - target_z
+            distance = np.sqrt(dx**2 + dy**2 + dz**2)
+
+            rospy.loginfo_throttle(1.0, f"Distance to target: {distance:.3f} m (threshold: {self.distance_threshold:.3f} m)")
+
+            # Check if drone has reached the target
+            if distance < self.drone_distance_threshold:
+                rospy.loginfo(f"Drone reached target position.")
+                return True
+
+            # Check timeout
+            elapsed = (rospy.Time.now() - start_time).to_sec()
+            if elapsed > timeout_s:
+                rospy.logwarn(f"Timeout waiting for target (elapsed: {elapsed:.1f}s > {timeout_s:.1f}s)")
+                return False
+
+            rate.sleep()
+
     def demo(self):
         """
         Demo sequence for drone takeoff and movement.
+        Wait for drone to reach each target before moving to the next.
         """
         self.drone_basic.record_takeoff_position(self.drone_basic.drone_x, self.drone_basic.drone_y, self.drone_basic.drone_z, self.drone_basic.drone_yaw)
         rate = rospy.Rate(10)
@@ -98,15 +181,58 @@ class AprillandqilinNode:
         self.drone_basic.drone_takeoff()
         while self.drone_basic.drone_state != 5:
             rate.sleep()
-        for _ in range(10):  # 1 second
+        for _ in range(60):  # 1 second
             rate.sleep()
-        self.drone_basic.drone_target('world', self.demo_target_x, self.demo_target_y, self.demo_target_z, 0, 0, 0, 1)
-        for _ in range(50):  # 5 seconds
-            rate.sleep()
+        # Send first target and wait for drone to reach it
+        rospy.loginfo("Sending first target: (%.3f, %.3f, %.3f)", self.demo_target_x, self.demo_target_y, self.demo_target_z)
+        self.drone_basic.drone_target(
+            'world',
+            self.demo_target_x,
+            self.demo_target_y,
+            self.demo_target_z,
+            self.demo_target_quaternion[0],
+            self.demo_target_quaternion[1],
+            self.demo_target_quaternion[2],
+            self.demo_target_quaternion[3],
+        )
+        self._wait_for_target(self.demo_target_x, self.demo_target_y, self.demo_target_z)
+        while not self._wait_for_target(self.demo_target_x, self.demo_target_y, self.demo_target_z):
+            self.drone_basic.drone_target(
+                'world',
+                self.demo_target_x,
+                self.demo_target_y,
+                self.demo_target_z,
+                self.demo_target_quaternion[0],
+                self.demo_target_quaternion[1],
+                self.demo_target_quaternion[2],
+                self.demo_target_quaternion[3],
+            )
+            self._wait_for_target(self.demo_target_x, self.demo_target_y, self.demo_target_z)
+
+        rospy.sleep(5.0)
+        # Send hover target and wait for drone to reach it
+        hover_x = self.drone_basic.takeoff_x
+        hover_y = self.drone_basic.takeoff_y
+        rospy.loginfo("Sending hover target: (%.3f, %.3f, %.3f)", hover_x, hover_y, self.demo_hover_z)
         self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.demo_hover_z, 0, 0, 0, 1)
-        for _ in range(50):  # 5 seconds
-            rate.sleep()
-        self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y, self.drone_basic.takeoff_z + self.demo_final_z_offset, 0, 0, 0, 1)
+        self._wait_for_target(hover_x, hover_y, self.demo_hover_z)
+        while not self._wait_for_target(hover_x, hover_y, self.demo_hover_z):
+            self.drone_basic.drone_target('world', self.drone_basic.takeoff_x, self.drone_basic.takeoff_y,
+                                          self.demo_hover_z, 0, 0, 0, 1)
+
+            self._wait_for_target(hover_x, hover_y, self.demo_hover_z)
+
+        rospy.sleep(3.0)
+        # Send final target and wait for drone to reach it
+        final_z = self.drone_basic.takeoff_z + self.demo_final_z_offset
+        rospy.loginfo("Sending final target: (%.3f, %.3f, %.3f)", hover_x, hover_y, final_z)
+        self.drone_basic.drone_target('world', hover_x, hover_y, final_z, 0, 0, 0, 1)
+        self._wait_for_target(hover_x, hover_y, final_z)
+        while not self._wait_for_target(hover_x, hover_y, final_z):
+            self.drone_basic.drone_target('world', hover_x, hover_y, final_z, 0, 0, 0, 1)
+            self._wait_for_target(hover_x, hover_y, final_z)
+
+
     def run(self):
         """
         Main run loop for checking alignment and landing.

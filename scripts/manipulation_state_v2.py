@@ -90,6 +90,22 @@ def p_with_deadzone(err, k, v_min, v_max, tol):
     return clamp(v, -v_max, v_max)
 
 
+def smooth_with_min_velocity(previous, target, alpha, v_min, v_max):
+    """Smooth a command while preserving its nonzero minimum magnitude."""
+    if target == 0.0:
+        return 0.0
+
+    smoothed = (1.0 - alpha) * previous + alpha * target
+
+    # Follow the current target's sign when the error changes direction.
+    if target > 0.0:
+        smoothed = max(smoothed, v_min)
+    else:
+        smoothed = min(smoothed, -v_min)
+
+    return clamp(smoothed, -v_max, v_max)
+
+
 def wrap_angle(rad):
     """Normalize angle to [-pi, pi]."""
     return math.atan2(math.sin(rad), math.cos(rad))
@@ -529,15 +545,25 @@ class DockApproach(smach.State):
             rospy.get_param('~dock_vy_gain_near_scale', 0.8)
         )
 
-        # === Minimum executable velocities (deadzone compensation) ===
-        # These values ensure the Go1 actually moves when commands are small
-        self.vx_min = 0.03       # m/s
-        self.vy_min = 0.03       # m/s
+        # === Executable linear velocity range (deadzone compensation) ===
+        # A zero command still means stop. Every nonzero dock command is kept
+        # at or above this minimum magnitude on each commanded linear axis.
+        self.min_linear_vel = max(0.0, float(rospy.get_param('~dock_min_linear_vel', 0.03)))
+        self.max_linear_vel = max(0.0, float(rospy.get_param('~dock_max_linear_vel', 0.25)))
+        if self.max_linear_vel < self.min_linear_vel:
+            rospy.logwarn(
+                'DockApproach: dock_max_linear_vel %.3f is below '
+                'dock_min_linear_vel %.3f; using %.3f m/s for both.',
+                self.max_linear_vel, self.min_linear_vel, self.min_linear_vel
+            )
+            self.max_linear_vel = self.min_linear_vel
+        self.vx_min = self.min_linear_vel
+        self.vy_min = self.min_linear_vel
         self.wz_min = 0.10       # rad/s
 
         # === Maximum velocities (safety limits) ===
-        self.vx_max = 0.25 # m/s
-        self.vy_max = 0.25 # m/s
+        self.vx_max = self.max_linear_vel
+        self.vy_max = self.max_linear_vel
         self.wz_max = 0.60  # rad/s
 
         # Control loop parameters
@@ -546,6 +572,7 @@ class DockApproach(smach.State):
         self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.01)
         self.lost_tag_hold_s = rospy.get_param('~dock_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~dock_relaxed_factor', 2.0)
+        self.smooth_alpha = clamp(float(rospy.get_param('~dock_smooth_alpha', 0.5)), 0.0, 1.0)
         self.x_bias =  0.01
 
     def _active_marker_config(self, userdata):
@@ -571,6 +598,8 @@ class DockApproach(smach.State):
         stall_ref_t = None
         stall_ref_z_err = None
         stall_ref_x_err = None
+        smoothed_vx = 0.0
+        smoothed_vy = 0.0
 
         while not rospy.is_shutdown():
             # Check convergence condition
@@ -578,6 +607,7 @@ class DockApproach(smach.State):
             # Timeout protection to avoid getting stuck in this state
             if (rospy.Time.now() - start_t).to_sec() > self.timeout_s:
                 rospy.logwarn("TargetSearch: timeout reached, stopping.")
+                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 return 'failed'
 
             detected, active_marker = detect_with_marker_pair(
@@ -604,20 +634,32 @@ class DockApproach(smach.State):
                     continue
 
             # === P control with deadzone compensation and saturation ===
-            vx = p_with_deadzone(z_err, self.k_vx,
-                                 self.vx_min, self.vx_max, self.tol_z)
+            vx_target = 0.0 if abs(z_err) < self.tol_z else p_with_deadzone(
+                z_err, self.k_vx, self.vx_min, self.vx_max, self.tol_z
+            )
+            vy_target = 0.0 if abs(x_err) < self.tol_x else p_with_deadzone(
+                x_err, self.k_vy, self.vy_min, self.vy_max, self.tol_x
+            )
+            wz = 0.0 if abs(pitch_err) < self.tol_pitch else p_with_deadzone(
+                pitch_err, self.k_yaw, self.wz_min, self.wz_max, self.tol_pitch
+            )
 
-            vy = p_with_deadzone(x_err, self.k_vy,
-                                 self.vy_min, self.vy_max, self.tol_x)
-
-            wz = p_with_deadzone(pitch_err, self.k_yaw,
-                                 self.wz_min, self.wz_max, self.tol_pitch)
+            # As in AprilmoveQilin, apply the lower bound after smoothing so
+            # the command that is actually published cannot fall below it.
+            smoothed_vx = smooth_with_min_velocity(
+                smoothed_vx, vx_target, self.smooth_alpha,
+                self.vx_min, self.vx_max
+            )
+            smoothed_vy = smooth_with_min_velocity(
+                smoothed_vy, vy_target, self.smooth_alpha,
+                self.vy_min, self.vy_max
+            )
 
             # Send velocity command to the quadruped
-            self.dog_basic.qilin_cmd_vel(vx, vy, 0, 0, wz)
+            self.dog_basic.qilin_cmd_vel(smoothed_vx, smoothed_vy, 0, 0, wz)
             rospy.logdebug('DockApproach marker=%s target_z=%.3f err[z,x,p]=[%.3f, %.3f, %.3f]',
                            active_marker, manipulation_target_z, z_err, x_err, pitch_err)
-            print(f'vx:{vx}, vy:{vy}, wz:{wz}')
+            print(f'vx:{smoothed_vx}, vy:{smoothed_vy}, wz:{wz}')
             # now_t = rospy.Time.now()
             # if stall_ref_t is None:
             #     stall_ref_t = now_t
@@ -792,7 +834,7 @@ class DetachApproach(smach.State):
 
         # Control loop parameters
         self.control_dt = 0.1  # control period (s)
-        self.timeout_s = 25.0  # maximum duration of this state (s)
+        self.timeout_s = 15.0  # maximum duration of this state (s)
         self.x_bias = rospy.get_param('~detach_x_bias', 0.0)
         self.lost_tag_hold_s = rospy.get_param('~detach_lost_tag_hold_s', 0.5)
         self.relaxed_factor = rospy.get_param('~detach_relaxed_factor', 2.0)
@@ -854,7 +896,6 @@ class DetachApproach(smach.State):
         object_state = int(getattr(userdata, 'object_state', 0))
         marker_far, marker_near = resolve_marker_pair(userdata)
         target_z = float(userdata.detaching_takeoff_threshold)
-
         start_t = rospy.Time.now()
         rate = rospy.Rate(1.0 / self.control_dt)
         last_err = None
@@ -867,7 +908,7 @@ class DetachApproach(smach.State):
             if (rospy.Time.now() - start_t).to_sec() > self.timeout_s:
                 rospy.logwarn('DetachApproach: timeout reached, stopping.')
                 self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-                return 'failed'
+                break
 
             detected, active_marker = detect_with_marker_pair(
                 self.drone_basic, marker_far, marker_near, self.marker_switch_z
@@ -921,6 +962,27 @@ class DetachApproach(smach.State):
                            active_marker, target_z, z_err, x_err, pitch_err)
             rate.sleep()
 
+        # Confirm the target marker again before computing its world pose. This
+        # state intentionally does not align the dog; it only waits for a valid
+        # detection while keeping the commanded velocity at zero.
+        active_marker = None
+        marker_start_t = rospy.Time.now()
+        while not rospy.is_shutdown():
+            if (rospy.Time.now() - marker_start_t).to_sec() > self.timeout_s:
+                rospy.logwarn('DetachApproach: marker detection timeout, stopping.')
+                return 'failed'
+
+            detected, active_marker = detect_with_marker_pair(
+                self.drone_basic, marker_far, marker_near, self.marker_switch_z
+            )
+            if detected:
+                break
+
+            rate.sleep()
+
+        if rospy.is_shutdown():
+            return 'failed'
+
         target_pose = self._compute_target_pose_world()
         if object_state == 0:
             userdata.picking_position = target_pose
@@ -928,7 +990,7 @@ class DetachApproach(smach.State):
             userdata.placing_position = target_pose
         self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
         rospy.sleep(1.0)
-        rospy.loginfo('DetachApproach: reached z threshold %.3f', target_z)
+        rospy.loginfo('DetachApproach: marker %s confirmed without dog alignment.', active_marker)
         rospy.loginfo('DetachApproach: Target_pose %s', target_pose)
         return 'succeeded'
 

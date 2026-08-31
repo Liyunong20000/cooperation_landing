@@ -51,7 +51,7 @@
   <joint name="landing_gear_joint" type="fixed">
     <parent link="trunk"/>
     <child link="landing_gear"/>
-    <origin rpy="0 0 ${pi/2}" xyz="0.18 0 0.057"/>
+    <origin rpy="0 0 -${pi/2}" xyz="-0.18 0 0.057"/>
     <axis xyz="0 0 1"/>
   </joint>
 

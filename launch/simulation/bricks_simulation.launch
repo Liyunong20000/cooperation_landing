@@ -58,22 +58,22 @@
   </include>
 
   <!--Broadcast ground robot`s position in tf    -->
-  <node name="sim_ground_robot_tf" pkg="cooperation_landing" type="sim_ground_robot_tf.py" >
-  </node>
+<!--   <node name="sim_ground_robot_tf" pkg="cooperation_landing" type="sim_ground_robot_tf.py" > -->
+<!--   </node> -->
 
   <!--Call the aerial robot to attend the simulation-->
-  <include file="$(find cooperation_landing)/launch/simulation/aerial_robot_gazebo.launch">
-    <arg name="rm" value="False"/>
-    <arg name="sim" value="True" />
-    <arg name="headless" value="$(arg headless)" />
-    <arg name="launch_gazebo" value="false" />
-    <arg name="estimate_mode" value="$(arg estimate_mode)" />
-    <arg name="robot_ns" value="$(arg aerial_robot_name)" />
-    <arg name="spawn_x" value="$(arg aerial_robot_x)" />
-    <arg name="spawn_y" value="$(arg aerial_robot_y)" />
-    <arg name="spawn_z" value="$(arg aerial_robot_z)" />
-    <arg name="spawn_yaw" value="$(arg aerial_robot_yaw)" />
-  </include>
+<!--   <include file="$(find cooperation_landing)/launch/simulation/aerial_robot_gazebo.launch"> -->
+<!--     <arg name="rm" value="False"/> -->
+<!--     <arg name="sim" value="True" /> -->
+<!--     <arg name="headless" value="$(arg headless)" /> -->
+<!--     <arg name="launch_gazebo" value="false" /> -->
+<!--     <arg name="estimate_mode" value="$(arg estimate_mode)" /> -->
+<!--     <arg name="robot_ns" value="$(arg aerial_robot_name)" /> -->
+<!--     <arg name="spawn_x" value="$(arg aerial_robot_x)" /> -->
+<!--     <arg name="spawn_y" value="$(arg aerial_robot_y)" /> -->
+<!--     <arg name="spawn_z" value="$(arg aerial_robot_z)" /> -->
+<!--     <arg name="spawn_yaw" value="$(arg aerial_robot_yaw)" /> -->
+<!--   </include> -->
 
 
     <!--Spawn cube in Gazebo-->
@@ -113,13 +113,13 @@
   <node pkg="tf" type="static_transform_publisher" name="cube_put_broadcaster" args="$(arg cube_put_x) $(arg cube_put_y) $(arg cube_put_z) 0 0 0 /world /cube_put/cube_put 50" />
 
     <!--Spawn aerial robot in Gazebo-->
-  <node name="$(anon urdf_spawner)" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
-        args="-urdf -model $(arg aerial_robot_name) -x $(arg aerial_robot_x) -y $(arg aerial_robot_y) -z $(arg aerial_robot_z) -Y $(arg aerial_robot_yaw) -param $(arg aerial_robot_name)/robot_description"/>
+<!--   <node name="$(anon urdf_spawner)" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" -->
+<!--         args="-urdf -model $(arg aerial_robot_name) -x $(arg aerial_robot_x) -y $(arg aerial_robot_y) -z $(arg aerial_robot_z) -Y $(arg aerial_robot_yaw) -param $(arg aerial_robot_name)/robot_description"/> -->
 
 
   <!--load aerial robot controller in Gazebo-->
-  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
-        output="screen" ns="$(arg aerial_robot_name)" args="joint_state_controller attitude_controller" />
+<!--   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" -->
+<!--         output="screen" ns="$(arg aerial_robot_name)" args="joint_state_controller attitude_controller" /> -->
 
   <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" >
   </node>
