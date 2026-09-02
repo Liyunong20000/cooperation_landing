@@ -1,15 +1,36 @@
-# python
-*.pyc
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.pytest_cache/
+.ruff_cache/
 
-# Jetbrains
+# Editors and IDEs
 .idea/
-*cmake-build-debug/
+.vscode/
+*#
+*.swp
+*~
+
+# Catkin and CMake (for accidental in-source builds)
+.catkin_tools/
+build/
+devel/
+install/
+log/
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
 
 # ROS runtime data
 *.bag
+*.bag.active
+*.orig.active
 
-# Local deployment backups
+# Local deployment state
 .deploy-backups/
 
-# Editor autosaves
-*#
+# Operating systems
+.DS_Store
+Thumbs.db
