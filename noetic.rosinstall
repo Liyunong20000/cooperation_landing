@@ -2,10 +2,16 @@
 - git:
     local-name: unitree_ros
     uri: https://github.com/Liyunong20000/unitree_ros.git
-    version: 228e01d
+    version: 228e01d444f7929382ff0ebc38f09405d1b66cde
 
-#jsk_common
+# jsk_common
 - git:
     local-name: jsk_common
     uri: https://github.com/Liyunong20000/jsk_common.git
-    version: bb4e784
+    version: bb4e784851fd78187dec5bd562731dd7755a9103
+
+# Gazebo attach/detach services used by simulation helpers.
+- git:
+    local-name: gazebo_ros_link_attacher
+    uri: https://github.com/pal-robotics/gazebo_ros_link_attacher.git
+    version: 1d170c44c2f12dad4e8c23e299d46f3f655e7def
