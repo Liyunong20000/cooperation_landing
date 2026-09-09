@@ -4,17 +4,13 @@
   <arg name="simulation" default="false" />
   <arg name="robot_ns" default="unitree_go1" />
 
-  <group ns="$(arg robot_ns)">
-    <group if="$(arg real_machine)">
-      <group unless="$(arg simulation)">
-    <!--         usb camera -->
-        <include file="$(find cooperation_landing)/launch/camera_apriltag.launch" >
-          <arg name="mode" value="serial" />
-          <arg name="serial_port" value="/dev/flight_controller" />
-        </include>
-      </group>
+  <group if="$(arg real_machine)">
+    <group unless="$(arg simulation)">
+      <!-- USB camera and AprilTag detector. -->
+      <include file="$(find cooperation_landing)/launch/camera_mocap/ground_camera_apriltag.launch">
+        <arg name="robot_ns" value="$(arg robot_ns)" />
+      </include>
     </group>
-<!--    <rosparam file="$(find aerial_robot_base)/config/sensors/mocap.yaml" command="load" />-->
   </group>
 
 </launch>
