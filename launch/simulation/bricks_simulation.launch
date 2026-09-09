@@ -121,8 +121,7 @@
 <!--   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" -->
 <!--         output="screen" ns="$(arg aerial_robot_name)" args="joint_state_controller attitude_controller" /> -->
 
-  <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" >
-  </node>
+  <node name="sim_basic" pkg="cooperation_landing" type="sim_basic.py" output="screen" />
 
   <!-- Apriltag detection -->
   <group ns="$(arg ground_robot_name)">
@@ -141,5 +140,4 @@
     <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
   </group>
 </launch>
-
 
