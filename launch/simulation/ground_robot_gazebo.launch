@@ -4,8 +4,7 @@
     <arg name="world_type" value="$(find cooperation_landing)/gazebo_model/world/cooperation_april_tags.world" />
     <arg name="robot_name" default="unitree"/>
     <arg name="rname" default="go1"/>
-    <arg name="robot_path" value="(find go1_description)"/>
-    <arg name="dollar" value="$"/>
+    <arg name="robot_path" default="$(find go1_description)"/>
     <arg name="robot_model" />
 
     <arg name="unitree_spawn_x" default="0.0" />
@@ -45,7 +44,7 @@
         <node pkg="gazebo_ros" type="spawn_model" name="spawn_unitree" respawn="false" output="screen" args="-urdf -model $(arg rname)_gazebo -x $(arg unitree_spawn_x) -y $(arg unitree_spawn_y) -z $(arg unitree_spawn_z) -param robot_description -unpause" />
 
     <!-- Load joint controller configurations from YAML file to parameter server -->
-        <rosparam file="$(arg dollar)$(arg robot_path)/config/robot_control.yaml" command="load"/>
+        <rosparam file="$(arg robot_path)/config/robot_control.yaml" command="load"/>
 
     <!-- load the controllers -->
         <node pkg="controller_manager" type="spawner" name="controller_spawner" respawn="false"
