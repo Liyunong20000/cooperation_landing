@@ -1,52 +1,57 @@
-import numpy as np
+#!/usr/bin/env python3
+"""Generate a calibration chessboard with a configurable white border."""
+
+import argparse
+from pathlib import Path
+
 import cv2
+import numpy as np
 
-def generate_chessboard_with_border(rows, cols, square_size, border_size, save_path):
-    """
-    Generate a chessboard pattern image with a white border and save it.
 
-    Parameters:
-    - rows: Number of rows in the chessboard.
-    - cols: Number of columns in the chessboard.
-    - square_size: Size of each square in the chessboard.
-    - border_size: Size of the white border around the chessboard.
-    - save_path: Path to save the generated chessboard image.
-    """
+def generate_chessboard(rows, cols, square_size, border_size):
+    """Return a grayscale chessboard image as a NumPy array."""
+    if min(rows, cols, square_size) <= 0 or border_size < 0:
+        raise ValueError('rows, cols, and square size must be positive; border cannot be negative')
 
-    # Calculate the size of the entire image (including the border)
-    img_rows = rows * square_size + 2 * border_size
-    img_cols = cols * square_size + 2 * border_size
+    height = rows * square_size + 2 * border_size
+    width = cols * square_size + 2 * border_size
+    image = np.full((height, width), 255, dtype=np.uint8)
 
-    # Create an empty image with a white border
-    chessboard_with_border = np.ones((img_rows, img_cols), dtype=np.uint8) * 255
+    for row in range(rows):
+        for col in range(cols):
+            if (row + col) % 2:
+                y0 = border_size + row * square_size
+                x0 = border_size + col * square_size
+                image[y0 : y0 + square_size, x0 : x0 + square_size] = 0
+    return image
 
-    # Create an empty chessboard without the border
-    chessboard = np.ones((rows * square_size, cols * square_size), dtype=np.uint8) * 255
 
-    # Alternate black and white squares in the chessboard
-    for i in range(rows):
-        for j in range(cols):
-            if (i + j) % 2 == 1:
-                chessboard[i * square_size:(i + 1) * square_size, j * square_size:(j + 1) * square_size] = 0
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', type=Path, help='output PNG/JPEG path')
+    parser.add_argument('--rows', type=int, default=9)
+    parser.add_argument('--cols', type=int, default=7)
+    parser.add_argument('--square-size', type=int, default=100, help='square size in pixels')
+    parser.add_argument('--border-size', type=int, default=100, help='border size in pixels')
+    parser.add_argument('--preview', action='store_true', help='open an OpenCV preview window')
+    return parser.parse_args(argv)
 
-    # Copy the chessboard into the larger image, leaving the white border
-    chessboard_with_border[border_size:border_size + rows * square_size,
-                           border_size:border_size + cols * square_size] = chessboard
 
-    # Save the chessboard image with a white border
-    cv2.imwrite(save_path, chessboard_with_border)
+def main(argv=None):
+    args = parse_args(argv)
+    try:
+        image = generate_chessboard(args.rows, args.cols, args.square_size, args.border_size)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
-    # Display the generated chessboard with a white border
-    cv2.imshow('Generated Chessboard with Border', chessboard_with_border)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(args.output), image):
+        raise SystemExit(f'Failed to write {args.output}')
+    if args.preview:
+        cv2.imshow('Generated chessboard', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
-# Specify the parameters for the chessboard with border
-rows = 9  # Number of rows
-cols = 7  # Number of columns
-square_size = 100  # Size of each square in pixels
-border_size = 100  # Size of the white border around the chessboard
-save_path = 'chessboard_pattern_with_border.png'  # Path to save the generated chessboard image with a border
 
-# Generate and save the chessboard pattern with a white border
-generate_chessboard_with_border(rows, cols, square_size, border_size, save_path)
+if __name__ == '__main__':
+    main()

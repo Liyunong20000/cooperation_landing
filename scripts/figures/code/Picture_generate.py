@@ -1,41 +1,54 @@
+#!/usr/bin/env python3
+"""Resize an AprilTag image and place it on a printable white canvas."""
+
+import argparse
+from pathlib import Path
+
 from PIL import Image
 
-# 打开6张图片
-# image0 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aerial_robot_simulation/gazebo_model/models/Apriltag36_11_00000/materials/textures/tag36_11_00000.png")
-image1 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aerial_robot_simulation/gazebo_model/models/Apriltag36_11_00001/materials/textures/tag36_11_00001.png")
-# image2 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aerial_robot_simulation/gazebo_model/models/Apriltag36_11_00002/materials/textures/tag36_11_00002.png")
-# image3 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aerial_robot_simulation/gazebo_model/models/Apriltag36_11_00003/materials/textures/tag36_11_00003.png")
-# image4 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aerial_robot_simulation/gazebo_model/models/Apriltag36_11_00004/materials/textures/tag36_11_00004.png")
-# image5 = Image.open("/home/lyn/ros/jsk_aerial_robot_ws/src/jsk_aerial_robot/aerial_robot_simulation/gazebo_model/models/Apriltag36_11_00005/materials/textures/tag36_11_00005.png")
+
+def create_printable_tag(
+    input_path,
+    output_path,
+    tag_size=(2500, 2500),
+    canvas_size=(2100, 2970),
+    offset=(-200, -200),
+):
+    """Create a printable RGB canvas containing one resized tag image."""
+    with Image.open(input_path) as image:
+        resized = image.convert('RGB').resize(tag_size, Image.Resampling.NEAREST)
+
+    canvas = Image.new('RGB', canvas_size, 'white')
+    canvas.paste(resized, offset)
+    canvas.save(output_path)
 
 
-# 设定固定大小
-#new_width, new_height = 713, 713
-new_width, new_height = 2500, 2500
-# 调整图片大小
-# image0_resized = image0.resize((new_width, new_height))
-image1_resized = image1.resize((new_width, new_height))
-# image2_resized = image2.resize((new_width, new_height))
-# image3_resized = image3.resize((new_width, new_height))
-# image4_resized = image4.resize((new_width, new_height))
-# image5_resized = image5.resize((200, 200))
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('input', type=Path, help='source AprilTag image')
+    parser.add_argument('output', type=Path, help='output image path')
+    parser.add_argument('--tag-width', type=int, default=2500)
+    parser.add_argument('--tag-height', type=int, default=2500)
+    parser.add_argument('--canvas-width', type=int, default=2100)
+    parser.add_argument('--canvas-height', type=int, default=2970)
+    parser.add_argument('--offset-x', type=int, default=-200)
+    parser.add_argument('--offset-y', type=int, default=-200)
+    return parser.parse_args(argv)
 
 
-# 创建一个新的图像
-# result_width = 2100
-# result_height = 2970
-result_width = 2100
-result_height = 2970
-result_image = Image.new("RGB", (result_width, result_height),(255 ,255 ,255 ,0))
-
-# 将图片粘贴到新图像上（你可以根据需要修改坐标）
-# result_image.paste(image0_resized, (100, 100))
-result_image.paste(image1_resized, (-200, -200))
-#result_image.paste(image2_resized, (1112, 627))
-#result_image.paste(image3_resized, (512, 1867))
-#result_image.paste(image4_resized, (1112, 1867))
-#result_image.paste(image5_resized, (1512, 1384))
+def main(argv=None):
+    args = parse_args(argv)
+    if min(args.tag_width, args.tag_height, args.canvas_width, args.canvas_height) <= 0:
+        raise SystemExit('Image dimensions must be positive integers.')
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    create_printable_tag(
+        args.input,
+        args.output,
+        tag_size=(args.tag_width, args.tag_height),
+        canvas_size=(args.canvas_width, args.canvas_height),
+        offset=(args.offset_x, args.offset_y),
+    )
 
 
-# 保存结果
-result_image.save("Apriltag_1_0.2.jpg")
+if __name__ == '__main__':
+    main()

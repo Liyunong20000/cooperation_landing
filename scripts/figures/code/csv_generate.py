@@ -1,24 +1,38 @@
-import rospy
-import rosbag
+#!/usr/bin/env python3
+"""Export all messages in a ROS 1 bag to a simple CSV file."""
+
+import argparse
 import csv
+from pathlib import Path
+
+import rosbag
+
 
 def convert_bag_to_csv(bag_file, csv_file):
-    with rosbag.Bag(bag_file, 'r') as bag:
-        with open(csv_file, 'w') as csvfile:
-            csvwriter = csv.writer(csvfile)
+    """Write timestamp, topic, and stringified message columns."""
+    with rosbag.Bag(str(bag_file), 'r') as bag, csv_file.open(
+        'w', newline='', encoding='utf-8'
+    ) as output:
+        writer = csv.writer(output)
+        writer.writerow(['timestamp', 'topic', 'message'])
+        for topic, message, stamp in bag.read_messages():
+            writer.writerow([stamp.to_sec(), topic, str(message)])
 
-            # Write the header row to the CSV file
-            csvwriter.writerow(['Timestamp', 'Topic', 'Message'])
 
-            # Iterate through the messages in the bag file
-            for topic, msg, t in bag.read_messages():
-                # Write the message to the CSV file
-                csvwriter.writerow([t.to_sec(), topic, str(msg)])
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('bag', type=Path, help='input ROS bag')
+    parser.add_argument('csv', type=Path, help='output CSV')
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    if not args.bag.is_file():
+        raise SystemExit(f'Bag file does not exist: {args.bag}')
+    args.csv.parent.mkdir(parents=True, exist_ok=True)
+    convert_bag_to_csv(args.bag, args.csv)
+
 
 if __name__ == '__main__':
-    rospy.init_node('bag_to_csv_node', anonymous=True)
-
-    bag_file_path = '/home/lyn/2024-01-07-10-35-02.bag'  # Replace with your bag file path
-    csv_file_path = '/home/lyn/2024-01-07-10-35-02.csv'  # Replace with the desired CSV file path
-
-    convert_bag_to_csv(bag_file_path, csv_file_path)
+    main()
