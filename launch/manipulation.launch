@@ -1,8 +1,15 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="rm" default="1" />
+  <arg name="run_manipulation" default="false" />
+  <arg name="display_only" default="false" doc="Display the current SMACH graph without executing states." />
+  <arg name="robot_ns" default="xuanwu" />
+  <arg name="ground_robot_ns" default="go1" />
+  <arg name="enable_keyboard" default="false" />
+  <arg name="allow_takeoff" default="false" />
+  <arg name="allow_payload_transfer" default="false" />
   <arg name="enable_dog_stall_monitor" default="true" />
-  <arg name="dog_stall_pose_topic" default="/xuanwu/uav/cog/odom" />
+  <arg name="dog_stall_pose_topic" default="$(eval '/' + arg('robot_ns').strip('/') + '/uav/cog/odom' if arg('robot_ns').strip('/') else '/uav/cog/odom')" />
 
   <!-- Load parameters -->
   <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
@@ -12,10 +19,13 @@
 
   <!-- Stall monitor parameters consumed by manipulation_motion_v2.py. -->
   <group ns="manipulation_motion">
+    <rosparam file="$(find cooperation_landing)/config/Manipulation.yaml" command="load" />
+    <param name="robot_ns" value="$(arg robot_ns)" />
+    <param name="ground_robot_ns" value="$(arg ground_robot_ns)" />
     <param name="enable_dog_stall_monitor" value="$(arg enable_dog_stall_monitor)" />
-    <param name="cmd_vel_topic" value="/go1/cmd_vel" />
+    <param name="cmd_vel_topic" value="$(eval '/' + arg('ground_robot_ns').strip('/') + '/cmd_vel' if arg('ground_robot_ns').strip('/') else '/cmd_vel')" />
     <param name="pose_topic" value="$(arg dog_stall_pose_topic)" />
-    <param name="stand_service" value="/go1/stand" />
+    <param name="stand_service" value="$(eval '/' + arg('ground_robot_ns').strip('/') + '/stand' if arg('ground_robot_ns').strip('/') else '/stand')" />
     <param name="window_s" value="1.0" />
     <param name="min_translation_m" value="0.01" />
     <param name="min_yaw_rad" value="0.02" />
@@ -25,14 +35,23 @@
     <param name="pose_timeout_s" value="1.0" />
     <param name="required_windows" value="2" />
     <param name="recovery_cooldown_s" value="2.0" />
+    <param name="allow_takeoff" value="$(arg allow_takeoff)" />
+    <param name="allow_payload_transfer" value="$(arg allow_payload_transfer)" />
   </group>
 
-<!--   <node name="manipulation_motion" pkg="cooperation_landing" type="manipulation_motion.py" > -->
-<!--   </node> -->
+  <!-- Motion is opt-in because launching this node can command physical robots. -->
+  <group if="$(arg run_manipulation)">
+    <node unless="$(arg display_only)" name="manipulation_motion" pkg="cooperation_landing"
+          type="manipulation_motion_v2.py" output="screen" />
+    <node if="$(arg display_only)" name="manipulation_motion" pkg="cooperation_landing"
+          type="manipulation_motion_display.py" output="screen" />
+  </group>
 
-<!--  <node name="ground_robot_keyboard_control" pkg="cooperation_landing" type="keyboard_control.py" >-->
-<!--    <param name="keyboard_mode" value="$(arg rm)" />-->
-<!--  </node>-->
+  <node if="$(arg enable_keyboard)" name="ground_robot_keyboard_control"
+        pkg="cooperation_landing" type="keyboard_control.py" output="screen">
+    <param name="keyboard_mode" value="$(arg rm)" />
+    <param name="ground_robot_ns" value="$(arg ground_robot_ns)" />
+  </node>
 
 <!--    <node name="smach_viewer" pkg="smach_viewer" type="smach_viewer.py" > -->
 <!--   </node> -->
