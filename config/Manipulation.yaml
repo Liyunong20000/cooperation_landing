@@ -1,0 +1,42 @@
+# Marker IDs and initial task state. Verify these against the deployed tag map.
+picking_marker_far: 0
+picking_marker_near: 1
+placing_marker_far: 2
+placing_marker_near: 3
+object_state: 1  # 0: ready to pick, 1: carrying/ready to place
+
+# Height-based strategy selection.
+switching_threshold: 0.40
+detaching_takeoff_threshold: 0.75
+manipulation_marker_switch_z: 0.04
+
+# Robot namespaces and sensor waits.
+robot_ns: xuanwu
+ground_robot_ns: go1
+odom_wait_timeout_s: 5.0
+takeoff_state_timeout_s: 30.0
+landing_alignment_timeout_s: 60.0
+
+# Docking controller limits.
+manipulation_target_z_pick: 0.48
+manipulation_target_z_place: 0.47
+dock_min_linear_vel: 0.03
+dock_max_linear_vel: 0.25
+dock_smooth_alpha: 0.5
+dock_lost_tag_hold_s: 0.5
+dock_relaxed_factor: 2.0
+
+# Target scan limits.
+scan_alpha_h_deg: 118.0
+scan_rho_h: 0.25
+scan_detect_wait_s: 3.0
+scan_vertical_detect_wait_s: 2.0
+scan_rotate_timeout_s: 4.0
+state_judgment_scan_timeout_s: 3.0
+
+# Return-home controller.
+dock_home_back_speed: -0.15
+dock_home_back_duration_s: 1.2
+dock_home_timeout_s: 8.0
+dock_home_pos_tol: 0.08
+dock_home_yaw_tol: 0.10
