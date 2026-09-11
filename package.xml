@@ -1,65 +1,69 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>cooperation_landing</name>
-  <version>0.0.0</version>
-  <description>The cooperation_landing package</description>
-  <maintainer email="yunong-li@dragon.t.u-tokyo.ac.jp">lyn</maintainer>
-  <license>TODO</license>
+  <version>0.1.0</version>
+  <description>
+    Cooperative perception, control, manipulation, and simulation for an
+    aerial robot and a Unitree ground robot.
+  </description>
+  <maintainer email="yunong-li@dragon.t.u-tokyo.ac.jp">Yunong Li</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <url type="website">https://github.com/Liyunong20000/cooperation_landing</url>
+  <url type="repository">https://github.com/Liyunong20000/cooperation_landing.git</url>
+  <url type="bugtracker">https://github.com/Liyunong20000/cooperation_landing/issues</url>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>tf</build_depend>
+
   <build_depend>message_generation</build_depend>
-  <build_depend>jsk_network_tools</build_depend>
-  <build_depend>nav_msgs</build_depend>
-  <build_depend>geometry_msgs</build_depend>
-  <build_depend>apriltag_ros</build_depend>
-  <build_depend>aerial_robot_msgs</build_depend>
-  <build_depend>spinal</build_depend>
-  <build_depend>gazebo_ros_control</build_depend>
-  <build_depend>usb_cam</build_depend>
-  <build_depend>image_proc</build_depend>
-  <build_depend>jsk_common</build_depend>
-
-  <build_export_depend>roscpp</build_export_depend>
-  <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>std_msgs</build_export_depend>
-  <build_export_depend>sensor_msgs</build_export_depend>
-  <build_export_depend>tf</build_export_depend>
-  <build_export_depend>message_runtime</build_export_depend>
-  <build_export_depend>jsk_network_tools</build_export_depend>
-  <build_export_depend>nav_msgs</build_export_depend>
-  <build_export_depend>geometry_msgs</build_export_depend>
-  <build_export_depend>apriltag_ros</build_export_depend>
-  <build_export_depend>aerial_robot_msgs</build_export_depend>
-  <build_export_depend>spinal</build_export_depend>
-  <build_export_depend>usb_cam</build_export_depend>
-  <build_export_depend>image_proc</build_export_depend>
-  <build_export_depend>jsk_common</build_export_depend>
-
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>rospy</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>tf</exec_depend>
+  <build_depend>python3-setuptools</build_depend>
   <exec_depend>message_runtime</exec_depend>
-  <exec_depend>jsk_network_tools</exec_depend>
-  <exec_depend>nav_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>apriltag_ros</exec_depend>
+
+  <depend>apriltag_ros</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>spinal</depend>
+  <depend>std_msgs</depend>
+
+  <!-- Nodes and launch files. -->
+  <exec_depend>aerial_robot_base</exec_depend>
+  <exec_depend>aerial_robot_model</exec_depend>
   <exec_depend>aerial_robot_msgs</exec_depend>
-  <exec_depend>spinal</exec_depend>
+  <exec_depend>aerial_robot_simulation</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>gazebo_msgs</exec_depend>
   <exec_depend>gazebo_ros</exec_depend>
   <exec_depend>gazebo_ros_control</exec_depend>
-  <exec_depend>usb_cam</exec_depend>
+  <exec_depend>gazebo_ros_link_attacher</exec_depend>
+  <exec_depend>go1_description</exec_depend>
   <exec_depend>image_proc</exec_depend>
-  <exec_depend>jsk_common</exec_depend>
+  <exec_depend>image_view</exec_depend>
+  <exec_depend>joint_state_controller</exec_depend>
+  <exec_depend>joy</exec_depend>
+  <exec_depend>jsk_network_tools</exec_depend>
+  <exec_depend>mocap_optitrack</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-pil</exec_depend>
+  <exec_depend>python3-netifaces</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rosbag</exec_depend>
+  <exec_depend>rosparam</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>rviz</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>smach</exec_depend>
+  <exec_depend>smach_ros</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>usb_cam</exec_depend>
+  <exec_depend>unitree_controller</exec_depend>
+  <exec_depend>unitree_gazebo</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>xuanwu</exec_depend>
 
   <export>
+    <build_type>catkin</build_type>
     <gazebo_ros gazebo_model_path="${prefix}/gazebo_model/models"/>
   </export>
-
 </package>
