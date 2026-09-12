@@ -1,5 +1,7 @@
 """Apriltag alignment implementation."""
 
+import time
+
 import numpy as np
 import rospy
 import tf.transformations as tft
@@ -18,17 +20,15 @@ class AprilmoveqilinNode:
         rospy.logdebug('Initializing AprilTag ground-alignment controller.')
 
         self.dog_align_drone_matrix = []
-        self.time_rece = rospy.Time()
+        self.last_apriltag_receive_time = None
         self.last_tag_time = rospy.Time.now()
 
         self.smoothed_lx = 0
         self.smoothed_ly = 0
         self.smoothed_ryaw = 0
 
-        ground_robot_ns = ('/' + str(rospy.get_param('~ground_robot_ns', 'go1')).strip('/')).rstrip(
-            '/'
-        )
-        tag_topic = rospy.get_param('~ground_tag_topic', ground_robot_ns + '/tag_detections')
+        # Camera namespace is independent of the /go1 motion interface.
+        tag_topic = rospy.get_param('~ground_tag_topic', '/qilin/tag_detections')
 
         # Load the parameter for landing process
         self.drone_tags_matrix_param = rospy.get_param(
@@ -44,15 +44,10 @@ class AprilmoveqilinNode:
         # self.landing_distance_threshold = rospy.get_param("/landing_info/landing_distance_threshold")
         # self.landing_angle_threshold = rospy.get_param("/landing_info/landing_angle_threshold")
         # self.above_z = rospy.get_param("/above_z")
-        self.move_param = self._param('move_parameter', 1.5)
+        self.move_param = self._param('move_parameter', 1.10)
         self.rotate_param = self._param('rotate_parameter', 0.5)
         self.smooth_alpha = clamp(float(self._param('smooth_alpha', 0.5)), 0.0, 1.0)
-        self.close_distance_threshold = max(
-            0.0, float(self._param('close_distance_threshold', 0.5))
-        )
-        self.stop_distance_threshold = max(0.0, float(self._param('stop_distance_threshold', 0.02)))
-        self.fast_move_param = self._param('fast_move_param', 1.15)
-        self.normal_move_param = self._param('normal_move_param', 1.0)
+        self.stop_distance_threshold = max(0.0, float(self._param('stop_distance_threshold', 0.03)))
         self.min_linear_vel = max(0.0, float(self._param('min_linear_vel', 0.025)))
         self.min_angular_vel = max(0.0, float(self._param('min_angular_vel', 0.05)))
         self.max_linear_vel = max(self.min_linear_vel, float(self._param('max_linear_vel', 0.25)))
@@ -74,6 +69,22 @@ class AprilmoveqilinNode:
 
     def _callback_apriltag(self, msg):
         self.msg_apriltag = msg
+        self.last_apriltag_receive_time = time.monotonic()
+
+    def has_fresh_apriltag(self):
+        """Check message arrival age, independently of the ROS clock."""
+        return (
+            self.last_apriltag_receive_time is not None
+            and time.monotonic() - self.last_apriltag_receive_time < 0.5
+        )
+
+    def _stop_alignment(self):
+        """Stop all commanded axes and discard the previous alignment result."""
+        self.smoothed_lx = 0.0
+        self.smoothed_ly = 0.0
+        self.smoothed_ryaw = 0.0
+        self.dog_align_drone_matrix = None
+        self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
 
     # Get the RT matrix of each tags from drone center
     def drone_tags_matrix(self):
@@ -177,7 +188,12 @@ class AprilmoveqilinNode:
 
     def align_dog_with_drone(self):
         if self.msg_apriltag is None:
-            rospy.logwarn('No AprilTag message yet.')
+            rospy.logwarn_throttle(2.0, 'No AprilTag message yet. Stopping dog.')
+            self._stop_alignment()
+            return
+        if not self.has_fresh_apriltag():
+            rospy.logwarn_throttle(2.0, 'No new AprilTag message for 0.5s. Stopping dog.')
+            self._stop_alignment()
             return
         # Include the topic of apriltag detection and find the center
         T_drone_center = self.find_drone_center(self.msg_apriltag)
@@ -186,11 +202,12 @@ class AprilmoveqilinNode:
             # Check if it's been too long since last detection
             if (rospy.Time.now() - self.last_tag_time) > rospy.Duration(0.5):
                 rospy.logwarn('Tag lost for >0.5s. Stopping dog.')
-                self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
+                self._stop_alignment()
             return
 
         if not isinstance(T_drone_center, np.ndarray) or T_drone_center.shape != (4, 4):
             rospy.logwarn('Tag 0 not found or invalid transform.')
+            self._stop_alignment()
             return
 
         self.last_tag_time = rospy.Time.now()
@@ -200,13 +217,6 @@ class AprilmoveqilinNode:
         x_error = self.dog_align_drone_matrix[0, 3]
         y_error = self.dog_align_drone_matrix[1, 3]
         dist = np.linalg.norm([x_error, y_error])
-
-        if (abs(x_error) > self.close_distance_threshold) or (
-            abs(y_error) > self.close_distance_threshold
-        ):
-            self.move_param = self.fast_move_param
-        else:
-            self.move_param = self.normal_move_param
 
         if dist < self.stop_distance_threshold:
             lx = 0.0
@@ -222,7 +232,7 @@ class AprilmoveqilinNode:
         T_tag_0 = self.find_target_tag(self.msg_apriltag, 0)
         if not isinstance(T_tag_0, np.ndarray) or T_tag_0.shape != (4, 4):
             rospy.logwarn('Tag 0 not found or invalid transform.')
-            self.dog_basic_function.qilin_cmd_vel(0, 0, 0, 0, 0)
+            self._stop_alignment()
             return
 
         q = tft.quaternion_from_matrix(T_tag_0)
@@ -246,7 +256,13 @@ class AprilmoveqilinNode:
             self.min_linear_vel,
             self.max_linear_vel,
         )
-        self.smoothed_ryaw = (1 - self.smooth_alpha) * self.smoothed_ryaw + self.smooth_alpha * ryaw
+        self.smoothed_ryaw = smooth_with_min_velocity(
+            self.smoothed_ryaw,
+            ryaw,
+            self.smooth_alpha,
+            self.min_angular_vel,
+            self.max_angular_vel,
+        )
         self.dog_basic_function.qilin_cmd_vel(
             self.smoothed_lx, self.smoothed_ly, 0, 0, self.smoothed_ryaw
         )
