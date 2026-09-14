@@ -20,7 +20,7 @@ landing_alignment_timeout_s: 60.0
 # Docking controller limits.
 manipulation_target_z_pick: 0.48
 manipulation_target_z_place: 0.47
-dock_min_linear_vel: 0.03
+dock_min_linear_vel: 0.025
 dock_max_linear_vel: 0.25
 dock_smooth_alpha: 0.5
 dock_lost_tag_hold_s: 0.5

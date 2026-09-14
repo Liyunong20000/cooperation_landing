@@ -94,6 +94,8 @@
     <param name="receive_buffer_size" value="1000" />
   </node>
 
-  <node pkg="cooperation_landing" type="event_trigger.py" name="event_trigger" output="screen" respawn="false" />
+  <node pkg="cooperation_landing" type="event_trigger.py" name="event_trigger" output="screen" respawn="false">
+    <param name="robot_ns" value="$(arg drone_ns)" />
+  </node>
 
 </launch>

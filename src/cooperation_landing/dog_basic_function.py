@@ -21,7 +21,8 @@ class DogBasic:
         self.robot_ns = ('/' + str(rospy.get_param('~ground_robot_ns', 'go1')).strip('/')).rstrip(
             '/'
         )
-        tag_topic = rospy.get_param('~ground_tag_topic', self.robot_ns + '/tag_detections')
+        # The camera launch defaults to /qilin, independently of the motion namespace.
+        tag_topic = rospy.get_param('~ground_tag_topic', '/qilin/tag_detections')
 
         self.pub_qilin_vel = rospy.Publisher(self.robot_ns + '/cmd_vel', Twist, queue_size=10)
         self.pub_qilin_pose = rospy.Publisher(self.robot_ns + '/body_pose', Pose, queue_size=10)

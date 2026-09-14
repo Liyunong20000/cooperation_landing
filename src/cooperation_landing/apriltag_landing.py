@@ -27,6 +27,7 @@ class AprillandqilinNode:
 
         self.takeoff_x, self.takeoff_y, self.takeoff_z = 0.0, 0.0, 0.0
         self.alignment_counter = 0
+        self._last_alignment_message = None
         self.aligned = False
         self.pause_when_lost = rospy.Duration(1)
         self.drone_pose_matrix = []
@@ -108,6 +109,8 @@ class AprillandqilinNode:
         """
         Check if alignment is successful based on distance and angle thresholds.
         """
+        if not self.aqm.has_fresh_apriltag():
+            return False
         if not isinstance(T, np.ndarray) or T.shape != (4, 4):
             return False
         pos = T[:3, 3]
@@ -135,6 +138,10 @@ class AprillandqilinNode:
 
         # Make sure we have a valid transform
         if T is not None and self.is_alignment_success(T):
+            # A cached detection must not count as several successful frames.
+            if self.aqm.msg_apriltag is self._last_alignment_message:
+                return False
+            self._last_alignment_message = self.aqm.msg_apriltag
             self.alignment_counter += 1
             rospy.loginfo_throttle(1.0, f'Alignment frame count: {self.alignment_counter}')
             # If the drone haven`t land off and the alignment counter is enough, the drone will land off

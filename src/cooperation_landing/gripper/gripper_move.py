@@ -1,4 +1,6 @@
-"""Gripper: gripper move implementation."""
+"""High-level gripper requests and monitoring; UAV event_trigger owns actuator safety."""
+
+import threading
 
 import rospy
 from spinal.msg import ServoControlCmd, ServoStates
@@ -20,11 +22,12 @@ class GripperMoveNode:
         self.servo_max_angles = rospy.get_param(self.robot_ns + '/servo_info/max_angles', 1400)
         self.servo_min_angles = rospy.get_param(self.robot_ns + '/servo_info/min_angles', -150)
         self.servo_max_load = rospy.get_param(self.robot_ns + '/servo_info/max_load', 350)
-        # Subscribe and publish.
-
-        self.pub_servo_target = rospy.Publisher(
-            self.robot_ns + '/servo/target_states', ServoControlCmd, queue_size=10
+        self.grasp_contact_load_threshold = rospy.get_param(
+            '~grasp_contact_load_threshold', self.servo_max_load - 50
         )
+        self._state_lock = threading.Lock()
+        self._grasp_observation_count = 0
+        # Both local clients and Qilin use the existing UAV command gate.
         self.pub_servo_target_qilin = rospy.Publisher(
             self.robot_ns + '/servo/target_states/info', ServoControlCmd, queue_size=10
         )
@@ -44,26 +47,32 @@ class GripperMoveNode:
         if not msg.servos:
             rospy.logwarn_throttle(5.0, 'Received an empty servo state message.')
             return
-        self.servo_index = msg.servos[0].index
-        self.servo_angle = msg.servos[0].angle
-        self.servo_temp = msg.servos[0].temp
-        self.servo_load = msg.servos[0].load
-        self.servo_error = msg.servos[0].error
-        self.servo_state_received = True
-        # print(f'{self.servo_index, self.servo_angle, self.servo_temp, self.servo_load, self.servo_error}')
+        # Monitoring only: never send a corrective target from remote feedback.
+        with self._state_lock:
+            self.servo_index = msg.servos[0].index
+            self.servo_angle = msg.servos[0].angle
+            self.servo_temp = msg.servos[0].temp
+            self.servo_load = msg.servos[0].load
+            self.servo_error = msg.servos[0].error
+            self.servo_state_received = True
+            # Task observation only; each new callback contributes at most one sample.
+            if self.servo_error == 0 and abs(self.servo_load) >= self.grasp_contact_load_threshold:
+                self._grasp_observation_count = min(2, self._grasp_observation_count + 1)
+            else:
+                self._grasp_observation_count = 0
+
+    def _clamp_target(self, target_angle):
+        return int(max(self.servo_min_angles, min(self.servo_max_angles, target_angle)))
 
     def servo_target_cmd(self, target_index, target_angle):
-        servo_target_cmd = ServoControlCmd()
-        servo_target_cmd.index = [target_index]
-        servo_target_cmd.angles = [target_angle]
-        rospy.sleep(0.1)
-        self.pub_servo_target.publish(servo_target_cmd)
-        rospy.logdebug('Published local servo target: %s', servo_target_cmd)
+        """Request a target through event_trigger, including local keyboard/demo use."""
+        return self.servo_target_cmd_qilin(target_index, target_angle)
 
     def servo_target_cmd_qilin(self, target_index, target_angle):
         servo_target_cmd = ServoControlCmd()
         servo_target_cmd.index = [target_index]
-        servo_target_cmd.angles = [target_angle]
+        # Xuanwu's event bridge applies the feedback guard to this forwarded target.
+        servo_target_cmd.angles = [self._clamp_target(target_angle)]
 
         self.pub_servo_target_qilin.publish(servo_target_cmd)
         rospy.logdebug('Published bridged servo target: %s', servo_target_cmd)
@@ -71,61 +80,51 @@ class GripperMoveNode:
         self.grasp_qilin_trigger()
 
     def return_zero(self):
-        rospy.sleep(0.1)
-        self.servo_target_cmd(0, self.servo_max_angles)
+        self.return_qilin_trigger()
         rospy.sleep(0.5)
 
     def return_zero_qilin(self):
-        rospy.sleep(0.1)
-        self.servo_target_cmd_qilin(0, self.servo_max_angles)
-        rospy.sleep(0.5)
+        return self.return_zero()
 
     def grasp(self, servo_index, angle_feed):
-        if not self.servo_state_received:
-            rospy.logerr('Cannot grasp before receiving a servo state.')
+        """Observe task success; the UAV protects contact even if this feedback is delayed."""
+        if angle_feed <= 0:
+            rospy.logerr('Grasp angle_feed must be positive.')
             return False
-        rospy.sleep(0.02)
         r = rospy.Rate(3)
-        if self.servo_error == 1:
-            rospy.logerr('Servo %s reported an error; grasp aborted.', servo_index)
-            return False
         deadline = rospy.Time.now() + rospy.Duration(rospy.get_param('~grasp_timeout_s', 10.0))
         try:
-            while not rospy.is_shutdown() and self.servo_load > -(self.servo_max_load - 50):
+            while not rospy.is_shutdown():
+                with self._state_lock:
+                    received = self.servo_state_received
+                    angle, error = self.servo_angle, self.servo_error
+                    contact_observed = self._grasp_observation_count >= 2
+                if not received:
+                    rospy.logerr('Cannot grasp before receiving a servo state.')
+                    return False
+                if error != 0:
+                    rospy.logerr('Servo %s error 0x%02x; grasp task aborted.', servo_index, error)
+                    return False
+                if contact_observed:
+                    rospy.loginfo('Servo %s grasp contact observed in task feedback.', servo_index)
+                    return True
+                if angle <= self.servo_min_angles:
+                    rospy.logwarn('Servo %s minimum-angle grasp abort at %s.', servo_index, angle)
+                    return False
                 if rospy.Time.now() >= deadline:
-                    rospy.logwarn('Servo %s grasp timed out.', servo_index)
+                    rospy.logwarn('Servo %s grasp task timed out.', servo_index)
                     return False
                 self.servo_target_index = servo_index
-                self.servo_target_angles = self.servo_angle - angle_feed
-                self.servo_target_cmd(self.servo_target_index, self.servo_target_angles)
+                self.servo_target_angles = self._clamp_target(angle - angle_feed)
+                self.servo_target_cmd(servo_index, self.servo_target_angles)
                 r.sleep()
-        except KeyboardInterrupt:
-            pass
-
-        rospy.loginfo('Servo %s reached the configured load threshold.', servo_index)
-        return True
+        except (KeyboardInterrupt, rospy.ROSInterruptException):
+            rospy.logwarn('Servo %s grasp task interrupted.', servo_index)
+        # Stopping this task never disables the UAV's independent local safety gate.
+        return False
 
     def grasp_qilin(self, servo_index, angle_feed):
-        if not self.servo_state_received:
-            rospy.logerr('Cannot grasp before receiving a servo state.')
-            return False
-        rospy.sleep(0.02)
-        r = rospy.Rate(3)
-        deadline = rospy.Time.now() + rospy.Duration(rospy.get_param('~grasp_timeout_s', 10.0))
-        try:
-            while not rospy.is_shutdown() and self.servo_load > -(self.servo_max_load - 50):
-                if rospy.Time.now() >= deadline:
-                    rospy.logwarn('Servo %s grasp timed out.', servo_index)
-                    return False
-                self.servo_target_index = servo_index
-                self.servo_target_angles = self.servo_angle - angle_feed
-                self.servo_target_cmd_qilin(self.servo_target_index, self.servo_target_angles)
-                r.sleep()
-        except KeyboardInterrupt:
-            pass
-
-        rospy.loginfo('Servo %s reached the configured load threshold.', servo_index)
-        return True
+        return self.grasp(servo_index, angle_feed)
 
     def grasp_qilin_trigger(self):
         rospy.sleep(0.1)
@@ -133,6 +132,8 @@ class GripperMoveNode:
         self.pub_servo_target_qilin_trigger.publish(empty_msg)
 
     def return_qilin_trigger(self):
+        with self._state_lock:
+            self._grasp_observation_count = 0
         rospy.sleep(0.1)
         empty_msg = Empty()
         self.pub_servo_return_qilin_trigger.publish(empty_msg)

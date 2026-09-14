@@ -7,14 +7,17 @@ landing_info:
   alignment_timeout_s: 60.0
 
 # Ground-robot AprilTag alignment controller.
-move_parameter: 1.5
-rotate_parameter: 0.5
-smooth_alpha: 0.5
-close_distance_threshold: 0.5
-stop_distance_threshold: 0.02
-fast_move_param: 1.15
-normal_move_param: 1.0
+move_parameter: 1.0  # Fixed proportional gain for ground-robot X/Y alignment.
+rotate_parameter: 0.3
+align_enter_distance: 0.025  # Enter XY aligned state at or below this distance (m).
+align_exit_distance: 0.035  # Resume XY motion at or above this distance (m).
+yaw_enter_threshold: 0.03  # Enter yaw aligned state at or below this absolute error (rad).
+yaw_exit_threshold: 0.05  # Resume yaw motion at or above this absolute error (rad).
+max_pair_gap: 0.06  # Maximum consistent drone-center separation between tags (m).
+apriltag_message_timeout: 0.5  # Callback arrival timeout, measured with monotonic time (s).
+command_hold_timeout: 0.35  # Re-send the last valid command during brief detection loss (s).
+tag_loss_timeout: 0.5  # Full tracking-state reset after loss exceeds this duration (s).
 max_linear_vel: 0.25
 max_angular_vel: 0.30
-min_linear_vel: 0.025
+min_linear_vel: 0.03  # Minimum nonzero resultant XY speed, not a per-axis minimum (m/s).
 min_angular_vel: 0.05

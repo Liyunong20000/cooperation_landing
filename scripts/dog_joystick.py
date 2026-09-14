@@ -37,8 +37,7 @@ import struct
 
 from geometry_msgs.msg import Twist
 from std_srvs.srv import Trigger
-from dog_basic_function import *
-from keyboard_control import *
+from cooperation_landing.dog_basic_function import DogBasic
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Empty, Int32MultiArray
 
@@ -103,4 +102,3 @@ if __name__ == '__main__':
     interface = ControlInterface()
 
     rospy.spin()
-

@@ -579,7 +579,7 @@ class DockApproach(smach.State):
         # === Executable linear velocity range (deadzone compensation) ===
         # A zero command still means stop. Every nonzero dock command is kept
         # at or above this minimum magnitude on each commanded linear axis.
-        self.min_linear_vel = max(0.0, float(rospy.get_param('~dock_min_linear_vel', 0.03)))
+        self.min_linear_vel = max(0.0, float(rospy.get_param('~dock_min_linear_vel', 0.025)))
         self.max_linear_vel = max(0.0, float(rospy.get_param('~dock_max_linear_vel', 0.25)))
         if self.max_linear_vel < self.min_linear_vel:
             rospy.logwarn(
@@ -918,9 +918,8 @@ class DetachApproach(smach.State):
 
         # === Minimum executable velocities (deadzone compensation) ===
         # These values ensure the Go1 actually moves when commands are small
-        # These values ensure the Go1 actually moves when commands are small
-        self.vx_min = 0.02  # m/s
-        self.vy_min = 0.02  # m/s
+        self.vx_min = 0.025  # m/s
+        self.vy_min = 0.025  # m/s
         self.wz_min = 0.10  # rad/s
 
         # === Maximum velocities (safety limits) ===
