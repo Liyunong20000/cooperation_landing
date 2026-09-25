@@ -59,7 +59,12 @@ class AprilTagRelativePose:
                 )
         if not self.tag_matrices:
             raise ValueError("drone_tags_matrix must configure tag 0 or tag 1")
-        self.max_pair_gap = float(rospy.get_param("~max_pair_gap", 0.06))
+        raw_pair_gap: object = rospy.get_param("~max_pair_gap", 0.06)
+        if isinstance(raw_pair_gap, bool) or not isinstance(
+            raw_pair_gap, (int, float, str)
+        ):
+            raise ValueError("max_pair_gap must be numeric")
+        self.max_pair_gap = float(raw_pair_gap)
         if not np.isfinite(self.max_pair_gap) or self.max_pair_gap < 0:
             raise ValueError("max_pair_gap must be finite and nonnegative")
         self.previous_center = None  # Camera frame, matching the fallback.
