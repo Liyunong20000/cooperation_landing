@@ -10,6 +10,7 @@
   <arg name="LOW_PORT_5" default="1062" />
   <arg name="LOW_PORT_6" default="1063" />
   <arg name="LOW_PORT_7" default="1064" />
+  <arg name="LOW_PORT_8" default="1065" />
   <arg name="drone_ns" default="xuanwu" />
 
   ### GR receiver from UAV
@@ -25,7 +26,7 @@
     <param name="message" value="cooperation_landing/GR2UAV" />
     <param name="to_ip" value="$(arg UAV_IP)" />
     <param name="to_port" value="$(arg HIGH_PORT2)" />
-    <param name="send_rate" value="5" />
+    <param name="send_rate" value="20" />
     <param name="bandwidth" value="2000000" />
     <param name="packet_size" value="1000" />
   </node>
@@ -100,4 +101,13 @@
     <param name="event_driven" value="True" />
   </node>
 
+  <!-- Forward a runtime alignment trigger; Xuanwu bringup owns the controller lifecycle. -->
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_visual_landing" output="screen">
+    <remap from="~input" to="/$(arg drone_ns)/visual_landing/trigger" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg LOW_PORT_8)" />
+    <param name="send_rate" value="1" />
+    <param name="event_driven" value="True" />
+  </node>
 </launch>

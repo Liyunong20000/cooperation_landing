@@ -42,11 +42,11 @@ catkin_package(
 catkin_install_python(PROGRAMS
   scripts/AprillandQilin.py
   scripts/AprilmoveQilin.py
+  scripts/apriltag_relative_pose.py
   scripts/basic_function.py
   scripts/dog_joystick.py
   scripts/dog_stall_monitor.py
   scripts/drone_basic_function.py
-  scripts/event_trigger.py
   scripts/keyboard_control.py
   scripts/manipulation_motion_display.py
   scripts/manipulation_motion_v2.py

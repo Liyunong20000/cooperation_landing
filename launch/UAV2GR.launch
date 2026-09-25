@@ -10,6 +10,7 @@
   <arg name="LOW_PORT_5" default="1062" />
   <arg name="LOW_PORT_6" default="1063" />
   <arg name="LOW_PORT_7" default="1064" />
+  <arg name="LOW_PORT_8" default="1065" />
   <arg name="drone_ns" default="xuanwu" />	
 
     ### UAV streamer to Ground Robot
@@ -23,6 +24,8 @@
   </node>
 
   ### UAV receiver from GR
+  <!-- Keep visual_landing/info out of timestamp_overwrite_topics and
+       publish_only_if_updated_topics: both can overwrite source timestamps. -->
   <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver" output="screen">
     <param name="message" value="cooperation_landing/GR2UAV" />
     <param name="receive_ip" value="$(arg UAV_IP)" />
@@ -94,8 +97,13 @@
     <param name="receive_buffer_size" value="1000" />
   </node>
 
-  <node pkg="cooperation_landing" type="event_trigger.py" name="event_trigger" output="screen" respawn="false">
-    <param name="robot_ns" value="$(arg drone_ns)" />
-  </node>
+  <!-- event_trigger and visual_landing_controller are owned by Xuanwu bringup. -->
 
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_visual_landing" output="screen">
+    <remap from="~output" to="/$(arg drone_ns)/visual_landing/trigger" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT_8)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
 </launch>

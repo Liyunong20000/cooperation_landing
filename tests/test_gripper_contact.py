@@ -12,7 +12,7 @@ import pytest
 from spinal.msg import ServoControlCmd, ServoState, ServoStates
 from std_msgs.msg import Bool, Int8, Int32, UInt8
 
-from cooperation_landing import event_trigger as bridge
+from xuanwu import event_trigger as bridge
 from cooperation_landing.gripper import gripper_move as gripper
 
 
@@ -35,7 +35,6 @@ def env(monkeypatch):
     monkeypatch.setattr(gripper.rospy, 'get_param', lambda name, default: params.get(name, default))
     monkeypatch.setattr(gripper.rospy, 'Publisher', publisher)
     monkeypatch.setattr(gripper.rospy, 'Subscriber', subscriber)
-    monkeypatch.setattr(bridge, 'DroneBasic', Mock())
     monkeypatch.setattr(gripper.rospy, 'sleep', Mock())
     monkeypatch.setattr(gripper.rospy, 'is_shutdown', lambda: clock.shutdown)
     monkeypatch.setattr(gripper.rospy.Time, 'now', lambda: gripper.rospy.Time(clock.now))

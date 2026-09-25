@@ -1,0 +1,14 @@
+<launch>
+  <arg name="robot_ns" default="xuanwu" />
+  <arg name="ground_tag_topic" default="/qilin/tag_detections" />
+  <arg name="docking_frame" default="qilin_docking_frame" />
+  <node pkg="cooperation_landing" type="apriltag_relative_pose.py"
+        name="apriltag_relative_pose" output="screen">
+    <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
+    <rosparam file="$(find cooperation_landing)/config/DroneTagsMatrix.yaml" command="load" />
+    <param name="robot_ns" value="$(arg robot_ns)" />
+    <param name="ground_tag_topic" value="$(arg ground_tag_topic)" />
+    <param name="docking_frame" value="$(arg docking_frame)" />
+    <param name="max_pair_gap" value="0.06" />
+  </node>
+</launch>
