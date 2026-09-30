@@ -3,6 +3,8 @@
   <arg name="UAV_IP" default="192.168.1.120" />
   <arg name="HIGH_PORT1" default="16484" />
   <arg name="HIGH_PORT2" default="8192" />
+  <arg name="HIGH_PORT3" default="8193" />
+  <arg name="HIGH_PORT4" default="8194" />
   <arg name="LOW_PORT_1" default="1024" />
   <arg name="LOW_PORT_2" default="1025" />
   <arg name="LOW_PORT_3" default="1026" />
@@ -13,19 +15,36 @@
   <arg name="LOW_PORT_8" default="1065" />
   <arg name="drone_ns" default="xuanwu" />
 
-  ### GR receiver from UAV
-  <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver" output="screen">
-    <param name="message" value="cooperation_landing/UAV2GR" />
+  ### GR receiver1 from UAV
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver_1" output="screen">
+    <param name="message" value="cooperation_landing/UAV2GR_1" />
     <param name="receive_ip" value="$(arg GROUND_ROBOT_IP)" />
     <param name="receive_port" value="$(arg HIGH_PORT1)" />
     <param name="topic_prefix" value="" />
   </node>
 
-  ### GR streamer to UAV
-  <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer" output="screen">
-    <param name="message" value="cooperation_landing/GR2UAV" />
+  ### GR streamer1 to UAV
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer_1" output="screen">
+    <param name="message" value="cooperation_landing/GR2UAV_1" />
     <param name="to_ip" value="$(arg UAV_IP)" />
     <param name="to_port" value="$(arg HIGH_PORT2)" />
+    <param name="send_rate" value="10" />
+    <param name="bandwidth" value="2000000" />
+    <param name="packet_size" value="1000" />
+  </node>
+  ### GR receiver2 from UAV
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_receiver.py" name="receiver_2" output="screen">
+    <param name="message" value="cooperation_landing/UAV2GR_2" />
+    <param name="receive_ip" value="$(arg GROUND_ROBOT_IP)" />
+    <param name="receive_port" value="$(arg HIGH_PORT3)" />
+    <param name="topic_prefix" value="" />
+  </node>
+
+  ### GR streamer2 to UAV
+  <node pkg="jsk_network_tools" type="silverhammer_highspeed_streamer.py" name="highspeed_streamer_2" output="screen">
+    <param name="message" value="cooperation_landing/GR2UAV_2" />
+    <param name="to_ip" value="$(arg UAV_IP)" />
+    <param name="to_port" value="$(arg HIGH_PORT4)" />
     <param name="send_rate" value="20" />
     <param name="bandwidth" value="2000000" />
     <param name="packet_size" value="1000" />
@@ -101,6 +120,7 @@
     <param name="event_driven" value="True" />
   </node>
 
+    ### GR low speed streamer8 to UAV
   <!-- Forward a runtime alignment trigger; Xuanwu bringup owns the controller lifecycle. -->
   <node pkg="jsk_network_tools" type="silverhammer_lowspeed_streamer.py" name="lowspeed_streamer_visual_landing" output="screen">
     <remap from="~input" to="/$(arg drone_ns)/visual_landing/trigger" />

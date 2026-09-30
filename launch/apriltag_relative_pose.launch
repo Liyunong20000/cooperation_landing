@@ -4,6 +4,8 @@
   <arg name="ground_tag_topic" default="/$(arg ground_robot_ns)/tag_detections" />
   <arg name="docking_frame" default="qilin_docking_frame" />
   <arg name="start_camera" default="true" />
+  <!-- Legacy ground estimator is opt-in; production forwards detector messages. -->
+  <arg name="start_estimator" default="false" />
   <arg name="start_mocap" default="false" />
   <arg name="camera_ns" default="usb_camera" />
   <arg name="dev_ns" default="ground_camera" />
@@ -11,7 +13,7 @@
   <arg name="image_height" default="720" />
   <arg name="robot_type" default="ground_robot" />
 
-  <!-- One ground-side entry point for camera, AprilTag detections and UAV pose. -->
+  <!-- Ground camera and AprilTag detector. -->
   <include if="$(arg start_camera)"
            file="$(find cooperation_landing)/launch/camera_mocap/ground_camera_apriltag.launch">
     <arg name="robot_ns" value="$(arg ground_robot_ns)" />
@@ -23,7 +25,7 @@
     <arg name="start_mocap" value="$(arg start_mocap)" />
   </include>
 
-  <node pkg="cooperation_landing" type="apriltag_relative_pose.py"
+  <node if="$(arg start_estimator)" pkg="cooperation_landing" type="apriltag_relative_pose.py"
         name="apriltag_relative_pose" output="screen">
     <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
     <rosparam file="$(find cooperation_landing)/config/DroneTagsMatrix.yaml" command="load" />

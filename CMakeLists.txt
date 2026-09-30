@@ -14,8 +14,10 @@ catkin_python_setup()
 
 add_message_files(
   FILES
-  GR2UAV.msg
-  UAV2GR.msg
+  GR2UAV_1.msg
+  GR2UAV_2.msg
+  UAV2GR_1.msg
+  UAV2GR_2.msg
 )
 
 generate_messages(
