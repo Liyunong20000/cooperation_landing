@@ -6,6 +6,7 @@
   <arg name="image_height" default="720" />
   <arg name="robot_ns" default="qilin" />
   <arg name="robot_type" default="ground_robot" />
+  <arg name="start_mocap" default="true" />
 
   <group ns="$(arg robot_ns)">
     <group ns="$(arg camera_ns)">
@@ -30,7 +31,7 @@
     </group>
 
     <!-- mocap -->
-    <include file="$(find cooperation_landing)/launch/camera_mocap/mocap.launch">
+    <include if="$(arg start_mocap)" file="$(find cooperation_landing)/launch/camera_mocap/mocap.launch">
         <arg name="robot_id" value="2"/>
     </include>
   </group>

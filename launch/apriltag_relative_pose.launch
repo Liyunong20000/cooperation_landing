@@ -1,7 +1,28 @@
 <launch>
   <arg name="robot_ns" default="xuanwu" />
-  <arg name="ground_tag_topic" default="/qilin/tag_detections" />
+  <arg name="ground_robot_ns" default="qilin" />
+  <arg name="ground_tag_topic" default="/$(arg ground_robot_ns)/tag_detections" />
   <arg name="docking_frame" default="qilin_docking_frame" />
+  <arg name="start_camera" default="true" />
+  <arg name="start_mocap" default="false" />
+  <arg name="camera_ns" default="usb_camera" />
+  <arg name="dev_ns" default="ground_camera" />
+  <arg name="image_width" default="1280" />
+  <arg name="image_height" default="720" />
+  <arg name="robot_type" default="ground_robot" />
+
+  <!-- One ground-side entry point for camera, AprilTag detections and UAV pose. -->
+  <include if="$(arg start_camera)"
+           file="$(find cooperation_landing)/launch/camera_mocap/ground_camera_apriltag.launch">
+    <arg name="robot_ns" value="$(arg ground_robot_ns)" />
+    <arg name="camera_ns" value="$(arg camera_ns)" />
+    <arg name="dev_ns" value="$(arg dev_ns)" />
+    <arg name="image_width" value="$(arg image_width)" />
+    <arg name="image_height" value="$(arg image_height)" />
+    <arg name="robot_type" value="$(arg robot_type)" />
+    <arg name="start_mocap" value="$(arg start_mocap)" />
+  </include>
+
   <node pkg="cooperation_landing" type="apriltag_relative_pose.py"
         name="apriltag_relative_pose" output="screen">
     <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />

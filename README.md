@@ -123,14 +123,16 @@ roslaunch cooperation_landing GR2UAV.launch UAV_IP:=10.0.0.20
 roslaunch cooperation_landing UAV2GR.launch GROUND_ROBOT_IP:=10.0.0.10
 ```
 
-For visual landing, run the ground camera and AprilTag detector, then start the
-measurement node on the ground computer:
+For visual landing, start the ground camera, AprilTag detector and relative
+pose estimator with one command on the ground computer:
 
 ```bash
 roslaunch cooperation_landing apriltag_relative_pose.launch robot_ns:=xuanwu
 ```
 
-This node publishes the full UAV pose in the docking frame on
+If the camera and detector are already running, add `start_camera:=false`.
+Set `ground_robot_ns` when the detector uses a namespace other than `qilin`.
+The estimator publishes the full UAV pose in the docking frame on
 `/xuanwu/visual_landing/info`. The GR2UAV bridge forwards that measurement;
 Xuanwu bringup runs the UAV-local controller and executes flight commands.
 This package does not launch a second UAV visual controller.
