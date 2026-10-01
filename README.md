@@ -141,6 +141,26 @@ The GR2UAV and UAV2GR launches start both high-speed and low-speed network
 transport, including the visual-landing trigger. They do not start the ground
 estimator or the Xuanwu UAV controller.
 
+Visual landing also has an independent `std_msgs/Empty` cancel event on
+`/xuanwu/visual_landing/cancel`. The Ground `GR2UAV.launch` sends it only on
+receipt of the event through low-speed `LOW_PORT_9=1066`; the UAV
+`UAV2GR.launch` receives it on the same port. The existing start trigger remains
+on `LOW_PORT_8=1065` and still starts a session. With both bridge endpoints
+running, send cancel from a Ground robot terminal with:
+
+```bash
+rostopic pub -1 /xuanwu/visual_landing/cancel std_msgs/Empty "{}"
+```
+
+For a local UAV check, publish the same command on the UAV ROS master. Publish
+`/xuanwu/visual_landing/trigger` with the same message type to start, then
+observe `/xuanwu/visual_landing/state`: `0` (IDLE), `1` (ALIGNING), and `0`
+after cancel. A new trigger is required after cancel. The controller ignores
+cancel after standard JSK land handoff.
+
+Run the Silverhammer event bridge with separate Ground and UAV ROS masters;
+with a shared master, receiver output can feed the streamer again.
+
 ## Important parameters
 
 The v2 state machine uses private parameters on the `manipulation_motion`

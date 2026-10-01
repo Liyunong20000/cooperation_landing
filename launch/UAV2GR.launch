@@ -13,6 +13,7 @@
   <arg name="LOW_PORT_6" default="1063" />
   <arg name="LOW_PORT_7" default="1064" />
   <arg name="LOW_PORT_8" default="1065" />
+  <arg name="LOW_PORT_9" default="1066" />
   <arg name="drone_ns" default="xuanwu" />	
 
     ### UAV streamer to Ground Robot
@@ -122,6 +123,15 @@
     <param name="message" value="std_msgs/Empty" />
     <param name="receive_ip" value="$(arg UAV_IP)" />
     <param name="receive_port" value="$(arg LOW_PORT_8)" />
+    <param name="receive_buffer_size" value="1000" />
+  </node>
+
+  <!-- Explicit visual-session cancel, independent of the start trigger. -->
+  <node pkg="jsk_network_tools" type="silverhammer_lowspeed_receiver.py" name="lowspeed_receiver_visual_landing_cancel" output="screen">
+    <remap from="~output" to="/$(arg drone_ns)/visual_landing/cancel" />
+    <param name="message" value="std_msgs/Empty" />
+    <param name="receive_ip" value="$(arg UAV_IP)" />
+    <param name="receive_port" value="$(arg LOW_PORT_9)" />
     <param name="receive_buffer_size" value="1000" />
   </node>
 </launch>
