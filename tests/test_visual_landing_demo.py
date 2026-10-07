@@ -6,9 +6,11 @@ from unittest.mock import Mock
 
 import pytest
 import yaml
+from nav_msgs.msg import Odometry
 
 from cooperation_landing import visual_landing_demo as demo
 
+RealDemoDrone = demo.DemoDrone
 
 @pytest.fixture
 def env(monkeypatch):
@@ -26,14 +28,16 @@ def env(monkeypatch):
     monkeypatch.setattr(demo.rospy, 'Publisher', lambda *args, **kwargs:
                         Mock(get_num_connections=lambda: 1))
     monkeypatch.setattr(demo.rospy, 'sleep', Mock())
-    for name in ('loginfo', 'logerr'):
+    for name in ('loginfo', 'logwarn', 'logerr'):
         monkeypatch.setattr(demo.rospy, name, Mock())
     monkeypatch.setattr(demo, 'DemoDrone', lambda: drone)
     monkeypatch.setattr(demo, 'DogBasic', Mock())
+    monkeypatch.setattr(demo, 'BridgePreflight', Mock(return_value=Mock(check=lambda: True)))
     monkeypatch.setattr(demo.time, 'monotonic', lambda: clock.now)
     monkeypatch.setattr(demo.time, 'sleep', lambda dt: setattr(clock, 'now', clock.now + dt))
     node = demo.VisuallandqilinNode()
     node.visual_state = demo.IDLE
+    node._hold = Mock(return_value=True)
     return SimpleNamespace(node=node, drone=drone, clock=clock, params=params)
 
 
@@ -54,6 +58,7 @@ def test_bad_index_cannot_select_another_point(env, index):
 
 def test_route_matches_original_demo(env):
     node, drone = env.node, env.drone
+    drone.drone_state = demo.ARM_ON
     drone.drone_takeoff.side_effect = lambda: setattr(drone, 'drone_state', demo.HOVER)
     node._send_target_and_wait = Mock(return_value=True)
     assert node.demo()
@@ -62,12 +67,13 @@ def test_route_matches_original_demo(env):
         ((0.2, 0.3, 1.0), (0, 0, 0, 1)),
         ((0.2, 0.3, 0.8), (0, 0, 0, 1)),
     ]
-    drone.drone_start.assert_called_once()
+    drone.drone_start.assert_not_called()
     drone.drone_takeoff.assert_called_once()
     drone.drone_land.assert_not_called()
 
 
 def test_failed_waypoint_stops_route_before_visual_trigger(env):
+    env.drone.drone_state = demo.ARM_ON
     env.drone.drone_takeoff.side_effect = lambda: setattr(env.drone, 'drone_state', demo.HOVER)
     env.node._send_target_and_wait = Mock(return_value=False)
     assert not env.node.demo()
@@ -126,3 +132,122 @@ def test_stale_arm_off_does_not_finish_landing(env):
     env.node.visual_state = demo.BRAKING
     env.drone.flight_arrival = 98.0
     assert not env.node._landing_result()
+
+
+def feedback_clock(env, monkeypatch, update=None):
+    """Simulate unique live telemetry while advancing the wall clock."""
+    env.drone.drone_state = demo.HOVER
+
+    def advance(dt):
+        env.clock.now += dt
+        env.drone.odom_arrival = env.drone.flight_arrival = env.clock.now
+        if update:
+            update()
+
+    monkeypatch.setattr(demo.time, 'sleep', advance)
+    env.params.update({'~target_no_progress_timeout_s': 0.2,
+                       '~demo_target_timeout': 2.0,
+                       '~target_progress_distance_m': 0.01})
+
+
+def test_failed_communication_never_arms(env):
+    env.node.communication.check = lambda: False
+    assert not env.node.demo()
+    env.drone.drone_start.assert_not_called()
+    env.drone.drone_takeoff.assert_not_called()
+
+
+def test_manual_motor_start_timeout_never_commands_start_or_takeoff(env):
+    env.params['~manual_start_timeout_s'] = 0.1
+    assert not env.node.demo()
+    env.drone.drone_start.assert_not_called()
+    env.drone.drone_takeoff.assert_not_called()
+
+
+def test_manual_arm_feedback_allows_takeoff(env, monkeypatch):
+    def manual_start(dt):
+        env.clock.now += dt
+        env.drone.flight_arrival = env.drone.odom_arrival = env.clock.now
+        env.drone.drone_state = demo.ARM_ON
+
+    monkeypatch.setattr(demo.time, 'sleep', manual_start)
+    env.drone.drone_takeoff.side_effect = lambda: setattr(env.drone, 'drone_state', demo.HOVER)
+    env.node._send_target_and_wait = Mock(return_value=True)
+    assert env.node.demo()
+    env.drone.drone_start.assert_not_called()
+    env.drone.drone_takeoff.assert_called_once()
+
+
+def test_lost_first_command_resends_identical_pose_and_trigger(env, monkeypatch):
+    def update():
+        if env.drone.drone_target.call_count == 2:
+            env.drone.drone_x = 1.0
+            env.drone.drone_yaw = 0.0
+
+    feedback_clock(env, monkeypatch, update)
+    xyz, quat = (1.0, 0.3, 0.5), (0, 0, 0, 1)
+    assert env.node._send_target_and_wait(xyz, quat)
+    assert [call.args for call in env.drone.drone_target.call_args_list] == [
+        ('world', *xyz, *quat), ('world', *xyz, *quat)]
+    env.drone.drone_nav.assert_not_called()
+
+
+def test_stationary_drone_exhausts_retry_budget(env, monkeypatch):
+    feedback_clock(env, monkeypatch)
+    assert not env.node._send_target_and_wait((1.0, 0.3, 0.5), (0, 0, 0, 1))
+    assert env.drone.drone_target.call_count == 4
+    assert env.clock.now - 100.0 < 1.0
+
+
+def test_continuous_progress_does_not_resend(env, monkeypatch):
+    def update():
+        env.drone.drone_x = min(1.0, env.drone.drone_x + 0.03)
+        env.drone.drone_yaw = 0.0
+
+    feedback_clock(env, monkeypatch, update)
+    assert env.node._send_target_and_wait((1.0, 0.3, 0.5), (0, 0, 0, 1))
+    env.drone.drone_target.assert_called_once()
+
+
+def test_yaw_progress_alone_avoids_resending(env, monkeypatch):
+    env.drone.drone_yaw = 0.5
+
+    def update():
+        env.drone.drone_yaw = max(0.0, env.drone.drone_yaw - 0.03)
+
+    feedback_clock(env, monkeypatch, update)
+    assert env.node._send_target_and_wait((0.2, 0.3, 0.5), (0, 0, 0, 1))
+    env.drone.drone_target.assert_called_once()
+
+
+def test_state_change_stops_waypoint_retries(env, monkeypatch):
+    def update():
+        env.drone.drone_state = demo.LAND
+
+    feedback_clock(env, monkeypatch, update)
+    assert not env.node._send_target_and_wait((1.0, 0.3, 0.5), (0, 0, 0, 1))
+    env.drone.drone_target.assert_called_once()
+
+
+def test_visual_session_cannot_send_waypoint(env):
+    env.drone.drone_state = demo.HOVER
+    env.node.session_started = True
+    assert not env.node._send_target_and_wait((1.0, 0.3, 0.5), (0, 0, 0, 1))
+    env.drone.drone_target.assert_not_called()
+
+
+def test_duplicate_source_odom_cannot_refresh_feedback(env):
+    drone = RealDemoDrone.__new__(RealDemoDrone)
+    drone.odom_arrival = drone.odom_stamp = None
+    msg = Odometry()
+    msg.header.frame_id = '/world'
+    msg.header.stamp = demo.rospy.Time(12)
+    msg.pose.pose.orientation.w = 1.0
+    RealDemoDrone._callback_drone_position(drone, msg)
+    assert drone.odom_arrival == 100.0
+    env.clock.now = 105.0
+    RealDemoDrone._callback_drone_position(drone, msg)
+    assert drone.odom_arrival == 100.0
+    msg.header.stamp = demo.rospy.Time(13)
+    RealDemoDrone._callback_drone_position(drone, msg)
+    assert drone.odom_arrival == 105.0
