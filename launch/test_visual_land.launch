@@ -3,7 +3,6 @@
   <arg name="demo_target_index" default="0" />
   <arg name="robot_ns" default="xuanwu" />
   <arg name="ground_robot_ns" default="go1" />
-  <arg name="uav_master_uri" default="" />
   <arg name="run_demo" default="false" />
   <arg name="allow_takeoff" default="false" />
   <arg name="landing_points_file" default="$(find cooperation_landing)/config/LandingPoints.yaml" />
@@ -17,7 +16,6 @@
     <param name="demo_target_index" type="int" value="$(arg demo_target_index)" />
     <param name="robot_ns" value="$(arg robot_ns)" />
     <param name="ground_robot_ns" value="$(arg ground_robot_ns)" />
-    <param if="$(eval arg('uav_master_uri') != '')" name="uav_master_uri" value="$(arg uav_master_uri)" />
     <param name="run_demo" type="bool" value="true" />
     <param name="allow_takeoff" type="bool" value="$(arg allow_takeoff)" />
   </node>

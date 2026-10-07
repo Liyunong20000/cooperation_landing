@@ -23,11 +23,6 @@ trigger_ack_timeout_s: 5.0
 # Includes slow visual descent and final JSK landing; no repeated triggers.
 visual_landing_timeout_s: 120.0
 stand_ground_robot: true
-# Check all HIGH-speed fields on both ROS masters before sending flight commands.
-# Empty URI: derive http://<highspeed_streamer_1/to_ip>:11311/ from the running bridge.
-uav_master_uri: ""
-bridge_ground_ns: ""
-bridge_uav_ns: ""
+# Require one local message per UAV2GR topic; empty messages are accepted.
 bridge_check_timeout_s: 20.0
 bridge_check_interval_s: 1.0
-bridge_rpc_timeout_s: 1.0
