@@ -1,0 +1,19 @@
+# Shared by all ten points in LandingPoints.yaml. World-frame demo waypoints
+# are separate from the UAV's docking-frame visual_landing.yaml controller gains.
+demo_hover_z: 1.0
+demo_final_z_offset: 0.3
+demo_target_timeout: 20.0
+demo_target_retries: 3
+drone_distance_threshold: 0.10
+target_yaw_threshold: 0.10
+takeoff_state_timeout_s: 30.0
+takeoff_settle_s: 6.0
+point_hold_s: 5.0
+hover_hold_s: 3.0
+odom_wait_timeout_s: 5.0
+telemetry_timeout_s: 1.0
+controller_ready_timeout_s: 10.0
+trigger_ack_timeout_s: 5.0
+# Includes slow visual descent and final JSK landing; no repeated triggers.
+visual_landing_timeout_s: 120.0
+stand_ground_robot: true

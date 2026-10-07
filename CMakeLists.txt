@@ -43,6 +43,7 @@ catkin_package(
 # Preserve deployed executable names while using Catkin's interpreter rewriting.
 catkin_install_python(PROGRAMS
   scripts/AprillandQilin.py
+  scripts/VisuallandQilin.py
   scripts/AprilmoveQilin.py
   scripts/apriltag_relative_pose.py
   scripts/basic_function.py

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <arg name="demo_target_index" default="0" />
+  <arg name="robot_ns" default="xuanwu" />
+  <arg name="ground_robot_ns" default="go1" />
+  <arg name="run_demo" default="false" />
+  <arg name="allow_takeoff" default="false" />
+  <arg name="landing_points_file" default="$(find cooperation_landing)/config/LandingPoints.yaml" />
+  <arg name="config_file" default="$(find cooperation_landing)/config/VisualLandingDemo.yaml" />
+
+  <!-- UAV bringup owns the estimator and controller; do not start duplicates here. -->
+  <node if="$(arg run_demo)" pkg="cooperation_landing" type="VisuallandQilin.py"
+        name="visual_land_demo" output="screen" respawn="false">
+    <rosparam file="$(arg config_file)" command="load" />
+    <rosparam file="$(arg landing_points_file)" command="load" />
+    <param name="demo_target_index" type="int" value="$(arg demo_target_index)" />
+    <param name="robot_ns" value="$(arg robot_ns)" />
+    <param name="ground_robot_ns" value="$(arg ground_robot_ns)" />
+    <param name="run_demo" type="bool" value="true" />
+    <param name="allow_takeoff" type="bool" value="$(arg allow_takeoff)" />
+  </node>
+</launch>
