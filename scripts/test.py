@@ -32,7 +32,7 @@ class TestNode:
             rospy.logwarn('No tag detections.')
             return
 
-        pose = msg.detections[0].pose.pose.pose  # 取第一个Tag
+        pose = msg.detections[0].pose.pose.pose  # Use the first detected tag.
         self.drone_x = pose.position.x
         self.drone_y = pose.position.y
         self.drone_z = pose.position.z
