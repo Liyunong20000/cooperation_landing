@@ -47,6 +47,8 @@
   <exec_depend>python3-netifaces</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>roslib</exec_depend>
+  <exec_depend>python3-rospkg</exec_depend>
   <exec_depend>rosbag</exec_depend>
   <exec_depend>rosparam</exec_depend>
   <exec_depend>rospy</exec_depend>
