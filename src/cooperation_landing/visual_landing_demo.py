@@ -246,13 +246,11 @@ class VisuallandqilinNode:
         drone.record_takeoff_position(drone.drone_x, drone.drone_y, drone.drone_z, drone.drone_yaw)
         rospy.loginfo('[Takeoff position] world xyz=(%.3f, %.3f, %.3f), yaw=%.3f rad.',
                       drone.takeoff_x, drone.takeoff_y, drone.takeoff_z, drone.takeoff_yaw)
-        rospy.loginfo('[Step 4/9] Start the motors manually; takeoff will be commanded after ARM_ON (2).')
-        if not self._wait(lambda: self._fresh(drone.flight_arrival) and drone.drone_state == ARM_ON,
-                          self._number('manual_start_timeout_s', 60.0), 'manual motor start ARM_ON (2)'):
-            return False
-        rospy.loginfo('[Takeoff] Manual motor start confirmed; sending the takeoff command.')
+        rospy.loginfo('[Step 4/9] Motor arm is manual; please arm the motors.')
+        rospy.loginfo('[Takeoff] Sending one takeoff command.')
         drone.drone_takeoff()
-        if not self._wait(self._hovering, self._number('takeoff_state_timeout_s', 30.0), 'HOVER (5) after takeoff'):
+        hover_label = '%s/flight_state = 5 (HOVER) after takeoff' % drone.robot_ns
+        if not self._wait(self._hovering, self._number('takeoff_state_timeout_s', 30.0), hover_label):
             return False
         if not self._hold('takeoff settling', self._number('takeoff_settle_s', 6.0)):
             return False

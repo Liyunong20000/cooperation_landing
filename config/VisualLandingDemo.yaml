@@ -10,9 +10,8 @@ target_progress_distance_m: 0.02
 target_progress_yaw_rad: 0.02
 drone_distance_threshold: 0.10
 target_yaw_threshold: 0.10
+# Motor arm is manual; send takeoff once, then wait for flight_state = 5 (HOVER).
 takeoff_state_timeout_s: 30.0
-# Motor start is manual; the demo waits for ARM_ON before commanding takeoff.
-manual_start_timeout_s: 60.0
 takeoff_settle_s: 6.0
 point_hold_s: 5.0
 hover_hold_s: 3.0

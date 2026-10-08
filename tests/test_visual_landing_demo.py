@@ -58,7 +58,6 @@ def test_bad_index_cannot_select_another_point(env, index):
 
 def test_route_matches_original_demo(env):
     node, drone = env.node, env.drone
-    drone.drone_state = demo.ARM_ON
     drone.drone_takeoff.side_effect = lambda: setattr(drone, 'drone_state', demo.HOVER)
     node._send_target_and_wait = Mock(return_value=True)
     assert node.demo()
@@ -157,25 +156,43 @@ def test_failed_communication_never_arms(env):
     env.drone.drone_takeoff.assert_not_called()
 
 
-def test_manual_motor_start_timeout_never_commands_start_or_takeoff(env):
-    env.params['~manual_start_timeout_s'] = 0.1
+@pytest.mark.parametrize('state', [demo.ARM_OFF, demo.ARM_ON, 3])
+def test_missing_hover_times_out_without_repeating_takeoff(env, monkeypatch, state):
+    env.params['~takeoff_state_timeout_s'] = 0.1
+    env.node._send_target_and_wait = Mock()
+    env.drone.drone_takeoff.side_effect = lambda: setattr(env.drone, 'drone_state', state)
+
+    def advance(dt):
+        env.clock.now += dt
+        env.drone.flight_arrival = env.clock.now
+
+    monkeypatch.setattr(demo.time, 'sleep', advance)
     assert not env.node.demo()
     env.drone.drone_start.assert_not_called()
-    env.drone.drone_takeoff.assert_not_called()
+    env.drone.drone_takeoff.assert_called_once()
+    env.node._send_target_and_wait.assert_not_called()
+    env.node.trigger.publish.assert_not_called()
 
 
-def test_manual_arm_feedback_allows_takeoff(env, monkeypatch):
-    def manual_start(dt):
+def test_takeoff_waits_for_hover_without_arm_on_feedback(env, monkeypatch):
+    states = iter([3, demo.HOVER])
+
+    def advance(dt):
         env.clock.now += dt
         env.drone.flight_arrival = env.drone.odom_arrival = env.clock.now
-        env.drone.drone_state = demo.ARM_ON
+        env.drone.drone_state = next(states)
+        env.drone.drone_takeoff.assert_called_once()
+        env.node._send_target_and_wait.assert_not_called()
 
-    monkeypatch.setattr(demo.time, 'sleep', manual_start)
-    env.drone.drone_takeoff.side_effect = lambda: setattr(env.drone, 'drone_state', demo.HOVER)
+    monkeypatch.setattr(demo.time, 'sleep', advance)
     env.node._send_target_and_wait = Mock(return_value=True)
     assert env.node.demo()
     env.drone.drone_start.assert_not_called()
     env.drone.drone_takeoff.assert_called_once()
+    assert env.clock.now == pytest.approx(100.1)
+    demo.rospy.loginfo.assert_any_call(
+        '[Waiting] %s, timeout %.1f s.',
+        '/xuanwu/flight_state = 5 (HOVER) after takeoff', 30.0)
 
 
 def test_lost_first_command_resends_identical_pose_and_trigger(env, monkeypatch):
