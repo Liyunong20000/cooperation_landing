@@ -18,6 +18,17 @@ def env(monkeypatch):
                              'config/LandingPoints.yaml').read_text())
     params = {'~' + key: value for key, value in params.items()}
     clock = SimpleNamespace(now=100.0)
+    ros_clock = SimpleNamespace(now=1000.0)
+    rate = Mock()
+
+    def rate_sleep():
+        clock.now += 0.1
+        ros_clock.now += 0.1
+
+    rate.sleep.side_effect = rate_sleep
+    monkeypatch.setattr(demo.rospy, 'Rate', Mock(return_value=rate))
+    monkeypatch.setattr(demo.rospy.Time, 'now',
+                        lambda: demo.rospy.Time.from_sec(ros_clock.now))
     drone = Mock(robot_ns='/xuanwu', odom_arrival=100.0, flight_arrival=100.0,
                  drone_state=demo.ARM_OFF, drone_x=0.2, drone_y=0.3, drone_z=0.5,
                  drone_yaw=0.1, takeoff_x=0.2, takeoff_y=0.3, takeoff_z=0.5)
@@ -38,7 +49,8 @@ def env(monkeypatch):
     node = demo.VisuallandqilinNode()
     node.visual_state = demo.IDLE
     node._hold = Mock(return_value=True)
-    return SimpleNamespace(node=node, drone=drone, clock=clock, params=params)
+    return SimpleNamespace(node=node, drone=drone, clock=clock, ros_clock=ros_clock,
+                           rate=rate, params=params)
 
 
 def test_all_ten_points_share_config(env):
@@ -157,42 +169,72 @@ def test_failed_communication_never_arms(env):
 
 
 @pytest.mark.parametrize('state', [demo.ARM_OFF, demo.ARM_ON, 3])
-def test_missing_hover_times_out_without_repeating_takeoff(env, monkeypatch, state):
+def test_missing_hover_times_out_without_repeating_takeoff(env, state):
     env.params['~takeoff_state_timeout_s'] = 0.1
     env.node._send_target_and_wait = Mock()
     env.drone.drone_takeoff.side_effect = lambda: setattr(env.drone, 'drone_state', state)
 
-    def advance(dt):
-        env.clock.now += dt
-        env.drone.flight_arrival = env.clock.now
+    def advance():
+        env.ros_clock.now += 0.1
 
-    monkeypatch.setattr(demo.time, 'sleep', advance)
+    env.rate.sleep.side_effect = advance
     assert not env.node.demo()
+    assert env.clock.now == 100.0
+    env.rate.sleep.assert_called_once()
     env.drone.drone_start.assert_not_called()
     env.drone.drone_takeoff.assert_called_once()
     env.node._send_target_and_wait.assert_not_called()
     env.node.trigger.publish.assert_not_called()
+    demo.rospy.logerr.assert_called_once_with(
+        'Timed out after %.1f s waiting for flight state 5.', 0.1)
 
 
-def test_takeoff_waits_for_hover_without_arm_on_feedback(env, monkeypatch):
+def test_takeoff_waits_for_hover_without_arm_on_feedback(env):
     states = iter([3, demo.HOVER])
 
-    def advance(dt):
-        env.clock.now += dt
+    def advance():
+        env.clock.now += 0.1
+        env.ros_clock.now += 0.1
         env.drone.flight_arrival = env.drone.odom_arrival = env.clock.now
         env.drone.drone_state = next(states)
         env.drone.drone_takeoff.assert_called_once()
         env.node._send_target_and_wait.assert_not_called()
 
-    monkeypatch.setattr(demo.time, 'sleep', advance)
+    env.rate.sleep.side_effect = advance
     env.node._send_target_and_wait = Mock(return_value=True)
     assert env.node.demo()
     env.drone.drone_start.assert_not_called()
     env.drone.drone_takeoff.assert_called_once()
-    assert env.clock.now == pytest.approx(100.1)
+    assert env.clock.now == pytest.approx(100.2)
+    demo.rospy.Rate.assert_called_once_with(10)
     demo.rospy.loginfo.assert_any_call(
         '[Waiting] %s, timeout %.1f s.',
         '/xuanwu/flight_state = 5 (HOVER) after takeoff', 30.0)
+
+
+def test_takeoff_accepts_hover_without_recent_flight_callback(env):
+    def takeoff():
+        env.drone.drone_state = demo.HOVER
+        env.drone.flight_arrival = 98.0
+
+    env.drone.drone_takeoff.side_effect = takeoff
+    env.node._send_target_and_wait = Mock(return_value=True)
+    assert env.node.demo()
+    env.drone.drone_takeoff.assert_called_once()
+    env.rate.sleep.assert_not_called()
+    assert env.node._send_target_and_wait.call_count == 3
+
+
+def test_shutdown_during_takeoff_stops_route(env, monkeypatch):
+    shutdown = SimpleNamespace(value=False)
+    monkeypatch.setattr(demo.rospy, 'is_shutdown', lambda: shutdown.value)
+    env.rate.sleep.side_effect = lambda: setattr(shutdown, 'value', True)
+    env.node._send_target_and_wait = Mock()
+    assert not env.node.demo()
+    env.drone.drone_takeoff.assert_called_once()
+    env.node._hold.assert_not_called()
+    env.node._send_target_and_wait.assert_not_called()
+    env.node.trigger.publish.assert_not_called()
 
 
 def test_lost_first_command_resends_identical_pose_and_trigger(env, monkeypatch):

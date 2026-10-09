@@ -250,8 +250,20 @@ class VisuallandqilinNode:
         rospy.loginfo('[Takeoff] Sending one takeoff command.')
         drone.drone_takeoff()
         hover_label = '%s/flight_state = 5 (HOVER) after takeoff' % drone.robot_ns
-        if not self._wait(self._hovering, self._number('takeoff_state_timeout_s', 30.0), hover_label):
+        takeoff_state_timeout = self._number('takeoff_state_timeout_s', 30.0)
+        rospy.loginfo('[Waiting] %s, timeout %.1f s.', hover_label, takeoff_state_timeout)
+        rate = rospy.Rate(10)
+        takeoff_deadline = rospy.Time.now() + rospy.Duration(takeoff_state_timeout)
+        while not rospy.is_shutdown() and self.drone_basic.drone_state != 5:
+            if rospy.Time.now() >= takeoff_deadline:
+                rospy.logerr(
+                    'Timed out after %.1f s waiting for flight state 5.', takeoff_state_timeout
+                )
+                return False
+            rate.sleep()
+        if rospy.is_shutdown():
             return False
+        rospy.loginfo('[Completed] %s.', hover_label)
         if not self._hold('takeoff settling', self._number('takeoff_settle_s', 6.0)):
             return False
         rospy.loginfo('[Step 5/9] Fly to selected point p%d, xyz=%s.', self.index + 1, self.point_xyz)
