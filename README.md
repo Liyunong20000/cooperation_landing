@@ -173,8 +173,10 @@ node. Common settings include:
   heights.
 - `odom_wait_timeout_s`, `takeoff_state_timeout_s`,
   `landing_alignment_timeout_s`: bounded safety waits.
-- `dock_min_linear_vel`, `dock_max_linear_vel`, `dock_smooth_alpha`: docking
-  control limits.
+- `dock_min_linear_vel`, `dock_max_linear_vel`: docking control limits;
+  commands run at 10 Hz without velocity smoothing.
+- `dock_tag_timeout_s`, `dock_sit_recheck_timeout_s`: detection-cache age limit
+  and wait for a new in-range detection after sitting.
 - `enable_dog_stall_monitor`: enables command-versus-odometry stall recovery.
 - `allow_takeoff`, `allow_payload_transfer`: explicit safety gates for flight
   and gripper payload operations; both default to `false`.

@@ -1,6 +1,7 @@
 """Manipulation states implementation."""
 
 import math
+import time
 
 import numpy as np
 import rospy
@@ -13,7 +14,6 @@ from cooperation_landing.control_utils import (
     adaptive_vy_gain,
     clamp,
     p_with_deadzone,
-    smooth_with_min_velocity,
     world_xy_to_body_xy,
     wrap_angle,
 )
@@ -109,8 +109,9 @@ def scan_target_marker(userdata):
     )
 
 
-def scan_tag_detected(drone_basic, marker_id):
-    tag_info = drone_basic.tag_info
+def scan_tag_detected(drone_basic, marker_id, tag_info=None):
+    if tag_info is None:
+        tag_info = drone_basic.tag_info
     if tag_info is None:
         return False
     for det in tag_info.detections:
@@ -174,14 +175,14 @@ def resolve_marker_pair(userdata):
     return marker_far, marker_near
 
 
-def detect_with_marker_pair(drone_basic, marker_far, marker_near, marker_switch_z):
+def detect_with_marker_pair(drone_basic, marker_far, marker_near, marker_switch_z, tag_info=None):
     """Detect far marker first, switch to near marker at close range if configured."""
-    if scan_tag_detected(drone_basic, marker_far):
+    if scan_tag_detected(drone_basic, marker_far, tag_info):
         if marker_near != marker_far and drone_basic.tag_target_z < marker_switch_z:
-            if scan_tag_detected(drone_basic, marker_near):
+            if scan_tag_detected(drone_basic, marker_near, tag_info):
                 return True, marker_near
         return True, marker_far
-    if marker_near != marker_far and scan_tag_detected(drone_basic, marker_near):
+    if marker_near != marker_far and scan_tag_detected(drone_basic, marker_near, tag_info):
         return True, marker_near
     return False, marker_far
 
@@ -600,13 +601,37 @@ class DockApproach(smach.State):
         self.wz_max = 0.60  # rad/s
 
         # Control loop parameters
-        self.control_dt = 0.2  # control period (s)
+        self.control_dt = 0.1  # control period (s), 10 Hz
         self.timeout_s = 28.0  # maximum duration of this state (s)
         self.marker_switch_z = rospy.get_param('~manipulation_marker_switch_z', 0.01)
         self.lost_tag_hold_s = rospy.get_param('~dock_lost_tag_hold_s', 0.5)
-        self.relaxed_factor = rospy.get_param('~dock_relaxed_factor', 2.0)
-        self.smooth_alpha = clamp(float(rospy.get_param('~dock_smooth_alpha', 0.5)), 0.0, 1.0)
+        self.tag_timeout_s = max(0.0, float(rospy.get_param('~dock_tag_timeout_s', 0.5)))
+        self.sit_recheck_timeout_s = max(0.0, float(rospy.get_param('~dock_sit_recheck_timeout_s', 2.0)))
         self.x_bias = 0.01
+
+    def _detect_fresh_marker(self, marker_far, marker_near):
+        data, received_at, sequence = self.drone_basic.tag_snapshot()
+        if (data is None or received_at is None
+                or time.monotonic() - received_at >= self.tag_timeout_s):
+            return False, marker_far, received_at, sequence
+        detected, active_marker = detect_with_marker_pair(
+            self.drone_basic, marker_far, marker_near, self.marker_switch_z, data
+        )
+        if detected:
+            detected = all(math.isfinite(value) for value in (
+                self.drone_basic.tag_target_z, self.drone_basic.tag_target_x,
+                self.drone_basic.tag_target_pitch,
+            ))
+        return detected, active_marker, received_at, sequence
+
+    def _errors(self, target_z):
+        return (self.drone_basic.tag_target_z - target_z,
+                self.drone_basic.tag_target_x - self.x_bias,
+                self.drone_basic.tag_target_pitch)
+
+    def _within_tolerance(self, errors):
+        return all(abs(error) < tol for error, tol in
+                   zip(errors, (self.tol_z, self.tol_x, self.tol_pitch)))
 
     def _active_marker_config(self, userdata):
         object_state = int(getattr(userdata, 'object_state', 0))
@@ -623,12 +648,19 @@ class DockApproach(smach.State):
 
     def execute(self, userdata):
         start_t = rospy.Time.now()
+        while not rospy.is_shutdown():
+            result = self._alignment_attempt(userdata, start_t)
+            if result != 'retry':
+                return result
+        self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+        return 'failed'
+
+    def _alignment_attempt(self, userdata, start_t):
+        """Align and verify once; retries share the original state timeout."""
         rate = rospy.Rate(1.0 / self.control_dt)
         marker_far, marker_near, manipulation_target_z = self._active_marker_config(userdata)
         last_err = None
-        last_seen_t = rospy.Time.now()
-        smoothed_vx = 0.0
-        smoothed_vy = 0.0
+        last_seen_t = None
 
         while not rospy.is_shutdown():
             # Check convergence condition
@@ -639,26 +671,20 @@ class DockApproach(smach.State):
                 self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 return 'failed'
 
-            detected, active_marker = detect_with_marker_pair(
-                self.drone_basic, marker_far, marker_near, self.marker_switch_z
+            detected, active_marker, received_at, _ = self._detect_fresh_marker(
+                marker_far, marker_near
             )
             if detected:
-                z_err = self.drone_basic.tag_target_z - manipulation_target_z
-                x_err = self.drone_basic.tag_target_x - self.x_bias
-                pitch_err = self.drone_basic.tag_target_pitch
+                z_err, x_err, pitch_err = self._errors(manipulation_target_z)
                 last_err = (z_err, x_err, pitch_err)
-                last_seen_t = rospy.Time.now()
-                if (
-                    abs(z_err) < self.tol_z
-                    and abs(x_err) < self.tol_x
-                    and abs(pitch_err) < self.tol_pitch
-                ):
+                last_seen_t = received_at
+                if self._within_tolerance(last_err):
                     self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                     break
             else:
                 if (
                     last_err is not None
-                    and (rospy.Time.now() - last_seen_t).to_sec() < self.lost_tag_hold_s
+                    and time.monotonic() - last_seen_t < self.lost_tag_hold_s
                 ):
                     z_err, x_err, pitch_err = last_err
                 else:
@@ -694,17 +720,8 @@ class DockApproach(smach.State):
                 )
             )
 
-            # As in AprilmoveQilin, apply the lower bound after smoothing so
-            # the command that is actually published cannot fall below it.
-            smoothed_vx = smooth_with_min_velocity(
-                smoothed_vx, vx_target, self.smooth_alpha, self.vx_min, self.vx_max
-            )
-            smoothed_vy = smooth_with_min_velocity(
-                smoothed_vy, vy_target, self.smooth_alpha, self.vy_min, self.vy_max
-            )
-
             # Send velocity command to the quadruped
-            self.dog_basic.qilin_cmd_vel(smoothed_vx, smoothed_vy, 0, 0, wz)
+            self.dog_basic.qilin_cmd_vel(vx_target, vy_target, 0, 0, wz)
             rospy.logdebug(
                 'DockApproach marker=%s target_z=%.3f err[z,x,p]=[%.3f, %.3f, %.3f]',
                 active_marker,
@@ -715,8 +732,8 @@ class DockApproach(smach.State):
             )
             rospy.logdebug(
                 'DockApproach command vx=%.3f vy=%.3f wz=%.3f k_vy=%.3f',
-                smoothed_vx,
-                smoothed_vy,
+                vx_target,
+                vy_target,
                 wz,
                 vy_gain,
             )
@@ -734,13 +751,6 @@ class DockApproach(smach.State):
             #     stall_ref_t = now_t
             #     stall_ref_z_err = z_err
             #     stall_ref_x_err = x_err
-            if (
-                abs(z_err) < self.tol_z
-                and abs(x_err) < self.tol_x
-                and abs(pitch_err) < self.tol_pitch
-            ):
-                self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
-                break
             # Maintain fixed control frequency
             rate.sleep()
 
@@ -753,7 +763,27 @@ class DockApproach(smach.State):
         rospy.sleep(1.0)
         self.dog_basic.sit()
         rospy.sleep(1.0)
-        return 'succeeded'
+        # Require a new observation after sitting has settled; pre-sit cache
+        # cannot authorize payload transfer. One valid frame is sufficient.
+        _, _, baseline_sequence = self.drone_basic.tag_snapshot()
+        deadline = time.monotonic() + self.sit_recheck_timeout_s
+        while not rospy.is_shutdown() and time.monotonic() < deadline:
+            self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+            detected, _, _, sequence = self._detect_fresh_marker(marker_far, marker_near)
+            if sequence > baseline_sequence and detected:
+                errors = self._errors(manipulation_target_z)
+                if self._within_tolerance(errors):
+                    return 'succeeded'
+                rospy.logwarn('DockApproach: post-sit errors outside tolerance: %s', errors)
+                break
+            rate.sleep()
+        self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
+        if rospy.is_shutdown():
+            return 'failed'
+        self.dog_basic.stand()
+        rospy.sleep(2.0)
+        rospy.logwarn('DockApproach: post-sit verification failed; retrying alignment.')
+        return 'retry'
 
 
 class DockManipulation(smach.State):

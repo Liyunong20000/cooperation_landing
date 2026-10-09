@@ -15,7 +15,7 @@ def clamp(x: float, lo: float, hi: float) -> float:
 
 def p_with_deadzone(err: float, k: float, v_min: float, v_max: float, tol: float) -> float:
     """P control with tolerance dead-zone and velocity saturation."""
-    if abs(err) <= max(0.0, tol):
+    if abs(err) < max(0.0, tol):
         return 0.0
     v = k * err
     if v == 0.0:

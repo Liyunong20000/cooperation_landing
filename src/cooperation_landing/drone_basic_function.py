@@ -1,6 +1,7 @@
 """Drone basic function implementation."""
 
 import time
+import threading
 
 import rospy
 import tf.transformations as tft
@@ -37,6 +38,9 @@ class DroneBasic:
         self.tag_target_roll, self.tag_target_pitch, self.tag_target_yaw = 0.0, 0.0, 0.0
 
         self.tag_info = None
+        self._tag_info_lock = threading.Lock()
+        self._tag_receive_time = None
+        self._tag_message_counter = 0
         self.drone_state = 0
         self.odom_received = False
 
@@ -118,8 +122,15 @@ class DroneBasic:
         self.drone_state = msg.data
 
     def _callback_tag_info(self, msg):
-        self.tag_info = msg
-        # print(f'self.tag_info: {self.tag_info}')
+        with self._tag_info_lock:
+            self.tag_info = msg
+            self._tag_receive_time = time.monotonic()
+            self._tag_message_counter += 1
+
+    def tag_snapshot(self):
+        """Read one consistent detection message, arrival time and sequence."""
+        with self._tag_info_lock:
+            return self.tag_info, self._tag_receive_time, self._tag_message_counter
 
     # Get the tag info and value the variable
     def tag_position(self, data, target_id):
