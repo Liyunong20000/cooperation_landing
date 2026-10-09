@@ -331,9 +331,8 @@ class HorizontalScan(smach.State):
         self.rho_h = clamp(float(rospy.get_param('~scan_rho_h', 0.25)), 0.0, 0.95)
         self.detect_wait_s = max(0.0, float(rospy.get_param('~scan_detect_wait_s', 3.0)))
         self.yaw_tol = max(0.0, float(rospy.get_param('~scan_yaw_tol_rad', 0.3)))
-        self.yaw_kp = max(0.0, float(rospy.get_param('~scan_yaw_kp', 0.9)))
-        self.yaw_wz_max = max(0.0, float(rospy.get_param('~scan_yaw_wz_max', 0.6)))
-        self.rotate_timeout_s = max(0.1, float(rospy.get_param('~scan_rotate_timeout_s', 4.0)))
+        self.yaw_speed = max(0.0, float(rospy.get_param('~scan_yaw_speed', 0.25)))
+        self.rotate_timeout_s = max(0.1, float(rospy.get_param('~scan_rotate_timeout_s', 6.0)))
 
         self.delta_yaw = max(math.radians(5.0), (1.0 - self.rho_h) * self.alpha_h)
         self.n_h = int(math.ceil((2.0 * math.pi) / self.delta_yaw))
@@ -353,7 +352,7 @@ class HorizontalScan(smach.State):
             if (rospy.Time.now() - start_t).to_sec() > self.rotate_timeout_s:
                 self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, 0)
                 return False
-            wz = clamp(self.yaw_kp * yaw_err, -self.yaw_wz_max, self.yaw_wz_max)
+            wz = math.copysign(self.yaw_speed, yaw_err)
             self.dog_basic.qilin_cmd_vel(0, 0, 0, 0, wz)
             rate.sleep()
 

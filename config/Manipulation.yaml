@@ -39,9 +39,10 @@ dock_sit_recheck_timeout_s: 2.0  # Wait for a new valid detection after sitting 
 # Target scan limits.
 scan_alpha_h_deg: 118.0
 scan_rho_h: 0.25
+scan_yaw_speed: 0.25  # Constant horizontal-search yaw speed (rad/s).
 scan_detect_wait_s: 3.0
 scan_vertical_detect_wait_s: 2.0
-scan_rotate_timeout_s: 4.0
+scan_rotate_timeout_s: 6.0
 state_judgment_scan_timeout_s: 3.0
 
 # Return-home controller.

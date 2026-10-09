@@ -274,3 +274,34 @@ def test_fly_back_checks_hover_and_final_waypoints(env, results, expected, calls
     assert env.drone.move_to_target.call_args_list[0].args == (1, 2, 1, 0, 0, 0, 1)
     if calls == 2:
         assert env.drone.move_to_target.call_args_list[1].args == (1, 2, 0.8, 0, 0, 0, 1)
+
+
+@pytest.mark.parametrize('direction', [-1, 1])
+def test_horizontal_scan_rotates_at_fixed_speed_and_stops_at_target(env, monkeypatch, direction):
+    node = states.HorizontalScan()
+    env.receive(yaw=0)
+    monkeypatch.setattr(states.rospy.Time, 'now', lambda: states.rospy.Time.from_sec(env.clock.now))
+
+    def tick():
+        env.clock.now += 0.05
+        yaw_speed = node.dog_basic.qilin_cmd_vel.call_args.args[4]
+        env.receive(yaw=env.drone.drone_yaw + yaw_speed * 0.05)
+
+    env.rate.sleep.side_effect = tick
+    target = direction * node.delta_yaw
+    assert node._rotate_to(target)
+    commands = [call.args for call in node.dog_basic.qilin_cmd_vel.call_args_list]
+    assert all(command[4] == direction * 0.25 for command in commands[:-1])
+    assert commands[-1] == (0, 0, 0, 0, 0)
+    assert abs(target - env.drone.drone_yaw) < node.yaw_tol
+    assert 4.0 < env.clock.now - 100.0 < 6.0
+
+
+def test_horizontal_scan_timeout_stops_stationary_robot(env, monkeypatch):
+    node = states.HorizontalScan()
+    env.receive(yaw=0)
+    monkeypatch.setattr(states.rospy.Time, 'now', lambda: states.rospy.Time.from_sec(env.clock.now))
+    env.rate.sleep.side_effect = lambda: setattr(env.clock, 'now', env.clock.now + 0.05)
+    assert not node._rotate_to(node.delta_yaw)
+    assert env.clock.now - 100.0 > 6.0
+    assert node.dog_basic.qilin_cmd_vel.call_args.args == (0, 0, 0, 0, 0)
