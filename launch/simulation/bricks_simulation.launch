@@ -125,19 +125,16 @@
 
   <!-- Apriltag detection -->
   <group ns="$(arg ground_robot_name)">
-    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+    <include file="$(find cooperation_landing)/launch/includes/apriltag_detection.launch.xml">
       <arg name="camera_name" value="/ground_robot_camera/usb_cam" />
       <arg name="image_topic" value="image_raw" />
     </include>
-    <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
   </group>
 
   <group ns="$(arg aerial_robot_name)">
-    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+    <include file="$(find cooperation_landing)/launch/includes/apriltag_detection.launch.xml">
       <arg name="camera_name" value="/aerial_robot_camera/usb_cam" />
       <arg name="image_topic" value="image_raw" />
     </include>
-    <rosparam command="load" file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml" ns="apriltag_ros_continuous_node"/>
   </group>
 </launch>
-

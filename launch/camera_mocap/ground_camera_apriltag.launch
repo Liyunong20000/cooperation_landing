@@ -38,13 +38,10 @@
 
   <!--         Apriltag detection -->
   <group ns="$(arg robot_ns)">
-    <include file="$(find apriltag_ros)/launch/continuous_detection.launch">
+    <include file="$(find cooperation_landing)/launch/includes/apriltag_detection.launch.xml">
       <arg name="camera_name" value="/$(arg robot_ns)/$(arg camera_ns)/usb_cam" />
       <arg name="image_topic" value="image_rect_color" />
     </include>
-    <rosparam command="load"
-              file="$(find cooperation_landing)/config/apriltag/xuanwu_bricks/tags.yaml"
-              ns="apriltag_ros_continuous_node" />
   </group>
 <!--   <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen"> -->
 <!--     <remap from="image" to="$(arg camera_ns)/image_rect_color"/> -->
