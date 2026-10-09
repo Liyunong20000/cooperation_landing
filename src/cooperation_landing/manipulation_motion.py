@@ -4,7 +4,7 @@ import rospy
 import smach
 import smach_ros
 
-from cooperation_landing.dog_stall_monitor import DogStallMonitor
+from cooperation_landing.bridge_preflight import BridgePreflight
 from cooperation_landing.manipulation_states import (
     AlignAndLand,
     DetachApproach,
@@ -347,13 +347,12 @@ def build_state_machine():
 def main():
     """Run the cooperative manipulation state machine."""
     rospy.init_node('manipulation_motion')
+    if not BridgePreflight(timeout_default=5.0).check():
+        rospy.logerr('Manipulation aborted: local UAV2GR communication preflight failed.')
+        return
+    rospy.loginfo('UAV2GR communication preflight passed; starting manipulation.')
     sm_top = build_state_machine()
-    # Retain the monitor for the whole execution; it observes final commands.
-    _dog_stall_monitor = None
-    if rospy.get_param('~enable_dog_stall_monitor', False):
-        _dog_stall_monitor = DogStallMonitor()
-    else:
-        rospy.logwarn('Dog stall monitor is disabled by parameter.')
+    # Dog stall recovery is temporarily disabled, including stale enable parameters.
     sis = smach_ros.IntrospectionServer('manipulation_smach_server', sm_top, '/SM_ROOT')
     sis.start()
     try:

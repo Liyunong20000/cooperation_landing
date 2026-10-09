@@ -26,9 +26,9 @@ def load_uav_topics():
 class BridgePreflight:
     """Require one local message per UAV2GR topic without querying the UAV master."""
 
-    def __init__(self):
+    def __init__(self, timeout_default=20.0):
         self.topics = load_uav_topics()
-        self.window = float(rospy.get_param('~bridge_check_timeout_s', 20.0))
+        self.window = float(rospy.get_param('~bridge_check_timeout_s', timeout_default))
         self.interval = float(rospy.get_param('~bridge_check_interval_s', 1.0))
         if not all(math.isfinite(value) and value > 0 for value in
                    (self.window, self.interval)):

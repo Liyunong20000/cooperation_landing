@@ -9,7 +9,7 @@
   <arg name="enable_keyboard" default="true" />
   <arg name="allow_takeoff" default="false" />
   <arg name="allow_payload_transfer" default="false" />
-  <arg name="enable_dog_stall_monitor" default="true" />
+  <arg name="enable_dog_stall_monitor" default="false" doc="Retained for compatibility; v2 dog stall recovery is temporarily disabled." />
   <arg name="dog_stall_pose_topic" default="$(arg cog_odom_topic)" />
 
   <!-- Load parameters -->
@@ -18,7 +18,7 @@
   <rosparam file="$(find cooperation_landing)/config/LandingInfo.yaml" command="load" />
   <rosparam file="$(find cooperation_landing)/config/LandingPoints.yaml" command="load" />
 
-  <!-- Stall monitor parameters consumed by manipulation_motion_v2.py. -->
+  <!-- Motion parameters; stall settings retained while recovery is disabled. -->
   <group ns="manipulation_motion">
     <rosparam file="$(find cooperation_landing)/config/Manipulation.yaml" command="load" />
     <param name="robot_ns" value="$(arg robot_ns)" />

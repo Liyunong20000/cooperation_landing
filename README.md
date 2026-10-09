@@ -167,6 +167,10 @@ The v2 state machine uses private parameters on the `manipulation_motion`
 node. Common settings include:
 
 - `robot_ns`, `ground_robot_ns`: aerial and ground robot namespaces.
+- `bridge_check_timeout_s`, `bridge_check_interval_s`: before executing v2,
+  require at least one local message on every UAV2GR_1/UAV2GR_2 topic
+  (default wait 5 seconds). Missing topics abort startup before Start;
+  empty AprilTag arrays count as publication.
 - `picking_marker_far`, `picking_marker_near`, `placing_marker_far`,
   `placing_marker_near`: AprilTag IDs used at different ranges.
 - `switching_threshold`, `detaching_takeoff_threshold`: task transition
@@ -187,7 +191,8 @@ node. Common settings include:
   commands run at 10 Hz without velocity smoothing.
 - `dock_tag_timeout_s`, `dock_sit_recheck_timeout_s`: detection-cache age limit
   and wait for a new in-range detection after sitting.
-- `enable_dog_stall_monitor`: enables command-versus-odometry stall recovery.
+- `enable_dog_stall_monitor`: retained for compatibility; dog stall recovery
+  is temporarily disabled inside v2 even if this parameter is true.
 - `allow_takeoff`, `allow_payload_transfer`: explicit safety gates for flight
   and gripper payload operations; both default to `false`.
 

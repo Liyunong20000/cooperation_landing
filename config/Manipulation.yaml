@@ -13,6 +13,8 @@ manipulation_marker_switch_z: 0.04
 # Robot namespaces and sensor waits.
 robot_ns: xuanwu
 ground_robot_ns: go1
+bridge_check_timeout_s: 5.0  # Require one local message on every UAV2GR topic before starting.
+bridge_check_interval_s: 1.0
 odom_wait_timeout_s: 5.0
 takeoff_state_timeout_s: 30.0
 landing_alignment_timeout_s: 60.0
