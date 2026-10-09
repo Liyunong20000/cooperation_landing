@@ -32,7 +32,7 @@ def build_state_machine():
 
     # Keep existing state interfaces: picking/placing_marker represent FAR ids.
 
-    object_state = rospy.get_param('~object_state', 1)
+    object_state = rospy.get_param('~object_state', 0)
     picking_position = rospy.get_param('~picking_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     placing_position = rospy.get_param('~placing_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     takeoff_position = rospy.get_param('~takeoff_position', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
