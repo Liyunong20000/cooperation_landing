@@ -5,11 +5,12 @@
   <arg name="display_only" default="false" doc="Display the current SMACH graph without executing states." />
   <arg name="robot_ns" default="xuanwu" />
   <arg name="ground_robot_ns" default="go1" />
+  <arg name="cog_odom_topic" default="$(eval '/' + arg('robot_ns').strip('/') + '/uav/cog/odom' if arg('robot_ns').strip('/') else '/uav/cog/odom')" />
   <arg name="enable_keyboard" default="true" />
   <arg name="allow_takeoff" default="false" />
   <arg name="allow_payload_transfer" default="false" />
   <arg name="enable_dog_stall_monitor" default="true" />
-  <arg name="dog_stall_pose_topic" default="$(eval '/' + arg('robot_ns').strip('/') + '/uav/cog/odom' if arg('robot_ns').strip('/') else '/uav/cog/odom')" />
+  <arg name="dog_stall_pose_topic" default="$(arg cog_odom_topic)" />
 
   <!-- Load parameters -->
   <rosparam file="$(find cooperation_landing)/config/CameraDroneMatrix.yaml" command="load" />
@@ -22,6 +23,7 @@
     <rosparam file="$(find cooperation_landing)/config/Manipulation.yaml" command="load" />
     <param name="robot_ns" value="$(arg robot_ns)" />
     <param name="ground_robot_ns" value="$(arg ground_robot_ns)" />
+    <param name="cog_odom_topic" value="$(arg cog_odom_topic)" />
     <param name="enable_dog_stall_monitor" value="$(arg enable_dog_stall_monitor)" />
     <param name="cmd_vel_topic" value="$(eval '/' + arg('ground_robot_ns').strip('/') + '/cmd_vel' if arg('ground_robot_ns').strip('/') else '/cmd_vel')" />
     <param name="pose_topic" value="$(arg dog_stall_pose_topic)" />

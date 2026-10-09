@@ -1,5 +1,6 @@
 """Drone basic function implementation."""
 
+import math
 import time
 import threading
 
@@ -43,8 +44,25 @@ class DroneBasic:
         self._tag_message_counter = 0
         self.drone_state = 0
         self.odom_received = False
+        self._odom_lock = threading.Lock()
+        self._odom_pose = None
+        self._odom_receive_time = None
+        self._odom_source_stamp = None
+        self._odom_message_counter = 0
 
         self.robot_ns = ('/' + str(rospy.get_param('~robot_ns', 'xuanwu')).strip('/')).rstrip('/')
+        self.cog_odom_topic = rospy.get_param('~cog_odom_topic', self.robot_ns + '/uav/cog/odom')
+        self.waypoint_position_tol = max(0.0, float(rospy.get_param('~waypoint_position_tol_m', 0.10)))
+        self.waypoint_yaw_tol = max(0.0, float(rospy.get_param('~waypoint_yaw_tol_rad', 0.10)))
+        self.waypoint_timeout_s = max(0.1, float(rospy.get_param('~waypoint_timeout_s', 10.0)))
+        self.waypoint_odom_timeout_s = max(0.1, float(rospy.get_param('~waypoint_odom_timeout_s', 1.0)))
+        self.waypoint_retries = max(0, int(rospy.get_param('~waypoint_retries', 3)))
+        self.waypoint_no_progress_timeout_s = max(
+            0.1, float(rospy.get_param('~waypoint_no_progress_timeout_s', 3.0)))
+        self.waypoint_progress_distance_m = max(
+            0.001, float(rospy.get_param('~waypoint_progress_distance_m', 0.02)))
+        self.waypoint_progress_yaw_rad = max(
+            0.001, float(rospy.get_param('~waypoint_progress_yaw_rad', 0.02)))
 
         # Subscribe and publish.
 
@@ -76,7 +94,7 @@ class DroneBasic:
 
         # Callbacks may run as soon as a subscription is registered.
         self._drone_position_sub = rospy.Subscriber(
-            self.robot_ns + '/uav/cog/odom', Odometry, self._callback_drone_position, queue_size=1
+            self.cog_odom_topic, Odometry, self._callback_drone_position, queue_size=1
         )
         self._drone_state_sub = rospy.Subscriber(
             self.robot_ns + '/flight_state', UInt8, self._callback_drone_state, queue_size=1
@@ -90,17 +108,114 @@ class DroneBasic:
 
     # Get the drone position from ~/uav/cog/odom
     def _callback_drone_position(self, msg):
-        self.drone_x = msg.pose.pose.position.x
-        self.drone_y = msg.pose.pose.position.y
-        self.drone_z = msg.pose.pose.position.z
-        self.drone_qx = msg.pose.pose.orientation.x
-        self.drone_qy = msg.pose.pose.orientation.y
-        self.drone_qz = msg.pose.pose.orientation.z
-        self.drone_qw = msg.pose.pose.orientation.w
-        self.drone_roll, self.drone_pitch, self.drone_yaw = tft.euler_from_quaternion(
-            [self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw]
-        )
+        position, orientation = msg.pose.pose.position, msg.pose.pose.orientation
+        xyz = (position.x, position.y, position.z)
+        quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
+        roll, pitch, yaw = tft.euler_from_quaternion(quaternion)
+        self.drone_x, self.drone_y, self.drone_z = xyz
+        self.drone_qx, self.drone_qy, self.drone_qz, self.drone_qw = quaternion
+        self.drone_roll, self.drone_pitch, self.drone_yaw = roll, pitch, yaw
         self.odom_received = True
+        # Track source updates separately from legacy telemetry fields. Bridge
+        # re-publication of the same source stamp cannot renew freshness.
+        stamp = msg.header.stamp.to_nsec()
+        pose = xyz + (yaw,)
+        valid = (msg.header.frame_id.lstrip('/') == 'world'
+                 and all(math.isfinite(value) for value in pose + quaternion)
+                 and sum(value * value for value in quaternion) > 0.0)
+        with self._odom_lock:
+            if not valid:
+                self._odom_receive_time = None
+                return
+            if stamp <= 0 or (self._odom_source_stamp is not None and stamp <= self._odom_source_stamp):
+                return
+            self._odom_pose = pose
+            self._odom_receive_time = time.monotonic()
+            self._odom_source_stamp = stamp
+            self._odom_message_counter += 1
+
+    def odom_snapshot(self):
+        """Return a consistent world-frame COG pose, update time and sequence."""
+        with self._odom_lock:
+            return self._odom_pose, self._odom_receive_time, self._odom_message_counter
+
+    def _waypoint_odom_fresh(self, received_at):
+        return (received_at is not None
+                and time.monotonic() - received_at < self.waypoint_odom_timeout_s)
+
+    def move_to_target(self, x, y, z, qx, qy, qz, qw):
+        """Wait for this waypoint, resending it on stalled progress or timeout."""
+        values = (x, y, z, qx, qy, qz, qw)
+        if not all(math.isfinite(value) for value in values):
+            rospy.logerr('Waypoint rejected: target contains non-finite values.')
+            return False
+        norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+        if norm == 0.0:
+            rospy.logerr('Waypoint rejected: target quaternion is zero.')
+            return False
+        quaternion = tuple(value / norm for value in (qx, qy, qz, qw))
+        _, _, yaw = tft.euler_from_quaternion(quaternion)
+        def errors(pose):
+            distance = math.sqrt(sum((actual - target) ** 2
+                                     for actual, target in zip(pose[:3], (x, y, z))))
+            yaw_error = abs(math.atan2(math.sin(pose[3] - yaw), math.cos(pose[3] - yaw)))
+            return distance, yaw_error
+
+        def publish(attempt):
+            rospy.loginfo('Waypoint send %d/%d: xyz=(%.3f, %.3f, %.3f), yaw=%.3f rad.',
+                          attempt + 1, self.waypoint_retries + 1, x, y, z, yaw)
+            # The pose and trigger always refer to this same waypoint.
+            self.drone_target('world', x, y, z, *quaternion)
+            return self.odom_snapshot()[2]
+
+        pose, received_at, _ = self.odom_snapshot()
+        if rospy.is_shutdown() or not self._waypoint_odom_fresh(received_at):
+            rospy.logerr('Waypoint aborted: no fresh world-frame COG odometry on %s.', self.cog_odom_topic)
+            return False
+        best_distance, best_yaw = errors(pose)
+        attempt = 0
+        # Require feedback after the pose and its trigger have both been sent.
+        baseline_sequence = publish(attempt)
+        last_progress = last_send = time.monotonic()
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            now = time.monotonic()
+            pose, received_at, sequence = self.odom_snapshot()
+            if not self._waypoint_odom_fresh(received_at):
+                rospy.logerr('Waypoint aborted: COG odometry expired on %s.', self.cog_odom_topic)
+                return False
+            distance, yaw_error = errors(pose)
+            if (sequence > baseline_sequence and distance < self.waypoint_position_tol
+                    and yaw_error < self.waypoint_yaw_tol):
+                rospy.loginfo('Waypoint reached: distance=%.3f m, yaw error=%.3f rad.', distance, yaw_error)
+                return True
+            # Match visual_landing_demo: measure accumulated improvement,
+            # allowing small updates to add up instead of triggering retries.
+            if (best_distance - distance >= self.waypoint_progress_distance_m
+                    or (distance < self.waypoint_position_tol
+                        and best_yaw - yaw_error >= self.waypoint_progress_yaw_rad)):
+                best_distance, best_yaw = distance, yaw_error
+                last_progress = now
+            reason = None
+            if now - last_progress >= self.waypoint_no_progress_timeout_s:
+                reason = 'no significant position/yaw progress'
+            elif now - last_send >= self.waypoint_timeout_s:
+                reason = 'waypoint attempt timed out'
+            if reason is not None:
+                if attempt >= self.waypoint_retries:
+                    rospy.logerr('Waypoint failed: %s; %d retries exhausted.', reason, self.waypoint_retries)
+                    return False
+                rospy.logwarn('Waypoint retry: %s; resending the same pose and trigger.', reason)
+                attempt += 1
+                baseline_sequence = publish(attempt)
+                last_progress = last_send = time.monotonic()
+                pose, _, _ = self.odom_snapshot()
+                best_distance, best_yaw = errors(pose)
+            rospy.loginfo_throttle(1.0, 'Waiting for waypoint: distance=%.3f m, yaw error=%.3f rad, '
+                                   '%.1f s without significant progress.',
+                                   distance, yaw_error, now - last_progress)
+            rate.sleep()
+        return False
 
     def wait_for_odom(self, timeout_s=None):
         """Wait until at least one COG odometry message has arrived."""
@@ -114,7 +229,7 @@ class DroneBasic:
             if self.odom_received:
                 return True
             rate.sleep()
-        rospy.logerr('No odometry received on %s/uav/cog/odom.', self.robot_ns)
+        rospy.logerr('No odometry received on %s.', self.cog_odom_topic)
         return False
 
     # Get the drone state

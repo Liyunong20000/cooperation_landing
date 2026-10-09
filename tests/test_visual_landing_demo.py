@@ -1,6 +1,7 @@
 """Offline flight orchestration checks; no ROS master or hardware commands."""
 
 from pathlib import Path
+import threading
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -297,6 +298,9 @@ def test_visual_session_cannot_send_waypoint(env):
 
 def test_duplicate_source_odom_cannot_refresh_feedback(env):
     drone = RealDemoDrone.__new__(RealDemoDrone)
+    drone._odom_lock = threading.Lock()
+    drone._odom_source_stamp = None
+    drone._odom_message_counter = 0
     drone.odom_arrival = drone.odom_stamp = None
     msg = Odometry()
     msg.header.frame_id = '/world'

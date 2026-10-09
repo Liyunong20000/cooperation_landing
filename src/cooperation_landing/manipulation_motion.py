@@ -315,7 +315,7 @@ def build_state_machine():
             smach.StateMachine.add(
                 'FlyBack',
                 FlyBack(),
-                transitions={'succeeded': 'AlignAndLand'},
+                transitions={'succeeded': 'AlignAndLand', 'failed': 'finish'},
                 remapping={'takeoff_position': 'takeoff_position'},
             )
 

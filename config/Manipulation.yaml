@@ -17,6 +17,16 @@ odom_wait_timeout_s: 5.0
 takeoff_state_timeout_s: 30.0
 landing_alignment_timeout_s: 60.0
 
+# COG waypoint arrival checks (world-frame position and yaw).
+waypoint_position_tol_m: 0.10
+waypoint_yaw_tol_rad: 0.10
+waypoint_timeout_s: 10.0  # Per send attempt; expiry re-sends the same waypoint.
+waypoint_odom_timeout_s: 1.0  # Age of last source update; repeats do not refresh it.
+waypoint_retries: 3  # Additional sends after the initial pose + trigger.
+waypoint_no_progress_timeout_s: 3.0
+waypoint_progress_distance_m: 0.02
+waypoint_progress_yaw_rad: 0.02
+
 # Docking controller limits.
 manipulation_target_z_pick: 0.48
 manipulation_target_z_place: 0.47

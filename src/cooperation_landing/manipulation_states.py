@@ -1242,6 +1242,14 @@ class FlyTarget(smach.State):
                 'FlyTarget: invalid target position from DetachApproach: %s', self.target_position
             )
             return 'failed'
+        try:
+            self.target_position = tuple(float(value) for value in self.target_position[:7])
+        except (TypeError, ValueError):
+            rospy.logerr('FlyTarget: target pose must contain numeric values.')
+            return 'failed'
+        if not all(math.isfinite(value) for value in self.target_position):
+            rospy.logerr('FlyTarget: target pose must contain finite values.')
+            return 'failed'
 
         qx, qy, qz, qw = (
             self.target_position[3],
@@ -1249,8 +1257,7 @@ class FlyTarget(smach.State):
             self.target_position[5],
             self.target_position[6],
         )
-        self.drone_basic.drone_target(
-            'world',
+        if not self.drone_basic.move_to_target(
             self.target_position[0],
             self.target_position[1],
             self.target_position[2] + 0.5,
@@ -1258,12 +1265,9 @@ class FlyTarget(smach.State):
             0,
             0,
             1,
-        )
-        rospy.loginfo('send fly target')
-        rospy.sleep(3)
-        rospy.loginfo('send fly target again')
-        self.drone_basic.drone_target(
-            'world',
+        ):
+            return 'failed'
+        if not self.drone_basic.move_to_target(
             self.target_position[0],
             self.target_position[1],
             self.target_position[2],
@@ -1271,11 +1275,11 @@ class FlyTarget(smach.State):
             qy,
             qz,
             qw,
-        )
+        ):
+            return 'failed'
         rospy.loginfo(
             f'{self.target_position[0]}, {self.target_position[1]}, {self.target_position[2]}, {qx}, {qy}, {qz}, {qw}'
         )
-        rospy.sleep(6)
         if object_state == 0:
             rospy.loginfo('Close gripper')
             self.gripper_move.servo_target_cmd_qilin(0, -100)
@@ -1295,7 +1299,7 @@ class FlyTarget(smach.State):
 
 class FlyBack(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'], input_keys=['takeoff_position'])
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'], input_keys=['takeoff_position'])
         self.takeoff_x, self.takeoff_y, self.takeoff_z, self.takeoff_yaw = 0.0, 0.0, 0.0, 0.0
         self.land_offset = 0.3
         self.drone_basic = DroneBasic()
@@ -1304,22 +1308,26 @@ class FlyBack(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Flyback!!')
-        self.takeoff_x = userdata.takeoff_position[0]
-        self.takeoff_y = userdata.takeoff_position[1]
-        self.takeoff_z = userdata.takeoff_position[2]
-        qx, qy, qz, qw = tft.quaternion_from_euler(0, 0, userdata.takeoff_position[3])
+        try:
+            takeoff_pose = tuple(float(userdata.takeoff_position[index]) for index in range(4))
+        except (TypeError, ValueError, IndexError, AttributeError):
+            rospy.logerr('FlyBack: invalid takeoff position.')
+            return 'failed'
+        if not all(math.isfinite(value) for value in takeoff_pose):
+            rospy.logerr('FlyBack: takeoff position must contain finite values.')
+            return 'failed'
+        self.takeoff_x, self.takeoff_y, self.takeoff_z, takeoff_yaw = takeoff_pose
+        qx, qy, qz, qw = tft.quaternion_from_euler(0, 0, takeoff_yaw)
         rospy.loginfo(
             'FlyBack target: x=%.3f y=%.3f takeoff_z=%.3f',
             self.takeoff_x,
             self.takeoff_y,
             self.takeoff_z,
         )
-        rospy.sleep(1.0)
-        self.drone_basic.drone_target('world', self.takeoff_x, self.takeoff_y, 1.0, qx, qy, qz, qw)
+        if not self.drone_basic.move_to_target(self.takeoff_x, self.takeoff_y, 1.0, qx, qy, qz, qw):
+            return 'failed'
         rospy.loginfo(f'fly back:x= {self.takeoff_x}, {self.takeoff_y}, {self.takeoff_z}')
-        rospy.sleep(8.0)
-        self.drone_basic.drone_target(
-            'world',
+        if not self.drone_basic.move_to_target(
             self.takeoff_x,
             self.takeoff_y,
             self.takeoff_z + self.land_offset,
@@ -1327,7 +1335,8 @@ class FlyBack(smach.State):
             qy,
             qz,
             qw,
-        )
+        ):
+            return 'failed'
         rospy.loginfo('above 0.3m!!')
         return 'succeeded'
 

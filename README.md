@@ -173,6 +173,16 @@ node. Common settings include:
   heights.
 - `odom_wait_timeout_s`, `takeoff_state_timeout_s`,
   `landing_alignment_timeout_s`: bounded safety waits.
+- `cog_odom_topic`: COG odometry used by the flight states, defaulting to
+  `/<robot_ns>/uav/cog/odom` (`/xuanwu/uav/cog/odom`).
+- `waypoint_position_tol_m`, `waypoint_yaw_tol_rad`, `waypoint_timeout_s`,
+  `waypoint_odom_timeout_s`: arrival tolerances and feedback timeouts. FlyTarget
+  and FlyBack confirm each waypoint with new world-frame odometry before
+  advancing; stale or repeated source feedback cannot confirm arrival.
+- `waypoint_no_progress_timeout_s`, `waypoint_progress_distance_m`,
+  `waypoint_progress_yaw_rad`, `waypoint_retries`: re-send the same pose and
+  trigger when progress stalls (default 3 seconds) or an attempt times out.
+  The next waypoint is sent only after arrival at the current waypoint.
 - `dock_min_linear_vel`, `dock_max_linear_vel`: docking control limits;
   commands run at 10 Hz without velocity smoothing.
 - `dock_tag_timeout_s`, `dock_sit_recheck_timeout_s`: detection-cache age limit
